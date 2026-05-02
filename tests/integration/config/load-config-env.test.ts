@@ -5,6 +5,63 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { loadConfig } from '../../../src/config/load-config.js';
+import {
+  APP_DIRECTORY_NAME,
+  resolveRoutineDefinitionsDirectory,
+  resolveRoutineHistoryDirectory
+} from '../../../src/config/paths.js';
+
+const DEFAULT_ROUTINES_ENABLED = false;
+
+function buildBaseConfigYaml(extraLines: string[] = []) {
+  return [
+    'server:',
+    '  mode: http',
+    '  host: 127.0.0.1',
+    '  port: 8765',
+    'logging:',
+    '  level: info',
+    'screenpipe:',
+    '  url: http://127.0.0.1:3030',
+    'providers:',
+    '  embeddings:',
+    '    kind: openai-compatible',
+    '    baseUrl: http://127.0.0.1:11434/v1',
+    '    model: acceptance-embedding-model',
+    'vectorStore:',
+    '  kind: chroma',
+    'retrieval:',
+    '  freshnessWindowMinutes: 15',
+    '  pollIntervalSeconds: 30',
+    '  maxCatchUpBatches: 3',
+    '  maxCatchUpRecords: 500',
+    'routines:',
+    `  enabled: ${DEFAULT_ROUTINES_ENABLED}`,
+    ...extraLines
+  ].join('\n');
+}
+
+async function writeConfigForHome(homeDir: string, yaml: string) {
+  const appDir = join(homeDir, APP_DIRECTORY_NAME);
+  const configPath = join(appDir, 'config.yaml');
+  await mkdir(appDir, { recursive: true });
+  await writeFile(configPath, yaml, 'utf8');
+  return configPath;
+}
+
+function setRoutineNoiseEnv() {
+  process.env.ROUTINES_ENABLED = 'true';
+  process.env.ROUTINES_DEFINITIONS_PATH = '/tmp/routines-definitions-from-env';
+  process.env.ROUTINES_HISTORY_PATH = '/tmp/routines-history-from-env';
+}
+
+function clearRoutineNoiseEnv() {
+  delete process.env.ROUTINES_ENABLED;
+  delete process.env.ROUTINES_DEFINITIONS_PATH;
+  delete process.env.ROUTINES_HISTORY_PATH;
+}
+
+clearRoutineNoiseEnv();
 
 const originalHome = process.env.HOME;
 const originalManagedServiceFlag = process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
@@ -49,9 +106,70 @@ afterEach(() => {
   } else {
     process.env.SCREENPIPE_API_KEY = originalScreenpipeApiKey;
   }
+
+  clearRoutineNoiseEnv();
 });
 
 describe('loadConfig env overrides', () => {
+  it('resolves default routines definitions and history paths from the canonical app home', async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-defaults-'));
+    await writeConfigForHome(homeDir, buildBaseConfigYaml());
+
+    process.env.HOME = homeDir;
+
+    const config = await loadConfig();
+
+    expect(config.routines.enabled).toBe(false);
+    expect(config.routines.definitionsPath).toBe(resolveRoutineDefinitionsDirectory());
+    expect(config.routines.historyPath).toBe(resolveRoutineHistoryDirectory());
+  });
+
+  it('keeps the default history path when only routines.definitionsPath is overridden', async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-definitions-only-'));
+    const customDefinitionsPath = join(homeDir, 'custom-routines', 'definitions');
+    await writeConfigForHome(homeDir, buildBaseConfigYaml([
+      `  definitionsPath: ${customDefinitionsPath}`
+    ]));
+
+    process.env.HOME = homeDir;
+
+    const config = await loadConfig();
+
+    expect(config.routines.enabled).toBe(false);
+    expect(config.routines.definitionsPath).toBe(customDefinitionsPath);
+    expect(config.routines.historyPath).toBe(resolveRoutineHistoryDirectory());
+  });
+
+  it('keeps the default definitions path when only routines.historyPath is overridden', async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-history-only-'));
+    const customHistoryPath = join(homeDir, 'custom-routines', 'history');
+    await writeConfigForHome(homeDir, buildBaseConfigYaml([
+      `  historyPath: ${customHistoryPath}`
+    ]));
+
+    process.env.HOME = homeDir;
+
+    const config = await loadConfig();
+
+    expect(config.routines.enabled).toBe(false);
+    expect(config.routines.definitionsPath).toBe(resolveRoutineDefinitionsDirectory());
+    expect(config.routines.historyPath).toBe(customHistoryPath);
+  });
+
+  it('ignores ROUTINES_* env noise and keeps config.yaml as the routines boundary', async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-env-noise-'));
+    await writeConfigForHome(homeDir, buildBaseConfigYaml());
+
+    process.env.HOME = homeDir;
+    setRoutineNoiseEnv();
+
+    const config = await loadConfig();
+
+    expect(config.routines.enabled).toBe(false);
+    expect(config.routines.definitionsPath).toBe(resolveRoutineDefinitionsDirectory());
+    expect(config.routines.historyPath).toBe(resolveRoutineHistoryDirectory());
+  });
+
   it('loads embedding concurrency from config.yaml', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-embedding-concurrency-'));
     const appDir = join(homeDir, '.screenpipe-memory-mcp');
