@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const APP_DIR = '.screenpipe-memory-mcp';
+const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 
 export async function writeTestConfig(homeDir: string, config: {
   embeddingBaseUrl: string;
@@ -15,7 +15,7 @@ export async function writeTestConfig(homeDir: string, config: {
   maxCatchUpBatches?: number;
   maxCatchUpRecords?: number;
 }): Promise<string> {
-  const appDir = join(homeDir, APP_DIR);
+  const appDir = join(homeDir, APP_DIRECTORY_NAME);
   await mkdir(appDir, { recursive: true });
 
   const filePath = join(appDir, 'config.yaml');

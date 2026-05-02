@@ -6,9 +6,12 @@ import { dirname, join } from 'node:path';
 
 import YAML from 'yaml';
 
-export const APP_DIRECTORY_NAME = '.screenpipe-memory-mcp';
+export const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 export const CONFIG_FILE_NAME = 'config.yaml';
 export const LOG_DIRECTORY_NAME = 'logs';
+export const ROUTINES_DIRECTORY_NAME = 'routines';
+export const ROUTINE_DEFINITIONS_DIRECTORY_NAME = 'definitions';
+export const ROUTINE_HISTORY_DIRECTORY_NAME = 'history';
 export const HERMES_DIRECTORY_NAME = '.hermes';
 export const HERMES_CONFIG_FILE_NAME = 'config.yaml';
 export const DEFAULT_HERMES_SERVER_NAME = 'screenpipe-memory';
@@ -38,16 +41,20 @@ export function parseNodeMajorVersion(version) {
 export function ensureSupportedNodeVersion(version = process.versions.node) {
   const majorVersion = parseNodeMajorVersion(version);
   if (majorVersion < MINIMUM_NODE_MAJOR) {
-    throw new Error(`screenpipe-memory-mcp requires Node ${MINIMUM_NODE_MAJOR}+ (found ${version}).`);
+    throw new Error(`canary-alpha-mcp requires Node ${MINIMUM_NODE_MAJOR}+ (found ${version}).`);
   }
 }
 
 export function resolveAppPaths(homeDirectory = homedir()) {
   const appDirectory = join(homeDirectory, APP_DIRECTORY_NAME);
+  const routinesDirectory = join(appDirectory, ROUTINES_DIRECTORY_NAME);
   return {
     appDirectory,
     configPath: join(appDirectory, CONFIG_FILE_NAME),
-    logDirectory: join(appDirectory, LOG_DIRECTORY_NAME)
+    logDirectory: join(appDirectory, LOG_DIRECTORY_NAME),
+    routinesDirectory,
+    routinesDefinitionsDirectory: join(routinesDirectory, ROUTINE_DEFINITIONS_DIRECTORY_NAME),
+    routinesHistoryDirectory: join(routinesDirectory, ROUTINE_HISTORY_DIRECTORY_NAME)
   };
 }
 

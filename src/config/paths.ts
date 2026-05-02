@@ -10,6 +10,9 @@ export const CONFIG_FILE_NAME = 'config.yaml';
 export const CONFIG_PATH_SEGMENT = '.canary-alpha-mcp/config.yaml';
 export const MEMORY_DIRECTORY_NAME = 'memory';
 export const LOG_DIRECTORY_NAME = 'logs';
+export const ROUTINES_DIRECTORY_NAME = 'routines';
+export const ROUTINE_DEFINITIONS_DIRECTORY_NAME = 'definitions';
+export const ROUTINE_HISTORY_DIRECTORY_NAME = 'history';
 export const SERVICE_LOG_FILE_NAME = 'service.log';
 export const PRIVACY_STATE_FILE_NAME = 'privacy-state.json';
 export const RUNTIME_REGISTRY_DIRECTORY_NAME = 'runtime-processes';
@@ -37,6 +40,18 @@ export function resolveMemoryFilePath(scope: MemoryScope): string {
 
 export function resolveLogDirectory(): string {
   return join(resolveAppDirectory(), LOG_DIRECTORY_NAME);
+}
+
+export function resolveRoutinesDirectory(): string {
+  return join(resolveAppDirectory(), ROUTINES_DIRECTORY_NAME);
+}
+
+export function resolveRoutineDefinitionsDirectory(): string {
+  return join(resolveRoutinesDirectory(), ROUTINE_DEFINITIONS_DIRECTORY_NAME);
+}
+
+export function resolveRoutineHistoryDirectory(): string {
+  return join(resolveRoutinesDirectory(), ROUTINE_HISTORY_DIRECTORY_NAME);
 }
 
 export function resolveLogFilePath(): string {
