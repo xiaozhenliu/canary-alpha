@@ -98,7 +98,12 @@ describe('retrieval infrastructure correctness', () => {
         logDirectory: '/tmp/logs',
         serviceLogFile: '/tmp/logs/service.log'
       },
-        trim: { enabled: true, intervalSeconds: 600 }
+      routines: {
+        enabled: false,
+        definitionsPath: '/tmp/routines/definitions',
+        historyPath: '/tmp/routines/history'
+      },
+      trim: { enabled: true, intervalSeconds: 600 }
     });
 
     await expect(provider.embed('hello world')).resolves.toEqual([0.5, 0.25, 0.125]);

@@ -52,6 +52,12 @@ const retrievalConfigSchema = z.object({
   maxCatchUpRecords: z.number().int().positive().default(500)
 });
 
+const routinesConfigSchema = z.object({
+  enabled: z.boolean().default(false),
+  definitionsPath: z.string().optional(),
+  historyPath: z.string().optional()
+});
+
 export const appConfigSchema = z.object({
   server: serverConfigSchema.default({
     mode: 'http',
@@ -77,6 +83,7 @@ export const appConfigSchema = z.object({
     maxCatchUpBatches: 3,
     maxCatchUpRecords: 500
   }),
+  routines: routinesConfigSchema.default({ enabled: false }),
   trim: trimConfigSchema.default({ enabled: true, intervalSeconds: 600 })
 });
 

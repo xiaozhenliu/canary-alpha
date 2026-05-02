@@ -172,6 +172,9 @@ export function buildConfigObject(options = {}) {
       pollIntervalSeconds: 30,
       maxCatchUpBatches: 3,
       maxCatchUpRecords: 500
+    },
+    routines: {
+      enabled: false
     }
   };
 }

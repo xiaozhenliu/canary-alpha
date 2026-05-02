@@ -13,7 +13,7 @@ import {
   resolveRoutineDefinitionsDirectory,
   resolveRoutineHistoryDirectory,
   resolveRoutinesDirectory
-} from '../../src/config/paths.ts';
+} from '../../src/config/paths.js';
 
 const execFileAsync = promisify(execFile);
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));

@@ -1,7 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import YAML from 'yaml';
 
-import { resolveConfigPath, resolveLogDirectory, resolveLogFilePath } from './paths.js';
+import {
+  resolveConfigPath,
+  resolveLogDirectory,
+  resolveLogFilePath,
+  resolveRoutineDefinitionsDirectory,
+  resolveRoutineHistoryDirectory
+} from './paths.js';
 import { appConfigSchema, logLevelSchema, serverModeSchema } from './schema.js';
 import type { AppConfig } from '../types/app-config.js';
 
@@ -113,6 +119,11 @@ export async function loadConfig(overrides?: {
       pollIntervalSeconds: parsed.data.retrieval.pollIntervalSeconds,
       maxCatchUpBatches: parsed.data.retrieval.maxCatchUpBatches,
       maxCatchUpRecords: parsed.data.retrieval.maxCatchUpRecords
+    },
+    routines: {
+      enabled: parsed.data.routines.enabled,
+      definitionsPath: parsed.data.routines.definitionsPath ?? resolveRoutineDefinitionsDirectory(),
+      historyPath: parsed.data.routines.historyPath ?? resolveRoutineHistoryDirectory()
     },
     paths: {
       configFile,

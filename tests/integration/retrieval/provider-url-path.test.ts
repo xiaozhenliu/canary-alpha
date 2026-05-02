@@ -90,7 +90,12 @@ describe('provider and retrieval URL handling', () => {
         logDirectory: '/tmp/logs',
         serviceLogFile: '/tmp/logs/service.log'
       },
-        trim: { enabled: true, intervalSeconds: 600 }
+      routines: {
+        enabled: false,
+        definitionsPath: '/tmp/routines/definitions',
+        historyPath: '/tmp/routines/history'
+      },
+      trim: { enabled: true, intervalSeconds: 600 }
     });
 
     await provider.embed('hello');
@@ -171,7 +176,12 @@ describe('provider and retrieval URL handling', () => {
         logDirectory: '/tmp/logs',
         serviceLogFile: '/tmp/logs/service.log'
       },
-        trim: { enabled: true, intervalSeconds: 600 }
+      routines: {
+        enabled: false,
+        definitionsPath: '/tmp/routines/definitions',
+        historyPath: '/tmp/routines/history'
+      },
+      trim: { enabled: true, intervalSeconds: 600 }
     });
 
     await provider.embed('hello');

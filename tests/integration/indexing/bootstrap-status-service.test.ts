@@ -165,7 +165,12 @@ function createConfig(): AppConfig {
       logDirectory: '/tmp/bootstrap-status-test-logs',
       serviceLogFile: '/tmp/bootstrap-status-test-logs/service.log'
     },
-        trim: { enabled: true, intervalSeconds: 600 }
+    routines: {
+      enabled: false,
+      definitionsPath: '/tmp/routines/definitions',
+      historyPath: '/tmp/routines/history'
+    },
+    trim: { enabled: true, intervalSeconds: 600 }
   };
 }
 

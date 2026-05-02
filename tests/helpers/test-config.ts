@@ -42,7 +42,9 @@ export async function writeTestConfig(homeDir: string, config: {
     '  freshnessWindowMinutes: 15',
     `  pollIntervalSeconds: ${config.pollIntervalSeconds ?? 30}`,
     `  maxCatchUpBatches: ${config.maxCatchUpBatches ?? 3}`,
-    `  maxCatchUpRecords: ${config.maxCatchUpRecords ?? 500}`
+    `  maxCatchUpRecords: ${config.maxCatchUpRecords ?? 500}`,
+    'routines:',
+    '  enabled: false'
   ].join('\n');
 
   await writeFile(filePath, `${content}\n`, 'utf8');

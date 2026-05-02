@@ -68,6 +68,11 @@ export interface AppConfig {
     maxCatchUpBatches: number;
     maxCatchUpRecords: number;
   };
+  routines: {
+    enabled: boolean;
+    definitionsPath: string;
+    historyPath: string;
+  };
   paths: {
     configFile: string;
     logDirectory: string;

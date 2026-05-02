@@ -43,6 +43,11 @@ describe('embedding provider factory', () => {
           logDirectory: '/tmp/logs',
           serviceLogFile: '/tmp/logs/service.log'
         },
+        routines: {
+          enabled: false,
+          definitionsPath: '/tmp/routines/definitions',
+          historyPath: '/tmp/routines/history'
+        },
         trim: { enabled: true, intervalSeconds: 600 }
       });
 
@@ -79,6 +84,11 @@ describe('embedding provider factory', () => {
           configFile: '/tmp/ollama-config.yaml',
           logDirectory: '/tmp/logs',
           serviceLogFile: '/tmp/logs/service.log'
+        },
+        routines: {
+          enabled: false,
+          definitionsPath: '/tmp/routines/definitions',
+          historyPath: '/tmp/routines/history'
         },
         trim: { enabled: true, intervalSeconds: 600 }
       });

@@ -172,7 +172,7 @@ describe('loadConfig env overrides', () => {
 
   it('loads embedding concurrency from config.yaml', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-embedding-concurrency-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -209,7 +209,7 @@ describe('loadConfig env overrides', () => {
 
   it('defaults embedding concurrency when the field is omitted', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-embedding-concurrency-default-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -244,7 +244,7 @@ describe('loadConfig env overrides', () => {
   });
   it('loads screenpipe apiKey from config.yaml', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-screenpipe-auth-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -281,7 +281,7 @@ describe('loadConfig env overrides', () => {
 
   it('prefers SCREENPIPE_BASE_URL over config.yaml screenpipe.url for managed service runs', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-env-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -321,7 +321,7 @@ describe('loadConfig env overrides', () => {
 
   it('prefers SCREENPIPE_API_KEY over config.yaml screenpipe.apiKey for managed service runs', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-env-screenpipe-key-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -360,7 +360,7 @@ describe('loadConfig env overrides', () => {
 
   it('ignores SCREENPIPE_BASE_URL for non-managed runs and keeps config.yaml screenpipe.url', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-empty-env-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -400,7 +400,7 @@ describe('loadConfig env overrides', () => {
 
   it('ignores stale SCREENPIPE_MEMORY_MCP_SERVER_PORT outside managed service runs', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-stale-frozen-port-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
@@ -438,7 +438,7 @@ describe('loadConfig env overrides', () => {
 
   it('falls back to the frozen managed-service port when MCP_PORT is invalid for managed service runs', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'load-config-invalid-runtime-port-'));
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
     await mkdir(appDir, { recursive: true });
