@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.dist/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Caches and temp files
+.cache/
+.tmp/
+tmp/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Local runtime state
+.worktrees/
+.screenpipe-memory-mcp/
+.claude/
+.mcp.json
+CLAUDE.md
+AGENTS.md
+.planning/
+docs/superpowers/
+
+# AI/agent planning artifacts
+**/plans/
+**/PLAN.md
+**/*-PLAN.md
+**/*_PLAN.md
+
+# OS noise
+.DS_Store

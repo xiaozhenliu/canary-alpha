@@ -1,0 +1,51 @@
+{
+  "name": "canary-alpha-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "test:acceptance": "vitest run tests/acceptance",
+    "test:http-tool-flow": "vitest run tests/acceptance/http-tool-flow.test.ts",
+    "test:smoke:mcp": "vitest run tests/acceptance/mcp-smoke.test.ts",
+    "review:codex": "codex review -c model='\"gpt-5.4\"' --uncommitted",
+    "feedback:mcp": "npm run test:smoke:mcp && npm run review:codex",
+    "setup": "node scripts/setup.js",
+    "onboard": "node scripts/onboard.js",
+    "service:start": "node scripts/service-start.js",
+    "service:stop": "node scripts/service-stop.js",
+    "service:status": "node scripts/service-status.js",
+    "service:logs": "node scripts/service-logs.js",
+    "smoke:http": "vitest run tests/acceptance/http-smoke.test.ts",
+    "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
+    "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
+    "linear": "node --import tsx scripts/linear.ts",
+    "screenpipe:safe-record": "node scripts/screenpipe-safe-record.js",
+    "storage:diagnostics": "node --import tsx scripts/storage-diagnostics.js",
+    "rebuild-index": "tsx src/index.ts rebuild-index",
+    "dev:stdio": "tsx src/index.ts --mode stdio",
+    "dev:http": "tsx src/index.ts --mode http"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "^4.1.1",
+    "@modelcontextprotocol/client": "^2.0.0-alpha.2",
+    "@modelcontextprotocol/node": "^2.0.0-alpha.2",
+    "@modelcontextprotocol/server": "^2.0.0-alpha.2",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
