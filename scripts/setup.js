@@ -36,6 +36,8 @@ async function main() {
   console.log(`- repo: ${repositoryRoot}`);
   console.log(`- config: ${paths.configPath}${createdConfig ? ' (created)' : ' (kept existing)'}`);
   console.log(`- logs: ${paths.logDirectory}`);
+  console.log(`- routines definitions: ${paths.routinesDefinitionsDirectory}`);
+  console.log(`- routines history: ${paths.routinesHistoryDirectory}`);
   console.log(`- dependencies: ${installedDependencies ? 'installed with npm install' : 'already present'}`);
   console.log('');
   console.log('Next steps:');

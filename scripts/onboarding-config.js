@@ -186,6 +186,8 @@ export function buildConfigYaml(options = {}) {
 export async function ensureAppDirectories(paths) {
   await mkdir(paths.appDirectory, { recursive: true });
   await mkdir(paths.logDirectory, { recursive: true });
+  await mkdir(paths.routinesDefinitionsDirectory, { recursive: true });
+  await mkdir(paths.routinesHistoryDirectory, { recursive: true });
 }
 
 function formatBackupTimestamp(date) {
