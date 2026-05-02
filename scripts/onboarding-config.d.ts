@@ -52,6 +52,9 @@ export interface OnboardingConfig {
     maxCatchUpBatches: number;
     maxCatchUpRecords: number;
   };
+  routines: {
+    enabled: boolean;
+  };
 }
 
 export const APP_DIRECTORY_NAME: string;
