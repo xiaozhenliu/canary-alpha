@@ -34,12 +34,16 @@ tmp/
 # Local runtime state
 .worktrees/
 .screenpipe-memory-mcp/
+.canary-alpha-mcp/
+.codex-review/
 .claude/
 .mcp.json
-CLAUDE.md
+# CLAUDE.md and .planning/ are tracked on dev branch
+# but gitignored on public-main branch
+# see CLAUDE.md → Branch Strategy for merge procedure
 AGENTS.md
-.planning/
 docs/superpowers/
+docs/plan/
 
 # AI/agent planning artifacts
 **/plans/
