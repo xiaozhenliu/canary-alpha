@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -13,7 +14,7 @@ import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
 
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const execFileAsync = promisify(execFile);
 
 async function reserveFreePort(): Promise<number> {

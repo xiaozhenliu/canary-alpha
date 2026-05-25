@@ -1,7 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export interface StartedServerProcess {
   process: ChildProcess;

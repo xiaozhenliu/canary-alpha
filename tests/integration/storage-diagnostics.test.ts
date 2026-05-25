@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,6 +15,7 @@ import {
 import { writeTestConfig } from '../helpers/test-config.js';
 
 const execFileAsync = promisify(execFile);
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cleanup: Array<() => Promise<void>> = [];
 
 async function createScreenpipeFixture(screenpipeDirectory: string): Promise<void> {
@@ -542,7 +544,7 @@ describe('storage diagnostics', () => {
     });
 
     const { stdout } = await execFileAsync('npm', ['run', '--silent', 'storage:diagnostics'], {
-      cwd: '/Users/xz/Projects/lifecapture-mcp',
+      cwd: PROJECT_ROOT,
       env: {
         ...process.env,
         HOME: homeDir

@@ -1,6 +1,9 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { Client, StdioClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export interface ConnectedClient {
   client: Client;
