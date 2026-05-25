@@ -147,7 +147,7 @@ async function setupControlledEnvironment() {
     port
   });
 
-  const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+  const checkpointDir = join(homeDir, '.canary-alpha-mcp');
   await ensureDirectory(checkpointDir);
   await writeFile(
     join(checkpointDir, 'retrieval-checkpoint.json'),
@@ -158,7 +158,7 @@ async function setupControlledEnvironment() {
     'utf8'
   );
 
-  const memoryDirectory = join(homeDir, '.screenpipe-memory-mcp', 'memory');
+  const memoryDirectory = join(homeDir, '.canary-alpha-mcp', 'memory');
   await ensureDirectory(memoryDirectory);
   await writeFile(join(memoryDirectory, 'memory.md'), 'seed-memory-prefix', 'utf8');
 

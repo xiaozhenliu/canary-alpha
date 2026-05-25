@@ -88,7 +88,7 @@ describe('focused v1 tool result contract', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'tool-result-contract-stdio-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.json'),

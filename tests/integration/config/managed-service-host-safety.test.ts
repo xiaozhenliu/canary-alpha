@@ -51,7 +51,7 @@ describe('managed service host safety', () => {
       mode: 'http'
     });
 
-    const configPath = join(homeDir, '.screenpipe-memory-mcp', 'config.yaml');
+    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
 
     // overwrite only the host field to simulate a later unsafe edit
     const unsafeConfig = [

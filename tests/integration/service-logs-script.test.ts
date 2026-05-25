@@ -27,7 +27,7 @@ describe('service:logs script', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'service-logs-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const logDir = join(homeDir, '.screenpipe-memory-mcp', 'logs');
+    const logDir = join(homeDir, '.canary-alpha-mcp', 'logs');
     await mkdir(logDir, { recursive: true });
     await writeFile(join(logDir, 'service.log.1'), [
       '2026-04-15T00:00:00.000Z [INFO] rotated line 1',

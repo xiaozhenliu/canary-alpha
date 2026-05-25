@@ -52,7 +52,7 @@ describe('HTTP smoke acceptance', () => {
     });
 
     await writeFile(
-      join(homeDir, '.screenpipe-memory-mcp', 'retrieval-checkpoint.json'),
+      join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json'),
       JSON.stringify({
         cursor: 'http-smoke-checkpoint',
         timestamp: new Date(Date.now() - 2 * 60_000).toISOString()

@@ -177,7 +177,7 @@ describe('rebuild-index acceptance', () => {
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
     await mkdir(retrievalStateDir, { recursive: true });
-    await mkdir(join(homeDir, '.screenpipe-memory-mcp'), { recursive: true });
+    await mkdir(join(homeDir, '.canary-alpha-mcp'), { recursive: true });
 
     const screenpipe = await startScreenpipeStub({
       records: [
@@ -202,7 +202,7 @@ describe('rebuild-index acceptance', () => {
     });
 
     await writeFile(
-      join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json'),
+      join(homeDir, '.canary-alpha-mcp', 'privacy-state.json'),
       JSON.stringify({ paused: false, excludedApps: ['Claude'], suppressedRanges: [] }, null, 2),
       'utf8'
     );
@@ -230,7 +230,7 @@ describe('rebuild-index acceptance', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-default-app-home-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const memoryDir = join(appDir, 'memory');
     await mkdir(memoryDir, { recursive: true });
 
@@ -500,7 +500,7 @@ describe('rebuild-index acceptance', () => {
       // Keep stderr drained during test.
     });
 
-    const runtimeDir = join(homeDir, '.screenpipe-memory-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -658,7 +658,7 @@ describe('rebuild-index acceptance', () => {
       // Keep stderr drained during test.
     });
 
-    const runtimeDir = join(homeDir, '.screenpipe-memory-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -945,7 +945,7 @@ describe('rebuild-index acceptance', () => {
       stderr += chunk.toString();
     });
 
-    const runtimeDir = join(homeDir, '.screenpipe-memory-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -1019,7 +1019,7 @@ describe('rebuild-index acceptance', () => {
     await writeFile(staleMarkerPath, JSON.stringify({
       pid: process.pid,
       mode: 'stdio',
-      configFile: join(homeDir, '.screenpipe-memory-mcp', 'config.yaml'),
+      configFile: join(homeDir, '.canary-alpha-mcp', 'config.yaml'),
       registeredAt: '2000-01-01T00:00:00.000Z'
     }, null, 2), 'utf8');
 
@@ -1067,7 +1067,7 @@ describe('rebuild-index acceptance', () => {
     const lockPath = join(retrievalStateDir, 'rebuild-index.lock');
     await writeFile(lockPath, JSON.stringify({
       pid: process.pid,
-      configFile: join(homeDir, '.screenpipe-memory-mcp', 'config.yaml'),
+      configFile: join(homeDir, '.canary-alpha-mcp', 'config.yaml'),
       lockedAt: '2000-01-01T00:00:00.000Z'
     }, null, 2), 'utf8');
 
@@ -1319,7 +1319,7 @@ describe('rebuild-index acceptance', () => {
 
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     await mkdir(launchAgentsDir, { recursive: true });
-    await writeFile(join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -1396,7 +1396,7 @@ describe('rebuild-index acceptance', () => {
     expect(structured.pid).toBe(server.pid);
     expect(structured.mode).toBe('http');
     expect(structured.port).toBe(managedPort);
-    expect(structured.configFile).toBe(join(homeDir, '.screenpipe-memory-mcp', 'config.yaml'));
+    expect(structured.configFile).toBe(join(homeDir, '.canary-alpha-mcp', 'config.yaml'));
 
     await expect(execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
       cwd: PROJECT_ROOT,
@@ -1411,7 +1411,7 @@ describe('rebuild-index acceptance', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-acceptance-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const retrievalStateDir = join(homeDir, 'retrieval-state');
     const memoryDir = join(appDir, 'memory');
     const fixtureTimestamp = '2026-04-13T09:00:00.000Z';

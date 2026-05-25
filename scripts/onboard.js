@@ -43,7 +43,7 @@ function fail(message) {
 
 function createClient() {
   return new Client({
-    name: 'screenpipe-memory-mcp-onboard',
+    name: 'canary-alpha-mcp-onboard',
     version: '1.0.0'
   });
 }
@@ -402,7 +402,7 @@ async function runFirstValidation(configPath) {
 
 async function main() {
   ensureSupportedNodeVersion();
-  console.log('screenpipe-memory-mcp onboarding');
+  console.log('canary-alpha-mcp onboarding');
   console.log('================================');
 
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);

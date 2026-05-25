@@ -595,16 +595,16 @@ describe('retrieval infrastructure correctness', () => {
       kind: 'chroma'
     });
 
-    expect(directory.endsWith('/.screenpipe-memory-mcp')).toBe(true);
+    expect(directory.endsWith('/.canary-alpha-mcp')).toBe(true);
   });
 
   it('expands a tilde-prefixed vector store path into the user home directory', () => {
     const directory = resolveVectorStoreDirectory({
       kind: 'chroma',
-      path: '~/.screenpipe-memory-mcp/chroma'
+      path: '~/.canary-alpha-mcp/chroma'
     });
 
-    expect(directory).toBe(`${homedir()}/.screenpipe-memory-mcp/chroma`);
+    expect(directory).toBe(`${homedir()}/.canary-alpha-mcp/chroma`);
   });
 
   it('starts empty instead of seeding production fixture records', async () => {

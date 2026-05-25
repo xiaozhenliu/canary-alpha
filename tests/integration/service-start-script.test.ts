@@ -27,14 +27,14 @@ describe('service:start script', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'service-start-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
     const lsofPath = join(fakeBinDir, 'lsof');
     const distDir = join(PROJECT_ROOT, 'dist', 'src');
     const distEntrypoint = join(distDir, 'index.js');
-    const plistPath = join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
 
     await mkdir(appDir, { recursive: true });
     await mkdir(launchAgentsDir, { recursive: true });
@@ -94,14 +94,14 @@ describe('service:start script', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'service-start-port-conflict-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
     const lsofPath = join(fakeBinDir, 'lsof');
     const distDir = join(PROJECT_ROOT, 'dist', 'src');
     const distEntrypoint = join(distDir, 'index.js');
-    const plistPath = join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
 
     await mkdir(appDir, { recursive: true });
     await mkdir(launchAgentsDir, { recursive: true });

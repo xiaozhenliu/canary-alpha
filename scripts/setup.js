@@ -32,7 +32,7 @@ async function main() {
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);
   const createdConfig = await ensureConfigFile();
 
-  console.log('screenpipe-memory-mcp setup complete.');
+  console.log('canary-alpha-mcp setup complete.');
   console.log(`- repo: ${repositoryRoot}`);
   console.log(`- config: ${paths.configPath}${createdConfig ? ' (created)' : ' (kept existing)'}`);
   console.log(`- logs: ${paths.logDirectory}`);

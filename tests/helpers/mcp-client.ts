@@ -12,7 +12,7 @@ export interface ConnectedClient {
 
 function createClient(): Client {
   return new Client({
-    name: 'screenpipe-memory-mcp-test-client',
+    name: 'canary-alpha-mcp-test-client',
     version: '0.1.0'
   });
 }

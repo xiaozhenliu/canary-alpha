@@ -86,7 +86,7 @@ describe('privacy control acceptance', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'privacy-enforcement-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.json'),
@@ -204,7 +204,7 @@ describe('privacy control acceptance', () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'privacy-delete-range-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.json'),

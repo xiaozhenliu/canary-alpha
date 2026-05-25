@@ -48,7 +48,7 @@ describe('real MCP smoke', () => {
       mode: 'stdio'
     });
 
-    const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.json'),
       JSON.stringify({

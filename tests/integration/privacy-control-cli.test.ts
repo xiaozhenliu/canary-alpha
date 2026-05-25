@@ -124,7 +124,7 @@ describe('privacy-control CLI', () => {
         MCP_PORT: '18766'
       }
     });
-    const pausedStatePath = join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json');
+    const pausedStatePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
     const pausedState = JSON.parse(await readFile(pausedStatePath, 'utf8')) as { paused: boolean };
 
     const resumeResult = await execFileAsync(process.execPath, [SCRIPT_PATH, 'resume'], {
@@ -177,7 +177,7 @@ describe('privacy-control CLI', () => {
       }
     });
 
-    const statePath = join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json');
+    const statePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
     const persistedState = JSON.parse(await readFile(statePath, 'utf8')) as {
       suppressedRanges?: Array<{ from: string; to: string }>;
     };
@@ -324,7 +324,7 @@ describe('privacy-control CLI', () => {
       maxBuffer: 10 * 1024 * 1024
     });
 
-    const statePath = join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json');
+    const statePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
     const persistedState = JSON.parse(await readFile(statePath, 'utf8')) as { excludedApps: string[] };
     const commands = (await readFile(commandsPath, 'utf8')).trim().split('\n').filter(Boolean);
 
@@ -393,7 +393,7 @@ describe('privacy-control CLI', () => {
       error = caught as { stdout?: string; stderr?: string; code?: number };
     }
 
-    const statePath = join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json');
+    const statePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
     const persistedState = JSON.parse(await readFile(statePath, 'utf8')) as { excludedApps: string[] };
     const commands = (await readFile(commandsPath, 'utf8')).trim().split('\n').filter(Boolean);
 
@@ -424,7 +424,7 @@ describe('privacy-control CLI', () => {
       error = caught as { stdout?: string; stderr?: string; code?: number };
     }
 
-    const statePath = join(homeDir, '.screenpipe-memory-mcp', 'privacy-state.json');
+    const statePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
 
     expect(error).toBeDefined();
     expect(error?.code).toBe(1);

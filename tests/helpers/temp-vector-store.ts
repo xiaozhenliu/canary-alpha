@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-export async function createTempVectorStorePath(prefix = 'screenpipe-memory-mcp-'): Promise<{
+export async function createTempVectorStorePath(prefix = 'canary-alpha-mcp-'): Promise<{
   path: string;
   cleanup(): Promise<void>;
 }> {
