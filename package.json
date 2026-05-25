@@ -16,8 +16,6 @@
     "test:acceptance": "vitest run tests/acceptance",
     "test:http-tool-flow": "vitest run tests/acceptance/http-tool-flow.test.ts",
     "test:smoke:mcp": "vitest run tests/acceptance/mcp-smoke.test.ts",
-    "review:codex": "codex review -c model='\"gpt-5.4\"' --uncommitted",
-    "feedback:mcp": "npm run test:smoke:mcp && npm run review:codex",
     "setup": "node scripts/setup.js",
     "onboard": "node scripts/onboard.js",
     "service:start": "node scripts/service-start.js",
