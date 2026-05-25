@@ -9,6 +9,7 @@ import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startHttpServer } from '../helpers/start-http-server.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { minusMinutes } from '../helpers/timestamps.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -33,7 +34,7 @@ describe('HTTP smoke acceptance', () => {
         {
           id: 'http-smoke-1',
           text: 'HTTP smoke retrieval fixture for MCP delivery validation',
-          timestamp: '2026-04-13T11:59:00.000Z',
+          timestamp: minusMinutes(1),
           appName: 'Claude'
         }
       ]

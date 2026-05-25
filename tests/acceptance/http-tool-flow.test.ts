@@ -7,6 +7,7 @@ import {
   expectStructuredArtifact
 } from '../helpers/acceptance-artifacts.js';
 import { setupRetrievalWorkflowScenario } from '../helpers/acceptance-scenarios.js';
+import { minusMinutes } from '../helpers/timestamps.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -31,7 +32,7 @@ describe('http MCP tool flow', () => {
         {
           id: 'fixture-1',
           text: 'Claude retrieval fixture note over HTTP',
-          timestamp: '2026-04-13T11:55:00.000Z',
+          timestamp: minusMinutes(5),
           appName: 'Claude'
         }
       ]
@@ -63,7 +64,7 @@ describe('http MCP tool flow', () => {
     scenario.addRecord({
       id: 'fixture-2',
       text: 'New HTTP retrieval fixture arrived from acceptance harness',
-      timestamp: '2026-04-13T11:59:00.000Z',
+      timestamp: minusMinutes(1),
       appName: 'FixtureApp'
     });
 

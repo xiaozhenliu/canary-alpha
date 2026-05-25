@@ -8,6 +8,7 @@ import { connectStdioClient } from '../helpers/mcp-client.js';
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { minusMinutes } from '../helpers/timestamps.js';
 
 describe('degraded retrieval acceptance', () => {
   const cleanup: Array<() => Promise<void>> = [];
@@ -32,7 +33,7 @@ describe('degraded retrieval acceptance', () => {
         {
           id: 'fallback-1',
           text: 'Keyword fallback acceptance record',
-          timestamp: '2026-04-13T11:55:00.000Z',
+          timestamp: minusMinutes(5),
           appName: 'Claude'
         }
       ]

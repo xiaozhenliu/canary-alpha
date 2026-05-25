@@ -13,6 +13,17 @@ function toSearchResponse(records: ScreenpipeRecord[]) {
   return {
     data: records.map((record, index) => ({
       type: 'OCR',
+      // Top-level shape preferred by normalizeScreenpipeRecord's flat branch:
+      // expose `id`, `text`, `timestamp`, and `appName` directly so the
+      // pipeline preserves the fixture-supplied id (e.g. 'smoke-1') rather
+      // than synthesizing 'frame:N:0' from the nested branch.
+      id: record.id,
+      text: record.text,
+      timestamp: record.timestamp,
+      appName: record.appName,
+      // Keep the nested `content` shape too, so any code path that still
+      // reads `content.*` (e.g. older normalizers or future PRD-aligned
+      // accessibility content_type) continues to receive complete data.
       content: {
         app_name: record.appName ?? '',
         frame_id: index + 1,

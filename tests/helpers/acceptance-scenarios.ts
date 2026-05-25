@@ -8,10 +8,7 @@ import { startEmbeddingStub } from './embedding-stub.js';
 import { startHttpServer, type StartedHttpServer } from './start-http-server.js';
 import { startScreenpipeStub, type ScreenpipeStubController } from './screenpipe-stub.js';
 import { writeTestConfig } from './test-config.js';
-
-function minusMinutes(minutes: number): string {
-  return new Date(Date.now() - minutes * 60_000).toISOString();
-}
+import { minusMinutes } from './timestamps.js';
 
 export interface AcceptanceWorkflowScenario {
   homeDir: string;

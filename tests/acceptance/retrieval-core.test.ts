@@ -7,6 +7,7 @@ import {
   expectStructuredArtifact
 } from '../helpers/acceptance-artifacts.js';
 import { setupRetrievalWorkflowScenario } from '../helpers/acceptance-scenarios.js';
+import { minusMinutes } from '../helpers/timestamps.js';
 
 describe('retrieval core acceptance', () => {
   const cleanup: Array<() => Promise<void>> = [];
@@ -30,7 +31,7 @@ describe('retrieval core acceptance', () => {
         {
           id: 'fixture-1',
           text: 'Claude retrieval fixture note',
-          timestamp: '2026-04-13T11:55:00.000Z',
+          timestamp: minusMinutes(5),
           appName: 'Claude'
         }
       ]
@@ -62,7 +63,7 @@ describe('retrieval core acceptance', () => {
     scenario.addRecord({
       id: 'fixture-2',
       text: 'New retrieval fixture arrived from acceptance harness',
-      timestamp: '2026-04-13T11:59:00.000Z',
+      timestamp: minusMinutes(1),
       appName: 'FixtureApp'
     });
 
