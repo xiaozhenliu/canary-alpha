@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-27
+
 ### Added
 
 - **`find` MCP tool** (`src/mcp/tools/find.ts`) — keyword-, semantic-, and hybrid-mode retrieval over the derived `extracted_content` table and the embedding hash index. Supports optional `appName` filter, ISO-8601 `from` / `to` window, `limit` (≤100), and optional `groupBy: 'session'`. Always emits `narrativeText` in the structured payload, and surfaces fallback paths through an explicit `degraded` block.
