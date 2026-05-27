@@ -1,6 +1,6 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
@@ -30,7 +30,10 @@
     "storage:diagnostics": "node --import tsx scripts/storage-diagnostics.js",
     "rebuild-index": "tsx src/index.ts rebuild-index",
     "dev:stdio": "tsx src/index.ts --mode stdio",
-    "dev:http": "tsx src/index.ts --mode http"
+    "dev:http": "tsx src/index.ts --mode http",
+    "eval:coverage": "tsx tests/evaluations/coverage-scenario/run.ts",
+    "eval:work-activity": "tsx tests/evaluations/work-activity/run-eval.ts",
+    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
@@ -42,6 +45,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
+    "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

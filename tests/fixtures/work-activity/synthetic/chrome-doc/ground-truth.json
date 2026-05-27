@@ -1,0 +1,22 @@
+{
+  "_comment": "Ground truth for chrome-doc fixture. App: Google Chrome, window: MCP documentation page. Generic heuristic should find AXWebArea inside AXScrollArea and extract its value text. AXToolbar and AXButton nodes should be filtered out.",
+  "frame_id": 3001,
+  "extractedText": "Model Context Protocol\n\nThe Model Context Protocol (MCP) is an open protocol that enables seamless integration between LLM applications and external data sources and tools.\n\nCore Concepts\n\nServers expose resources, tools, and prompts to clients. Clients connect to servers and use their capabilities. The protocol uses JSON-RPC 2.0 for communication.",
+  "extractionRuleKind": "generic",
+  "contextLabel": "Model Context Protocol – MCP Documentation",
+  "contextKey": "google chrome::model context protocol – mcp documentation",
+  "session_count": 1,
+  "session_boundaries": [
+    {
+      "app_name": "Google Chrome",
+      "context_key": "google chrome::model context protocol – mcp documentation",
+      "frame_ids": [3001]
+    }
+  ],
+  "find_hit_frame_ids": [3001],
+  "find_queries": [
+    "Model Context Protocol",
+    "JSON-RPC 2.0",
+    "LLM applications"
+  ]
+}

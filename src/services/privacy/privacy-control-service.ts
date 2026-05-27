@@ -1,9 +1,10 @@
-import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
+import { DatabaseSync } from 'node:sqlite';
 
 import { collectStorageDiagnostics } from '../diagnostics/storage-diagnostics.js';
 import { resolveScreenpipeDirectory } from '../../config/paths.js';
+import type { Logger } from '../../types/app-config.js';
 import type {
   PrivacyAction,
   PrivacyControlRequest,
@@ -14,44 +15,144 @@ import type {
   PrivacyStore,
   PrivacySuppressedRange
 } from './types.js';
+import type { CascadeDeleteCoordinator } from '../work-activity/cascade-delete-coordinator.js';
 
 const ALLOWED_DELETE_RANGES: PrivacyDeleteRange[] = ['last_1h', 'last_1d', 'all'];
 const CONFIRMATION_HINT = 'Set confirm=true to request delete-range actions.';
-const DELETE_TIMEOUT_MS = 30_000;
+/**
+ * Defensive guard so a malformed Screenpipe DB never wedges privacy
+ * control. The CLI subprocess this code used to spawn had a 30s
+ * timeout; the in-process `node:sqlite` driver does not support a
+ * SQL-side timeout, so we lean on the `PRAGMA busy_timeout` knob set
+ * on the connection plus the prepared-statement design (which keeps
+ * each round-trip O(BATCH)).
+ */
+const SQLITE_BUSY_TIMEOUT_MS = 5_000;
+/**
+ * Frame batch size for the chunked delete loop. Matches the previous
+ * sqlite3-CLI implementation so the upstream user-visible behaviour
+ * (latency, deletion order) is preserved.
+ */
 const DELETE_BATCH_SIZE = 200;
+/** ISO floor used for `range='all'` so the SQL bind parameter is well-formed. */
+const EPOCH_ISO = '1970-01-01T00:00:00.000Z';
 
-const execFileAsync = promisify(execFile);
-
-function rangeToFromClause(range: PrivacyDeleteRange): string {
-  if (range === 'last_1h') return `datetime('now', '-1 hour')`;
-  if (range === 'last_1d') return `datetime('now', '-1 day')`;
-  return `'1970-01-01'`;
+/**
+ * Translate a `PrivacyDeleteRange` to the inclusive ISO `from`
+ * timestamp used as the cascade window's lower bound. The "to" bound
+ * is always `now` — there is no future-frame deletion.
+ *
+ * Custom-range strings are rejected by the surrounding switch
+ * (`ALLOWED_DELETE_RANGES`), but the function defaults a malformed
+ * value to the epoch so a programming error fails open ("delete
+ * everything from epoch") rather than fails closed ("delete
+ * nothing"). The SQL layer always uses parameter binding, so even a
+ * pathologically crafted custom range cannot smuggle SQL.
+ */
+export function rangeToIsoFrom(range: PrivacyDeleteRange, now: Date): string {
+  if (range === 'last_1h') return new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+  if (range === 'last_1d') return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  return EPOCH_ISO;
 }
 
+/**
+ * Run the upstream Screenpipe deletion in-process via `node:sqlite`.
+ *
+ * Two correctness changes relative to the previous shell-out
+ * implementation:
+ *
+ *   1. The window predicate is `WHERE datetime(timestamp) >= datetime(?)`
+ *      with an ISO `from` bind value. This avoids the prior
+ *      lexicographic comparison against TEXT timestamps, which was
+ *      unsafe in the face of `+HH:MM` offsets and pre-1970
+ *      timestamps. The `datetime()` SQL function normalises both
+ *      sides to UTC before comparing.
+ *   2. The `from` value flows through a parameter binding instead of
+ *      being string-interpolated into the SQL. A custom-range string
+ *      can no longer smuggle SQL into the statement.
+ *
+ * The function returns the chunked delete totals (frames + elements)
+ * AND the set of frame ids that were actually removed, so the
+ * caller can drive the derived-data cascade off the same set rather
+ * than re-scanning the now-empty range.
+ */
 async function deleteScreenpipeRange(
   screenpipeDirectory: string,
-  range: PrivacyDeleteRange
-): Promise<{ framesDeleted: number; elementsDeleted: number }> {
+  range: PrivacyDeleteRange,
+  now: Date
+): Promise<{ framesDeleted: number; elementsDeleted: number; deletedFrameIds: number[] }> {
   const dbPath = join(screenpipeDirectory, 'db.sqlite');
-  const from = rangeToFromClause(range);
-  let totalFrames = 0;
-  let totalElements = 0;
-
-  while (true) {
-    const sql = [
-      `DELETE FROM elements WHERE frame_id IN (SELECT id FROM frames WHERE timestamp >= ${from} LIMIT ${DELETE_BATCH_SIZE});`,
-      `SELECT changes();`,
-      `DELETE FROM frames WHERE id IN (SELECT id FROM frames WHERE timestamp >= ${from} LIMIT ${DELETE_BATCH_SIZE});`,
-      `SELECT changes();`
-    ].join('\n');
-    const { stdout } = await execFileAsync('sqlite3', [dbPath, sql], { timeout: DELETE_TIMEOUT_MS });
-    const counts = stdout.trim().split('\n').map(Number).filter((n) => !Number.isNaN(n));
-    totalElements += counts[0] ?? 0;
-    totalFrames += counts[1] ?? 0;
-    if ((counts[1] ?? 0) === 0) break;
+  if (!existsSync(dbPath)) {
+    // The CLI version surfaced a `spawn ENOENT` here; preserve that
+    // semantic so the caller's catch block keeps mapping the absence
+    // to `PRIVACY_DELETE_UNAVAILABLE`.
+    throw Object.assign(new Error(`Screenpipe database not found at ${dbPath}`), {
+      code: 'ENOENT'
+    });
   }
 
-  return { framesDeleted: totalFrames, elementsDeleted: totalElements };
+  const fromIso = rangeToIsoFrom(range, now);
+  const toIso = now.toISOString();
+
+  const db = new DatabaseSync(dbPath);
+  let totalFrames = 0;
+  let totalElements = 0;
+  const deletedFrameIds: number[] = [];
+
+  try {
+    db.exec(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS};`);
+
+    // Pre-prepare every statement once. The `selectIds` query is the
+    // single source of truth for the window predicate — the chunked
+    // delete loop reuses it on every iteration so a row that arrives
+    // mid-loop is picked up as long as its timestamp falls in
+    // `[from, to]`.
+    const selectIds = db.prepare(
+      `SELECT id FROM frames
+       WHERE datetime(timestamp) >= datetime(?)
+         AND datetime(timestamp) <= datetime(?)
+       ORDER BY id ASC
+       LIMIT ${DELETE_BATCH_SIZE}`
+    );
+
+    while (true) {
+      const rows = selectIds.all(fromIso, toIso) as Array<{ id: number | bigint }>;
+      if (rows.length === 0) break;
+      const ids = rows.map((row) => Number(row.id));
+      const placeholders = ids.map(() => '?').join(', ');
+
+      // Both child tables and the parent table are deleted by
+      // explicit id IN (?, ?, ...) lists so the subsequent
+      // `changes()` count is exact and the cascade caller receives
+      // the precise deleted-frame set. Each delete uses the same
+      // parameter-bound id list — never a string-interpolated value.
+      const elementsResult = db
+        .prepare(`DELETE FROM elements WHERE frame_id IN (${placeholders})`)
+        .run(...ids);
+      const framesResult = db
+        .prepare(`DELETE FROM frames WHERE id IN (${placeholders})`)
+        .run(...ids);
+
+      totalElements += Number(elementsResult.changes);
+      totalFrames += Number(framesResult.changes);
+      deletedFrameIds.push(...ids);
+
+      // Defensive: if a concurrent writer keeps re-inserting rows
+      // into the window faster than we can drain them, the loop
+      // would never terminate. The previous implementation relied
+      // on the same heuristic ("changes==0 means stop"); preserve
+      // it here. Because the next `selectIds.all(...)` returning
+      // zero rows already exits the loop, this branch is reached
+      // only when frames were selected but the corresponding
+      // delete did not affect any rows (rare; e.g. another writer
+      // beat us to the deletion).
+      if (Number(framesResult.changes) === 0) break;
+    }
+  } finally {
+    db.close();
+  }
+
+  return { framesDeleted: totalFrames, elementsDeleted: totalElements, deletedFrameIds };
 }
 
 function normalizeAppName(appName: string): string {
@@ -100,13 +201,15 @@ function createSuppressedRange(pauseStartedAt: string, resumedAt: string): Priva
   if (!Number.isNaN(fromMillis) && !Number.isNaN(toMillis) && toMillis < fromMillis) {
     return {
       from,
-      to: from
+      to: from,
+      reason: 'pause'
     };
   }
 
   return {
     from,
-    to
+    to,
+    reason: 'pause'
   };
 }
 
@@ -116,15 +219,50 @@ function createLastHourSuppressedRange(now: Date): PrivacySuppressedRange {
 
   return {
     from,
-    to
+    to,
+    reason: 'delete-range'
   };
+}
+
+/**
+ * Build the cascade-failure tombstone written to `suppressedRanges`
+ * when Cascade_Delete partially or fully fails. Retrieval tools
+ * MUST treat such rows as exclusion windows (frames inside the
+ * `[from, to]` interval are dropped from `find` / `recall`) until
+ * a reconciliation entry point retries the cascade and clears the
+ * row.
+ */
+function createCascadeFailureSuppressedRange(
+  fromIso: string,
+  toIso: string,
+  failedFrameIds: number[] | undefined,
+  _reason: string,
+  createdAt: Date
+): PrivacySuppressedRange {
+  // The `_reason` argument is intentionally unused at the persistence
+  // layer — operator-readable explanations are surfaced through the
+  // `cascade.reason` field on the result envelope rather than baked
+  // into the on-disk shape, which keeps the persisted suppressed
+  // range JSON small and audit-friendly.
+  const range: PrivacySuppressedRange = {
+    from: fromIso,
+    to: toIso,
+    reason: 'cascade-failure',
+    createdAt: createdAt.toISOString()
+  };
+  if (failedFrameIds && failedFrameIds.length > 0) {
+    range.failedFrameIds = [...failedFrameIds];
+  }
+  return range;
 }
 
 export class DefaultPrivacyControlService implements PrivacyControlService {
   constructor(
     private readonly store: PrivacyStore,
     private readonly now: () => Date = () => new Date(),
-    private readonly diagnostics: PrivacyDiagnosticsOptions = {}
+    private readonly diagnostics: PrivacyDiagnosticsOptions = {},
+    private readonly cascadeDeleteCoordinator?: CascadeDeleteCoordinator,
+    private readonly logger?: Logger
   ) {}
 
   async execute(request: PrivacyControlRequest): Promise<PrivacyControlResult> {
@@ -142,6 +280,52 @@ export class DefaultPrivacyControlService implements PrivacyControlService {
       case 'delete-range':
         return this.deleteRange(state, request);
     }
+  }
+
+  /**
+   * Reconciliation entry point: walks the persisted `suppressedRanges`
+   * looking for unresolved `cascade-failure` rows and retries each
+   * one against the cascade coordinator. On success the row is
+   * marked `resolvedAt = now` and rewritten so retrieval tools stop
+   * filtering against it. Rows that the user manually authored
+   * (no `reason: 'cascade-failure'`) are left alone.
+   *
+   * Returns the number of rows that were resolved on this pass. The
+   * caller (a cleanup script / privacy control invocation) can poll
+   * the API and observe progress.
+   */
+  async reconcileCascadeFailures(): Promise<number> {
+    if (!this.cascadeDeleteCoordinator) return 0;
+    const state = await this.store.read();
+    const ranges = state.suppressedRanges ?? [];
+    if (ranges.length === 0) return 0;
+
+    let resolved = 0;
+    const next: PrivacySuppressedRange[] = [];
+    for (const range of ranges) {
+      if (range.reason !== 'cascade-failure' || range.resolvedAt !== undefined) {
+        next.push(range);
+        continue;
+      }
+      try {
+        if (range.failedFrameIds && range.failedFrameIds.length > 0) {
+          await this.cascadeDeleteCoordinator.cascadeByFrameIds(range.failedFrameIds);
+        } else {
+          await this.cascadeDeleteCoordinator.cascadeByTimestampRange(range.from, range.to);
+        }
+        next.push({ ...range, resolvedAt: this.now().toISOString() });
+        resolved += 1;
+      } catch (error) {
+        this.logger?.warn?.('privacy.reconcileCascadeFailures: retry failed', {
+          from: range.from,
+          to: range.to,
+          message: error instanceof Error ? error.message : String(error)
+        });
+        next.push(range);
+      }
+    }
+    await this.store.write({ ...state, suppressedRanges: next });
+    return resolved;
   }
 
   private async status(state: PrivacyState): Promise<PrivacyControlResult> {
@@ -262,19 +446,98 @@ export class DefaultPrivacyControlService implements PrivacyControlService {
 
     try {
       const screenpipeDirectory = this.diagnostics.screenpipeDirectory ?? resolveScreenpipeDirectory();
-      const { framesDeleted, elementsDeleted } = await deleteScreenpipeRange(screenpipeDirectory, request.range);
+      const cascadeStartedAt = this.now();
+      const { framesDeleted, elementsDeleted, deletedFrameIds } = await deleteScreenpipeRange(
+        screenpipeDirectory,
+        request.range,
+        cascadeStartedAt
+      );
       const updatedState = request.range === 'last_1h'
         ? await this.store.read()
         : state;
 
+      // Cascade derived data deletion after the upstream frames are
+      // removed (R9.1). The previous implementation swallowed any
+      // failure with `.catch(() => null)`, leaving derived rows
+      // visible after their parent frames were gone. We now run the
+      // cascade by the exact frame-id set we just deleted (so the
+      // derived layer cannot drift even if the timestamp range had
+      // tied rows), capture failure structurally, and persist a
+      // tombstone so retrieval tools skip the affected window
+      // until reconciliation.
+      let deletedExtractedContent: number | undefined;
+      let deletedSessions: number | undefined;
+      let deletedEmbeddings: number | undefined;
+      let cascadeOutcome: NonNullable<PrivacyControlResult['cascade']> = {
+        upstreamDeleted: true,
+        cascade: 'ok'
+      };
+      if (this.cascadeDeleteCoordinator) {
+        const cascadeFromIso = rangeToIsoFrom(request.range, cascadeStartedAt);
+        const cascadeToIso = cascadeStartedAt.toISOString();
+        try {
+          const cascadeResult = deletedFrameIds.length > 0
+            ? await this.cascadeDeleteCoordinator.cascadeByFrameIds(deletedFrameIds)
+            : await this.cascadeDeleteCoordinator.cascadeByTimestampRange(cascadeFromIso, cascadeToIso);
+          deletedExtractedContent = cascadeResult.extractedContent;
+          deletedSessions = cascadeResult.sessions;
+          deletedEmbeddings = cascadeResult.embeddings;
+        } catch (cascadeError) {
+          const message = cascadeError instanceof Error ? cascadeError.message : String(cascadeError);
+          // Persist a tombstone keyed by the same window we just
+          // tried to clear. Retrieval tools intersect against this
+          // list so the derived rows remain hidden until the
+          // reconciliation entry point retries successfully. The
+          // upstream ScreenPipe deletion already succeeded, so we
+          // do NOT roll back; partial cleanup is preferable to
+          // leaving the user's frames undeleted on an LLM bug.
+          this.logger?.warn?.('privacy.delete-range: cascade failed', {
+            range: request.range,
+            framesDeleted,
+            failedFrameCount: deletedFrameIds.length,
+            message
+          });
+          const tombstone = createCascadeFailureSuppressedRange(
+            cascadeFromIso,
+            cascadeToIso,
+            deletedFrameIds,
+            message,
+            cascadeStartedAt
+          );
+          const persisted = await this.store.read();
+          await this.store.write({
+            ...persisted,
+            suppressedRanges: [...(persisted.suppressedRanges ?? []), tombstone]
+          });
+          cascadeOutcome = {
+            upstreamDeleted: true,
+            cascade: 'failed',
+            reason: `Cascade_Delete failed: ${message}`,
+            ...(deletedFrameIds.length > 0 ? { failedFrameIds: [...deletedFrameIds] } : {})
+          };
+        }
+      }
+
+      const refreshedState = request.range === 'last_1h' || cascadeOutcome.cascade !== 'ok'
+        ? await this.store.read()
+        : updatedState;
+
       return {
-        ...createResult('delete-range', updatedState),
+        ...createResult('delete-range', refreshedState),
         requestedRange: request.range,
         confirmed: true,
         deletedFrames: framesDeleted,
-        deletedElements: elementsDeleted
+        deletedElements: elementsDeleted,
+        deletedExtractedContent,
+        deletedSessions,
+        deletedEmbeddings,
+        cascade: cascadeOutcome
       };
-    } catch {
+    } catch (error) {
+      this.logger?.warn?.('privacy.delete-range: upstream deletion failed', {
+        range: request.range,
+        message: error instanceof Error ? error.message : String(error)
+      });
       return {
         ...createResult('delete-range', state),
         requestedRange: request.range,

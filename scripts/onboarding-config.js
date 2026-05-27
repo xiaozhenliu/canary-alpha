@@ -30,7 +30,11 @@ export const DEFAULT_SERVER_PORT = 18765;
 export const DEFAULT_SCREENPIPE_URL = 'http://localhost:3030';
 export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434/v1';
 export const DEFAULT_OLLAMA_MODEL = 'nomic-embed-text';
-export const DEFAULT_HOSTED_BASE_URL = 'https://api.openai.com/v1';
+export const DEFAULT_HOSTED_BASE_URL = 'https://api.deepseek.com';
+// Embeddings model only — the hosted-embeddings onboarding flow asks the
+// user to confirm/override before writing it to config. We keep a generic
+// placeholder so the example does not nail the user to a vendor that may
+// not match `DEFAULT_HOSTED_BASE_URL`.
 export const DEFAULT_HOSTED_MODEL = 'text-embedding-3-large';
 export const DEFAULT_EMBEDDING_CONCURRENCY = 2;
 

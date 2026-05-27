@@ -1,11 +1,11 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describe('service:logs script', () => {
   it('prints rotated managed service logs when service.log has been rotated away', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-logs-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-logs-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const logDir = join(homeDir, '.canary-alpha-mcp', 'logs');

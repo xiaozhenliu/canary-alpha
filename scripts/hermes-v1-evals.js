@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -14,6 +13,7 @@ import { startScreenpipeStub } from '../tests/helpers/screenpipe-stub.ts';
 import { startHttpServer } from '../tests/helpers/start-http-server.ts';
 import { writeTestConfig } from '../tests/helpers/test-config.ts';
 import { V1_EVALUATION_TASKS } from '../tests/evaluations/v1-evaluation-manifest.ts';
+import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -93,7 +93,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(tmpdir(), 'screenpipe-memory-v1-evals-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
@@ -129,7 +129,7 @@ function buildFixtureRecords() {
 }
 
 async function setupControlledEnvironment() {
-  const homeDir = await mkdtemp(join(tmpdir(), 'screenpipe-memory-v1-evals-'));
+  const homeDir = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-'));
   const port = 8791;
 
   const screenpipe = await startScreenpipeStub({

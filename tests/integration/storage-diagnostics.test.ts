@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -12,6 +11,7 @@ import {
   formatStorageDiagnosticsReport,
   summarizeDominantArtifacts
 } from '../../src/services/diagnostics/storage-diagnostics.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 import { writeTestConfig } from '../helpers/test-config.js';
 
 const execFileAsync = promisify(execFile);
@@ -131,7 +131,7 @@ async function writeSizedFile(filePath: string, size: number): Promise<void> {
 
 describe('storage diagnostics', () => {
   it('reports per-class bytes and dominant artifact ranking without double counting', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -217,7 +217,7 @@ describe('storage diagnostics', () => {
   });
 
   it('reports bounded recent-window text duplication signals for low-value repeated plaintext', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-duplication-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-duplication-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -281,7 +281,7 @@ describe('storage diagnostics', () => {
 
 
   it('separates recent duplicate growth from unique heavy recent samples', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-recent-heavy-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-recent-heavy-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -319,7 +319,7 @@ describe('storage diagnostics', () => {
   });
 
   it('highlights the heaviest recent time slice even when the top sample is uniquely large', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-recent-heavy-slice-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-recent-heavy-slice-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -347,7 +347,7 @@ describe('storage diagnostics', () => {
   });
 
   it('treats unique accessibility-heavy frames as unique-heavy even when full_text is absent', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-recent-heavy-accessibility-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-recent-heavy-accessibility-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -388,7 +388,7 @@ describe('storage diagnostics', () => {
   });
 
   it('reports storage hotspots for dominant fields apps and accessibility roles', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-hotspots-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-hotspots-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -419,7 +419,7 @@ describe('storage diagnostics', () => {
   });
 
   it('reports recent capture and reuse signals when schema metadata exists', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-capture-reuse-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-capture-reuse-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -459,7 +459,7 @@ describe('storage diagnostics', () => {
   });
 
   it('degrades safely when capture and reuse metadata columns are absent', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-capture-reuse-missing-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-capture-reuse-missing-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -479,7 +479,7 @@ describe('storage diagnostics', () => {
   });
 
   it('uses partial schema coverage when only one reuse-related signal exists', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-capture-reuse-partial-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-capture-reuse-partial-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
@@ -503,7 +503,7 @@ describe('storage diagnostics', () => {
   });
 
   it('treats missing artifact roots as zero-byte diagnostics instead of failing', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-missing-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-missing-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const report = await collectStorageDiagnostics({
@@ -526,7 +526,7 @@ describe('storage diagnostics', () => {
   });
 
   it('prints sqlite attribution and duplication signals through the public storage:diagnostics CLI', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-cli-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-cli-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const homeDir = join(root, 'home');
@@ -574,7 +574,7 @@ describe('storage diagnostics', () => {
   });
 
   it('formats a readable diagnostics report and top-artifact summary', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'storage-diagnostics-format-'));
+    const root = await mkdtemp(join(testTempRoot(), 'storage-diagnostics-format-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');

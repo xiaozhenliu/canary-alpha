@@ -58,7 +58,9 @@ function toEvidence(record: VectorStoreRecord, request: VectorSearchRequest): Re
     text: record.text,
     timestamp: record.timestamp,
     appName: record.appName,
+    windowName: record.windowName,
     source: 'semantic' as const,
+    sourceTypes: (record.metadata?.sourceTypes as string[] | undefined) ?? record.sourceTypes ?? [],
     score: Number(dotProduct(record.embedding ?? [], request.queryEmbedding).toFixed(6))
   };
 }
@@ -133,6 +135,50 @@ export class InMemoryVectorStore implements VectorStore {
 
   async querySnapshot(request: VectorSearchRequest): Promise<RetrievalEvidenceItem[]> {
     return queryRecords(this.records, request);
+  }
+
+  async listByTimeWindow(from: string, to: string): Promise<VectorStoreRecord[]> {
+    return this.records.filter((record) => {
+      const matchesFrom = compareTimestamps(record.timestamp, from) >= 0;
+      const matchesTo = compareTimestamps(record.timestamp, to) <= 0;
+      return matchesFrom && matchesTo;
+    });
+  }
+
+  async deleteByFrameIds(frameIds: ReadonlyArray<string | number>): Promise<number> {
+    const targets = new Set(frameIds.map((id) => String(id)));
+    if (targets.size === 0) {
+      return 0;
+    }
+
+    const before = this.records.length;
+    const remaining = this.records.filter((record) => {
+      const frameId = record.metadata?.frameId;
+      if (frameId === undefined || frameId === null) {
+        return true;
+      }
+      return !targets.has(String(frameId));
+    });
+
+    this.records.splice(0, this.records.length, ...remaining);
+    return before - remaining.length;
+  }
+
+  async deleteByTimestampRange(from: string, to: string): Promise<number> {
+    const before = this.records.length;
+    const remaining = this.records.filter((record) => {
+      const metadataTimestamp = record.metadata?.frameTimestamp;
+      const timestamp =
+        typeof metadataTimestamp === 'string' && metadataTimestamp.length > 0
+          ? metadataTimestamp
+          : record.timestamp;
+      const inRange =
+        compareTimestamps(timestamp, from) >= 0 && compareTimestamps(timestamp, to) <= 0;
+      return !inRange;
+    });
+
+    this.records.splice(0, this.records.length, ...remaining);
+    return before - remaining.length;
   }
 }
 
@@ -245,6 +291,29 @@ export class FileBackedVectorStore extends InMemoryVectorStore {
   override async querySnapshot(request: VectorSearchRequest): Promise<RetrievalEvidenceItem[]> {
     await this.ensureLoaded();
     return super.querySnapshot(request);
+  }
+
+  override async listByTimeWindow(from: string, to: string): Promise<VectorStoreRecord[]> {
+    await this.ensureLoaded();
+    return super.listByTimeWindow(from, to);
+  }
+
+  override async deleteByFrameIds(frameIds: ReadonlyArray<string | number>): Promise<number> {
+    await this.ensureLoaded();
+    const deleted = await super.deleteByFrameIds(frameIds);
+    if (deleted > 0) {
+      await this.persist();
+    }
+    return deleted;
+  }
+
+  override async deleteByTimestampRange(from: string, to: string): Promise<number> {
+    await this.ensureLoaded();
+    const deleted = await super.deleteByTimestampRange(from, to);
+    if (deleted > 0) {
+      await this.persist();
+    }
+    return deleted;
   }
 
   async close(): Promise<void> {

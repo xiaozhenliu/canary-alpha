@@ -1,14 +1,14 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FilePrivacyStore } from '../../../src/services/privacy/privacy-store.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('privacy store', () => {
   it('returns the default state when the privacy file is missing', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'privacy-store-default-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'privacy-store-default-'));
     const store = new FilePrivacyStore(join(tempDir, 'privacy-state.json'));
 
     try {
@@ -22,7 +22,7 @@ describe('privacy store', () => {
   });
 
   it('persists state atomically via temp-file replacement', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'privacy-store-write-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'privacy-store-write-'));
     const filePath = join(tempDir, 'nested', 'privacy-state.json');
     const store = new FilePrivacyStore(filePath);
 
@@ -46,7 +46,7 @@ describe('privacy store', () => {
   });
 
   it('normalizes persisted pause window metadata', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'privacy-store-normalize-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'privacy-store-normalize-'));
     const filePath = join(tempDir, 'privacy-state.json');
     const store = new FilePrivacyStore(filePath);
 
@@ -84,7 +84,7 @@ describe('privacy store', () => {
   });
 
   it('fails closed for inverted persisted suppressed ranges', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'privacy-store-inverted-range-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'privacy-store-inverted-range-'));
     const filePath = join(tempDir, 'privacy-state.json');
     const store = new FilePrivacyStore(filePath);
 

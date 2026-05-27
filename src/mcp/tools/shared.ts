@@ -10,12 +10,6 @@ import type {
 import type {
   PrivacyControlResult
 } from '../../services/privacy/types.js';
-import type {
-  FreshnessStatus,
-  RecentActivityResult,
-  RetrievalActionableError,
-  SearchScreenResult
-} from '../../services/retrieval/types.js';
 
 export function unavailableToolResult(toolName: string, phase: string): CallToolResult {
   return {
@@ -27,23 +21,6 @@ export function unavailableToolResult(toolName: string, phase: string): CallTool
       }
     ]
   };
-}
-
-function formatFreshness(freshness: FreshnessStatus | undefined): string {
-  if (!freshness) {
-    return 'unknown freshness';
-  }
-
-  const lag = freshness.lagMinutes === null ? 'unknown' : `${freshness.lagMinutes}`;
-  return `${freshness.status} (lag ${lag} minute(s), window ${freshness.windowMinutes})`;
-}
-
-function formatActionableError(error: RetrievalActionableError | undefined): string | undefined {
-  if (!error) {
-    return undefined;
-  }
-
-  return `${error.message} ${error.action}`;
 }
 
 export function formatMemoryReadToolResult(result: MemoryReadResult): CallToolResult {
@@ -131,48 +108,6 @@ export function formatPrivacyControlToolResult(result: PrivacyControlResult): Ca
       screenpipeStorage: result.screenpipeStorage,
       requestedRange: result.requestedRange,
       confirmed: result.confirmed,
-      error: result.error
-    }
-  };
-}
-
-export function formatSearchScreenToolResult(result: SearchScreenResult): CallToolResult {
-  return {
-    isError: Boolean(result.error),
-    content: [
-      {
-        type: 'text',
-        text: result.error
-          ? `${result.summary} ${formatActionableError(result.error)}`
-          : `${result.summary} Freshness: ${formatFreshness(result.freshness)}.`
-      }
-    ],
-    structuredContent: {
-      summary: result.summary,
-      evidence: result.evidence,
-      degraded: result.degraded,
-      freshness: result.freshness,
-      error: result.error
-    }
-  };
-}
-
-export function formatRecentActivityToolResult(result: RecentActivityResult): CallToolResult {
-  return {
-    isError: Boolean(result.error),
-    content: [
-      {
-        type: 'text',
-        text: result.error
-          ? `${result.summary} ${formatActionableError(result.error)}`
-          : `${result.summary} Freshness: ${formatFreshness(result.freshness)}.`
-      }
-    ],
-    structuredContent: {
-      summary: result.summary,
-      evidence: result.evidence,
-      raw: result.raw,
-      freshness: result.freshness,
       error: result.error
     }
   };

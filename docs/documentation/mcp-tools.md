@@ -1,12 +1,12 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-04-18
+last_updated: 2026-05-27
 ---
 
 # MCP Tools
 
-The server currently registers seven MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
+The server currently registers eight MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
 
 ## Result shape
 
@@ -17,76 +17,114 @@ Most tools return both:
 
 Some failure paths also set `isError: true`.
 
-Retrieval tools include actionable degraded or recovery information in both the text summary and the structured payload.
+Work-activity retrieval tools (`find`, `recall`, `inspect`) always emit a `narrativeText` string field in the structured payload — even on degraded paths — so callers never have to branch on `null` for the natural-language summary. They surface degraded state through an explicit `degraded` block when fallback behavior occurred.
 
 ## Tool inventory
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| `search-screen` | retrieval | Search indexed screen history with natural language and optional filters |
-| `recent-activity` | retrieval | Retrieve recent activity from local screen history |
+| `find` | work-activity | Search captured work-activity content for evidence fragments by keyword, semantic similarity, or hybrid mode |
+| `recall` | work-activity | Recall sessions or aggregated time blocks for a window, with optional summaries |
+| `inspect` | work-activity | Drill down into a single session or frame, returning evidence rows or the raw AX tree |
 | `memory-read` | memory | Read persisted long-term memory by scope |
 | `memory-write` | memory | Append or replace long-term memory content |
 | `file-analyze` | file-analysis | Analyze a supported local file and summarize or answer a targeted question |
 | `privacy-control` | privacy | Check or modify local privacy collection controls |
 | `internal-status` | internal | Return bootstrap-safe runtime status |
 
-## `search-screen`
+## `find`
 
-Search indexed screen history.
+Search captured work-activity content for evidence fragments. `mode="keyword"` is the default and runs an FTS5 keyword scan over `extracted_content`; `semantic` runs a vector query over the embedding hash index; `hybrid` merges both with a deterministic ranker.
 
 **Input**
 
 ```json
 {
-  "query": "calendar note",
+  "query": "budget planning",
   "mode": "hybrid",
   "appName": "Calendar",
   "from": "2026-04-16T00:00:00Z",
-  "to": "2026-04-16T23:59:59Z"
+  "to": "2026-04-16T23:59:59Z",
+  "limit": 20,
+  "groupBy": "session"
 }
 ```
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `query` | string | yes | Natural-language query, minimum length 1 |
-| `mode` | `semantic` \| `keyword` \| `hybrid` | no | Defaults to `hybrid` |
-| `appName` | string | no | Optional application filter |
-| `from` | string | no | Optional lower time bound |
-| `to` | string | no | Optional upper time bound |
+| `query` | string | yes | NFC-normalized, 1–512 chars after trimming |
+| `mode` | `keyword` \| `semantic` \| `hybrid` | no | Defaults to `keyword` |
+| `appName` | string | no | Optional exact-match application filter |
+| `from` | string | no | Optional ISO-8601 lower bound (inclusive) |
+| `to` | string | no | Optional ISO-8601 upper bound (inclusive) |
+| `limit` | positive integer up to 100 | no | Defaults to `20` |
+| `groupBy` | `session` | no | When set, the response includes a `groupedBySession` array |
 
 **Output expectations**
 
-- `content[0].text` contains a summary and freshness note, or an actionable error message
-- `structuredContent.summary` contains the main summary
-- `structuredContent.evidence` contains supporting records
-- `structuredContent.freshness` reports freshness status
-- `structuredContent.degraded` / `structuredContent.error` may explain fallback or rebuild action
+- `content[0].text` carries the `narrativeText` summary (or a fallback message)
+- `structuredContent.data` is the array of evidence items: `frameId`, `sessionId?`, `appName?`, `contextLabel`, `extractedText`, `timestamp`, `matchSource` (`keyword` | `semantic`), optional `score`, `sourceTypes`
+- `structuredContent.groupedBySession` (optional) groups items by session when `groupBy="session"` was requested
+- `structuredContent.narrativeText` is always present
+- `structuredContent.degraded` (optional) signals that the actual mode differed from the requested mode (e.g., semantic→keyword fallback) or that a keyword scan truncated; carries `requestedMode`, `actualMode`, `reason`
 
-## `recent-activity`
+## `recall`
 
-Retrieve recent screen activity.
+Recall captured work-activity sessions or aggregated time blocks for a window. `granularity="session"` lists sessions; `hour` / `day` bucket sessions by time. `includeSummary` defaults to `true`, attaching a per-session summary.
 
 **Input**
 
 ```json
 {
-  "minutes": 60,
-  "format": "summary"
+  "from": "2026-04-16T00:00:00Z",
+  "to": "2026-04-16T23:59:59Z",
+  "granularity": "session",
+  "appName": "Cursor",
+  "includeSummary": true
 }
 ```
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `minutes` | positive integer up to 1440 | no | Defaults to `60` |
-| `format` | `summary` \| `raw` | no | Defaults to `summary` |
+| `from` | string | yes | ISO-8601 lower bound (inclusive) |
+| `to` | string | yes | ISO-8601 upper bound (inclusive) |
+| `granularity` | `session` \| `hour` \| `day` | no | Defaults to `session` |
+| `appName` | string | no | Optional exact-match application filter |
+| `includeSummary` | boolean | no | Defaults to `true` |
 
 **Output expectations**
 
-- `content[0].text` summarizes activity and freshness
-- `structuredContent.summary` contains the summary form
-- `structuredContent.raw` is available when raw mode is requested
-- `structuredContent.evidence`, `freshness`, and `error` mirror retrieval state
+- `content[0].text` carries the `narrativeText` summary
+- `structuredContent.granularity` echoes the resolved granularity
+- `structuredContent.sessions` is present when `granularity="session"`. Each session item exposes `sessionId`, `appName`, `contextLabel`, `startedAt`, `endedAt`, `activeSeconds`, `evidenceFrameIds`, `sourceTypes`, and optional `summary` (`text`, `status` ∈ `pending` | `ready` | `failed` | `degraded` | `not_applicable`, `providerKind` ∈ `template` | `remote-llm`)
+- `structuredContent.blocks` is present when `granularity="hour"` or `"day"`. Each block exposes `start`, `end`, `sessionCount`, `totalActiveSeconds`, `byApp` (record of `appName -> seconds`), `narrativeText`
+- `structuredContent.narrativeText` is always present
+
+## `inspect`
+
+Drill down into a single session or frame. Pick the target by passing exactly one of `sessionId` or `frameId` inside `target`.
+
+**Input**
+
+```json
+{ "target": { "sessionId": "session-1" } }
+```
+
+```json
+{ "target": { "frameId": 42 } }
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `target.sessionId` | string | one-of | Session UUID/ID |
+| `target.frameId` | string \| number | one-of | ScreenPipe frame id (numeric upstream, accepted as string for client convenience) |
+
+**Output expectations**
+
+- `structuredContent.kind` is `'session'` or `'frame'`
+- For `kind="session"`: `session` (the session row, may be `null` if not found), `evidence` (per-frame `extracted_content` rows), and `narrativeText`
+- For `kind="frame"`: `frame` (`frameId`, `timestamp`, optional `appName` / `windowName`, `accessibilityTreeJson` — raw AX tree as a JSON string, or `null` when unavailable), `extractedContent` (the derived row, or `null` if extraction has not run for that frame), and `narrativeText`
+- Failure paths return `isError: true`, the structured `kind="session"` shape with `session: null`, `evidence: []`, and a diagnostic `narrativeText`
 
 ## `memory-read`
 
@@ -197,6 +235,7 @@ The CLI prints only paused state, excluded app names, and actionable validation 
 - `structuredContent.excludedApps` lists excluded applications
 - `structuredContent.allowedDeleteRanges` lists valid delete ranges
 - `structuredContent.confirmationHint` explains when confirmation is required
+- For `delete-range`, `structuredContent.cascade` reports the derived-store cascade outcome: `upstreamDeleted` (count of upstream rows removed), `cascade` (`ok` | `partial` | `failed`), optional `failedFrameIds`, and optional `reason`. While a cascade-failure tombstone is active, `find` and `recall` filter out evidence/sessions that fall inside the affected window until the next `reconcileCascadeFailures()` pass clears it
 - Failure paths set `isError: true`
 
 ## `internal-status`
@@ -234,12 +273,15 @@ Return bootstrap-safe runtime status.
 - `needs-rebuild`
 - `degraded`
 
+The response also carries the capture/ingestion observability blocks (`capture`, `ingestionMix`, `diskBudget`) and a `workActivity` block summarising the derived-store health (session counts, summary worker state, embedding hash index size). See [../troubleshooting.md#capture--ingestion-observability](../troubleshooting.md#capture--ingestion-observability) for the failure-mode reference.
+
 This tool is the primary health probe used by `npm run service:status`.
 
 ## Compatibility notes
 
 - The official v1 delivery surface is Streamable HTTP at `http://127.0.0.1:<port>/mcp`
 - Stdio still exists for compatibility and tests, but it is not the primary public delivery path
+- The legacy `search-screen` and `recent-activity` retrieval tools were removed; their forward replacements are `find`, `recall`, and `inspect`
 - Acceptance tests exercise real tool calls for retrieval, privacy, memory, and HTTP flows
 
 ## Related docs

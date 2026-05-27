@@ -1,11 +1,11 @@
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describe('service:status script', () => {
   it('reports launchd state even when config.yaml is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -77,7 +77,7 @@ describe('service:status script', () => {
   });
 
   it('reports launchd state even when managed MCP_PORT is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-bad-managed-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-managed-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -153,7 +153,7 @@ describe('service:status script', () => {
   });
 
   it('reports launchd state even when the frozen managed port is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-bad-frozen-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-frozen-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -225,7 +225,7 @@ describe('service:status script', () => {
   });
 
   it('surfaces launchctl execution errors instead of reporting not loaded', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-launchctl-error-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-launchctl-error-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');

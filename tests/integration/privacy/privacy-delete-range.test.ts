@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -8,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DefaultPrivacyControlService } from '../../../src/services/privacy/privacy-control-service.js';
 import type { PrivacyState, PrivacyStore } from '../../../src/services/privacy/types.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const cleanup: Array<() => Promise<void>> = [];
@@ -61,7 +61,7 @@ describe('privacy delete-range semantics', () => {
   });
 
   it('supports confirmed last_1h by appending a suppressed range', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'privacy-delete-'));
+    const root = await mkdtemp(join(testTempRoot(), 'privacy-delete-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     await createFixtureDb(root);
     const store = new InMemoryPrivacyStore({
@@ -82,7 +82,7 @@ describe('privacy delete-range semantics', () => {
   });
 
   it('deletes frames within last_1h from SQLite', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'privacy-delete-1h-'));
+    const root = await mkdtemp(join(testTempRoot(), 'privacy-delete-1h-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const dbPath = await createFixtureDb(root);
     const service = new DefaultPrivacyControlService(new InMemoryPrivacyStore(), undefined, { screenpipeDirectory: root });
@@ -95,7 +95,7 @@ describe('privacy delete-range semantics', () => {
   });
 
   it('deletes all frames for range=all', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'privacy-delete-all-'));
+    const root = await mkdtemp(join(testTempRoot(), 'privacy-delete-all-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const dbPath = await createFixtureDb(root);
     const service = new DefaultPrivacyControlService(new InMemoryPrivacyStore(), undefined, { screenpipeDirectory: root });

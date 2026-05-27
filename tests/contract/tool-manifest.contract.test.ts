@@ -1,5 +1,4 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,16 +7,18 @@ import { connectStdioClient } from '../helpers/mcp-client.js';
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const CANONICAL_FOCUSED_V1_TOOLS = [
   { name: 'file-analyze', title: 'Analyze File' },
+  { name: 'find', title: 'Find Evidence' },
+  { name: 'inspect', title: 'Inspect Session or Frame' },
   { name: 'internal-status', title: 'Internal Status' },
   { name: 'memory-read', title: 'Read Memory' },
   { name: 'memory-write', title: 'Write Memory' },
   { name: 'privacy-control', title: 'Privacy Control' },
-  { name: 'recent-activity', title: 'Recent Activity' },
-  { name: 'screenpipe-control', title: 'Screenpipe Control' },
-  { name: 'search-screen', title: 'Search Screen History' }
+  { name: 'recall', title: 'Recall Time Window' },
+  { name: 'screenpipe-control', title: 'Screenpipe Control' }
 ] as const;
 const ROUTINE_TOOL_NAMES = ['routine-list', 'routine-create', 'routine-history'] as const;
 
@@ -36,7 +37,7 @@ describe('focused v1 tool manifest contract', () => {
   });
 
   it('exposes exactly the canonical focused v1 tool names over MCP', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-manifest-contract-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-manifest-contract-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -65,7 +66,7 @@ describe('focused v1 tool manifest contract', () => {
   });
 
   it('keeps stable manifest metadata aligned with the public registry surface', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-manifest-metadata-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-manifest-metadata-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });

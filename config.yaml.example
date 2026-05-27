@@ -1,0 +1,94 @@
+# canary-alpha-mcp configuration example
+# Copy this file to config.yaml and adjust values as needed.
+# All fields are optional — defaults are shown below.
+
+server:
+  mode: http          # stdio | http
+  host: 127.0.0.1
+  port: 8765
+
+logging:
+  level: info         # debug | info | warn | error
+
+screenpipe:
+  # url: http://localhost:3030
+  # apiKey: ""
+
+providers:
+  embeddings:
+    kind: openai-compatible
+    # baseUrl: http://localhost:11434/v1
+    # model: nomic-embed-text
+    # apiKey: ""
+    concurrency: 2
+
+vectorStore:
+  kind: chroma
+  # path: ~/.canary-alpha-mcp/chroma
+
+retrieval:
+  freshnessWindowMinutes: 15
+  pollIntervalSeconds: 30
+  maxCatchUpBatches: 3
+  maxCatchUpRecords: 500
+
+trim:
+  enabled: true
+  intervalSeconds: 600   # Run trim every 10 minutes
+
+capture:
+  livenessThresholdSeconds: 120       # Seconds without a new frame before state → idle
+  permissionsGracePeriodSeconds: 60   # Grace period after process start before permissions-missing
+
+storage:
+  # diskBudgetBytes: null             # No limit by default.
+  # Reference value: 50 GB = 53_687_091_200
+  # When set, the retention pass will delete the oldest frames (by timestamp)
+  # after each trim cycle until the database is within budget.
+  # diskBudgetBytes: 53687091200
+  retentionDays: 7                    # Only rows older than this are eligible for retention deletion
+
+privacy:
+  excludeApps:
+    - 1Password
+    - Keychain Access
+  secureAxRoles:
+    - AXSecureTextField
+
+routines:
+  enabled: false
+  # definitionsPath: ~/.canary-alpha-mcp/routines.json
+  # historyPath: ~/.canary-alpha-mcp/routines-history.json
+
+# work-activity-analysis 派生数据存储与会话/摘要/embedding 参数。
+# 全部字段带默认值，整个 analysis 段省略也能正常运行（向后兼容）。
+analysis:
+  sessions:
+    # 同一会话内允许的最大 frame 间空闲秒数。超过此值会关闭旧会话并新建。
+    idleThresholdSeconds: 120
+  summary:
+    # provider 默认 template（本地拼接，零网络出站）。
+    # 切换到 remote-llm 后：
+    #   - 会话证据片段（包含 extracted_text）会被发送至 llm.base_url；
+    #   - 远端历史请求无法通过本地 delete-range 撤回（一次出站即视为接受该副作用）；
+    #   - 必须同时填 llm.base_url 与 llm.api_key，否则降级回 template。
+    provider: template
+    remoteLlmTimeoutMs: 30000
+  embeddings:
+    # 语义检索召回的 topK。
+    topK: 20
+    # 相似度下限（dot-product；本 spec 第一版不设阈值，置 0.0 即不过滤）。
+    minScore: 0.0
+
+# remote-llm SummaryProvider 使用此配置块（OpenAI 兼容 chat/completions endpoint）。
+# 仅当 analysis.summary.provider = remote-llm 时才会被读取。
+# 切换到 remote-llm 即视为接受将证据片段出站到 base_url 指向的端点。
+# llm:
+#   base_url: https://api.deepseek.com
+#   api_key: ${DEEPSEEK_API_KEY}
+#   model: deepseek-chat
+
+# 派生存储路径（work-activity-analysis）。
+# 默认：~/.canary-alpha-mcp/derived.sqlite。一般无需覆盖。
+# paths:
+#   derivedDatabase: ~/.canary-alpha-mcp/derived.sqlite

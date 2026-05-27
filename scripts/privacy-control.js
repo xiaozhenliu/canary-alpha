@@ -10,6 +10,8 @@ import { promisify } from 'node:util';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import YAML from 'yaml';
 
+import { getPackageVersion } from './version.js';
+
 const execFileAsync = promisify(execFile);
 const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
@@ -40,7 +42,7 @@ function usage() {
 function createClient() {
   return new Client({
     name: 'canary-alpha-mcp-privacy-control-cli',
-    version: '1.0.0'
+    version: getPackageVersion()
   });
 }
 

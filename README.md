@@ -1,14 +1,12 @@
 ---
-doc_version: 14
+doc_version: 15
 doc_status: active
-last_updated: 2026-04-18
+last_updated: 2026-05-27
 ---
 
 # canary-alpha-mcp
 
 Local-first MCP server that exposes Screenpipe screen memory, long-term memory, file analysis, and privacy controls as standard MCP tools. Any MCP-compatible agent connects over HTTP and calls the tools directly.
-
-Current release: `v1.0.0`
 
 ## Quick start
 
@@ -73,12 +71,13 @@ You do not need to edit YAML for the normal first-run path. `npm run onboard` wr
 
 ## MCP tools
 
-Seven tools are registered at the endpoint:
+Eight tools are registered at the endpoint:
 
 | Tool | Category | Purpose |
 |------|----------|---------|
-| `search-screen` | retrieval | Search indexed screen history |
-| `recent-activity` | retrieval | Retrieve recent screen activity |
+| `find` | work-activity | Search captured work-activity content for evidence fragments by keyword, semantic similarity, or hybrid mode |
+| `recall` | work-activity | Recall sessions or aggregated time blocks for a window, with optional summaries |
+| `inspect` | work-activity | Drill down into a single session or frame, returning evidence rows or the raw AX tree |
 | `memory-read` | memory | Read persisted long-term memory |
 | `memory-write` | memory | Write or append long-term memory |
 | `file-analyze` | file-analysis | Summarize or query a local file |
@@ -103,6 +102,16 @@ Use onboarding to get productive quickly; use the evaluation harness when you ne
 ## Troubleshooting
 
 See [docs/troubleshooting.md](docs/troubleshooting.md) for common issues: service unreachable, provider errors, and index recovery.
+
+For capture and ingestion health — ScreenPipe process state, Accessibility permission failures, idle capture, disk budget warnings, and AX/OCR ratio imbalance — see the [Capture & ingestion observability](docs/troubleshooting.md#capture--ingestion-observability) section. The `internal-status` tool surfaces all five failure modes as structured fields (`capture.state`, `diskBudget.warning`, `ingestionMix.ratio`).
+
+To run the end-to-end coverage evaluation against the fixture set:
+
+```bash
+npm run eval:coverage
+```
+
+This single command exercises the full AX-primary retrieval path with fixed fixtures and exits with code `0` when `effectiveCoverage >= 0.80`.
 
 ## Documentation map
 

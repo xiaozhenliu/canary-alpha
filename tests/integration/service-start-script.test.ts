@@ -1,11 +1,11 @@
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describe('service:start script', () => {
   it('removes the installed plist when launchctl bootstrap fails', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-start-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-start-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -91,7 +91,7 @@ describe('service:start script', () => {
   });
 
   it('fails fast when another process is already listening on the managed port', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-start-port-conflict-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-start-port-conflict-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');

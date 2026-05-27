@@ -2,7 +2,7 @@
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -11,6 +11,7 @@ import { promisify } from 'node:util';
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
+import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -98,7 +99,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(tmpdir(), 'screenpipe-memory-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;

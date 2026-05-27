@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PrivacyState, PrivacyStateReader } from '../../../src/services/privacy/types.js';
-import { createIndexingService } from '../../../src/services/retrieval/indexing-service.js';
+import { createLegacyIndexingService as createIndexingService } from '../../helpers/indexing-test-doubles.js';
 import type {
   CheckpointStore,
   EmbeddingProvider,
@@ -173,13 +173,15 @@ describe('indexing core service', () => {
         id: 'record-oldest',
         text: 'Oldest retained note',
         timestamp: '2026-04-13T09:00:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-newest',
         text: 'Newest retained note',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -231,19 +233,22 @@ describe('indexing core service', () => {
         id: 'record-old',
         text: 'Outside catch-up window',
         timestamp: '2026-04-13T11:10:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-1',
         text: 'First indexed note',
         timestamp: '2026-04-13T11:55:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Second indexed note',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -293,13 +298,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Already indexed note',
         timestamp: '2026-04-13T11:55:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'New note after checkpoint',
         timestamp: '2026-04-13T11:56:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -335,13 +342,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Already indexed note',
         timestamp: '2026-04-13T11:44:30.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'New note within sub-minute gap',
         timestamp: '2026-04-13T11:44:40.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -378,19 +387,22 @@ describe('indexing core service', () => {
         id: 'record-3',
         text: 'Three',
         timestamp: '2026-04-13T11:59:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Two',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-window-start',
         text: 'Inside bounded window',
         timestamp: '2026-04-13T11:50:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -443,19 +455,22 @@ describe('indexing core service', () => {
         id: 'record-3',
         text: 'Three',
         timestamp: '2026-04-13T11:59:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Two',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-window-start',
         text: 'Inside bounded window',
         timestamp: '2026-04-13T11:50:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -498,19 +513,22 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Captured while paused one',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Captured while paused two',
         timestamp: '2026-04-13T11:59:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-window-start',
         text: 'Older backlog record',
         timestamp: '2026-04-13T11:50:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -563,13 +581,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Visible legacy paused record one',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Visible legacy paused record two',
         timestamp: '2026-04-13T11:59:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -609,19 +629,22 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Skip Claude record',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Keep terminal record',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-3',
         text: 'Skip Claude later record',
         timestamp: '2026-04-13T11:22:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -660,7 +683,8 @@ describe('indexing core service', () => {
         id: 'record-iina',
         text: 'Skip IINA record',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'IINA'
+        appName: 'IINA',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -699,13 +723,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Suppressed paused record',
         timestamp: '2026-04-13T11:58:00.000Z',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Visible resumed record',
         timestamp: '2026-04-13T12:06:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -750,13 +776,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Suppressed paused record with offset timestamp',
         timestamp: '2026-04-13T20:00:00+08:00',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Visible resumed record with offset timestamp',
         timestamp: '2026-04-13T20:06:00+08:00',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -801,13 +829,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Visible before pause',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Captured after pause',
         timestamp: '2026-04-13T11:26:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyState = new MutablePrivacyStateReader([
@@ -864,13 +894,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Earlier Claude record',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Later Terminal record',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyState = new MutablePrivacyStateReader([
@@ -933,13 +965,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Visible terminal record',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Late excluded Claude record',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyState = new MutablePrivacyStateReader([
@@ -993,13 +1027,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Visible before offset pause',
         timestamp: '2026-04-13T20:24:00+08:00',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Captured after offset pause',
         timestamp: '2026-04-13T20:26:00+08:00',
-        appName: 'Terminal'
+        appName: 'Terminal',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyState = new MutablePrivacyStateReader([
@@ -1056,7 +1092,8 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Hidden after embed',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyRef: { current: PrivacyState } = {
@@ -1102,7 +1139,8 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Temporarily hidden note',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyState = new MutablePrivacyStateReader([
@@ -1156,7 +1194,8 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Readable without privacy state',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -1192,13 +1231,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Good one',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Bad one',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -1233,19 +1274,22 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Good one',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Bad one',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-3',
         text: 'Good two',
         timestamp: '2026-04-13T11:22:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -1280,25 +1324,29 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Good one',
         timestamp: '2026-04-13T11:50:00.000Z',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Bad one',
         timestamp: '2026-04-13T11:51:00.000Z',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-3',
         text: 'Hidden one',
         timestamp: '2026-04-13T11:52:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-4',
         text: 'Hidden two',
         timestamp: '2026-04-13T11:53:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({
@@ -1339,13 +1387,15 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Bad one',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       },
       {
         id: 'record-2',
         text: 'Good one',
         timestamp: '2026-04-13T11:21:00.000Z',
-        appName: 'Notes'
+        appName: 'Notes',
+        sourceTypes: ['ocr']
       }
     ]);
     const privacyRef: { current: PrivacyState } = {
@@ -1397,7 +1447,8 @@ describe('indexing core service', () => {
         id: 'record-1',
         text: 'Always broken',
         timestamp: '2026-04-13T11:20:00.000Z',
-        appName: 'Claude'
+        appName: 'Claude',
+        sourceTypes: ['ocr']
       }
     ]);
     const service = createIndexingService({

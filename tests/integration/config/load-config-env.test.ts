@@ -1,5 +1,4 @@
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -10,6 +9,7 @@ import {
   resolveRoutineDefinitionsDirectory,
   resolveRoutineHistoryDirectory
 } from '../../../src/config/paths.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const DEFAULT_ROUTINES_ENABLED = false;
 
@@ -112,7 +112,7 @@ afterEach(() => {
 
 describe('loadConfig env overrides', () => {
   it('resolves default routines definitions and history paths from the canonical app home', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-defaults-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-routines-defaults-'));
     await writeConfigForHome(homeDir, buildBaseConfigYaml());
 
     process.env.HOME = homeDir;
@@ -125,7 +125,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('keeps the default history path when only routines.definitionsPath is overridden', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-definitions-only-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-routines-definitions-only-'));
     const customDefinitionsPath = join(homeDir, 'custom-routines', 'definitions');
     await writeConfigForHome(homeDir, buildBaseConfigYaml([
       `  definitionsPath: ${customDefinitionsPath}`
@@ -141,7 +141,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('keeps the default definitions path when only routines.historyPath is overridden', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-history-only-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-routines-history-only-'));
     const customHistoryPath = join(homeDir, 'custom-routines', 'history');
     await writeConfigForHome(homeDir, buildBaseConfigYaml([
       `  historyPath: ${customHistoryPath}`
@@ -157,7 +157,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('ignores ROUTINES_* env noise and keeps config.yaml as the routines boundary', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-routines-env-noise-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-routines-env-noise-'));
     await writeConfigForHome(homeDir, buildBaseConfigYaml());
 
     process.env.HOME = homeDir;
@@ -171,7 +171,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('loads embedding concurrency from config.yaml', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-embedding-concurrency-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-embedding-concurrency-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -208,7 +208,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('defaults embedding concurrency when the field is omitted', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-embedding-concurrency-default-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-embedding-concurrency-default-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -243,7 +243,7 @@ describe('loadConfig env overrides', () => {
     expect(config.providers.embeddings.concurrency).toBe(2);
   });
   it('loads screenpipe apiKey from config.yaml', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-screenpipe-auth-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-screenpipe-auth-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -280,7 +280,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('prefers SCREENPIPE_BASE_URL over config.yaml screenpipe.url for managed service runs', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-env-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-env-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -320,7 +320,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('prefers SCREENPIPE_API_KEY over config.yaml screenpipe.apiKey for managed service runs', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-env-screenpipe-key-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-env-screenpipe-key-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -359,7 +359,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('ignores SCREENPIPE_BASE_URL for non-managed runs and keeps config.yaml screenpipe.url', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-empty-env-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-empty-env-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -399,7 +399,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('ignores stale SCREENPIPE_MEMORY_MCP_SERVER_PORT outside managed service runs', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-stale-frozen-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-stale-frozen-port-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 
@@ -437,7 +437,7 @@ describe('loadConfig env overrides', () => {
   });
 
   it('falls back to the frozen managed-service port when MCP_PORT is invalid for managed service runs', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'load-config-invalid-runtime-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-invalid-runtime-port-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
 

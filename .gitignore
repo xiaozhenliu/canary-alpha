@@ -25,6 +25,8 @@ pnpm-debug.log*
 .cache/
 .tmp/
 tmp/
+# Repo-internal test temp root (see tests/helpers/test-tmp.ts)
+.test-tmp/
 
 # Local databases
 *.db

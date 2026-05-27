@@ -12,7 +12,9 @@ export interface ScreenpipeStubController {
 function toSearchResponse(records: ScreenpipeRecord[]) {
   return {
     data: records.map((record, index) => ({
-      type: 'OCR',
+      // Use 'Accessibility' type for AX records, 'OCR' for OCR records.
+      // This lets normalizeScreenpipeRecord distinguish the two source types.
+      type: record.sourceTypes.includes('accessibility') ? 'Accessibility' : 'OCR',
       // Top-level shape preferred by normalizeScreenpipeRecord's flat branch:
       // expose `id`, `text`, `timestamp`, and `appName` directly so the
       // pipeline preserves the fixture-supplied id (e.g. 'smoke-1') rather
@@ -21,15 +23,21 @@ function toSearchResponse(records: ScreenpipeRecord[]) {
       text: record.text,
       timestamp: record.timestamp,
       appName: record.appName,
+      // Expose frame_id and window_name at the top level so that
+      // normalizeScreenpipeRecord can populate frameId / windowName on the
+      // resulting ScreenpipeRecord (required for cross-source merging, R1.4).
+      frame_id: record.frameId ?? index + 1,
+      window_name: record.windowName,
       // Keep the nested `content` shape too, so any code path that still
       // reads `content.*` (e.g. older normalizers or future PRD-aligned
       // accessibility content_type) continues to receive complete data.
       content: {
         app_name: record.appName ?? '',
-        frame_id: index + 1,
+        frame_id: record.frameId ?? index + 1,
         offset_index: 0,
         text: record.text,
-        timestamp: record.timestamp
+        timestamp: record.timestamp,
+        window_name: record.windowName
       }
     })),
     pagination: {
@@ -47,6 +55,9 @@ function filterRecords(records: ScreenpipeRecord[], requestUrl: URL): Screenpipe
   const to = requestUrl.searchParams.get('end_time');
   const limit = Number(requestUrl.searchParams.get('limit') ?? '0');
   const offset = Number(requestUrl.searchParams.get('offset') ?? '0');
+  // Filter by content_type: 'accessibility' → only AX records,
+  // 'ocr' → only OCR records, absent → all records (backward compatible).
+  const contentType = requestUrl.searchParams.get('content_type');
 
   const filtered = records.filter((record) => {
     const matchesQuery = query
@@ -55,7 +66,13 @@ function filterRecords(records: ScreenpipeRecord[], requestUrl: URL): Screenpipe
     const matchesApp = appName ? record.appName === appName : true;
     const matchesFrom = from ? record.timestamp >= from : true;
     const matchesTo = to ? record.timestamp <= to : true;
-    return matchesQuery && matchesApp && matchesFrom && matchesTo;
+    // Records with empty sourceTypes are visible for any content_type query
+    // (backward-compatible: legacy fixtures that don't specify sourceTypes
+    // should still be returned regardless of the requested content_type).
+    const matchesContentType = contentType
+      ? record.sourceTypes.length === 0 || record.sourceTypes.includes(contentType)
+      : true;
+    return matchesQuery && matchesApp && matchesFrom && matchesTo && matchesContentType;
   });
 
   const safeOffset = Number.isNaN(offset) ? 0 : offset;

@@ -2,7 +2,6 @@ import { execFile, spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { createServer as createNetServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -13,6 +12,7 @@ import { connectHttpClient, connectStdioClient } from '../helpers/mcp-client.js'
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const execFileAsync = promisify(execFile);
@@ -60,7 +60,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('preserves the existing retrieval state when rebuild-index fails before recovery completes', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-preserve-on-failure-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-preserve-on-failure-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -72,7 +72,8 @@ describe('rebuild-index acceptance', () => {
           id: 'rebuild-fixture-1',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -123,7 +124,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('reports needs-rebuild in the rebuild summary when no historical records exist to recover', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-empty-history-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-empty-history-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -172,7 +173,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('reports ready in the rebuild summary when recovery succeeds with an intentionally empty vector store', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-empty-but-valid-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-empty-but-valid-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -185,7 +186,8 @@ describe('rebuild-index acceptance', () => {
           id: 'excluded-recovery-record',
           text: 'Recovery record excluded by privacy policy',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -227,7 +229,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('replaces only retrieval artifacts when using the default app-home storage directory', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-default-app-home-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-default-app-home-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -240,7 +242,8 @@ describe('rebuild-index acceptance', () => {
           id: 'default-home-record',
           text: 'Recovered default app home record',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -314,11 +317,19 @@ describe('rebuild-index acceptance', () => {
       cursor: 'default-home-record',
       timestamp: '2026-04-13T09:00:00.000Z'
     });
-    expect(rebuiltVectorStore.records.map((record) => record.id)).toEqual(['default-home-record']);
+    // Post-task-6.1 (work-activity-analysis): vector-store records
+    // are now keyed by `extracted:${frameId}` — derived from the
+    // record's frameId (or an FNV-1a hash of `record.id` when the
+    // upstream did not populate `frameId`, which is the case for the
+    // ScreenpipeStub's OCR-only fixtures here). Assert there is
+    // exactly one record with the `extracted:` prefix instead of
+    // pinning the legacy id.
+    expect(rebuiltVectorStore.records).toHaveLength(1);
+    expect(rebuiltVectorStore.records[0]?.id).toMatch(/^extracted:/);
   });
 
   it('accumulates fetched and indexed totals across multiple rebuild passes', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-multi-pass-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-multi-pass-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -330,19 +341,22 @@ describe('rebuild-index acceptance', () => {
           id: 'rebuild-fixture-1',
           text: 'Recovered semantic retrieval fixture one',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         },
         {
           id: 'rebuild-fixture-2',
           text: 'Recovered semantic retrieval fixture two',
           timestamp: '2026-04-13T09:01:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         },
         {
           id: 'rebuild-fixture-3',
           text: 'Recovered semantic retrieval fixture three',
           timestamp: '2026-04-13T09:02:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -384,7 +398,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('fails rebuild-index instead of skipping records when a forced backlog page has embedding omissions', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-partial-embedding-failure-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-partial-embedding-failure-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -396,13 +410,15 @@ describe('rebuild-index acceptance', () => {
           id: 'rebuild-fixture-1',
           text: 'Good rebuild fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         },
         {
           id: 'rebuild-fixture-2',
           text: 'Bad rebuild fixture',
           timestamp: '2026-04-13T09:01:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -456,7 +472,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a live stdio server process shares the same retrieval artifacts', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-live-stdio-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-live-stdio-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -465,7 +481,8 @@ describe('rebuild-index acceptance', () => {
           id: 'live-stdio-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -528,13 +545,13 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild when another install shares the same retrieval artifacts directory', async () => {
-    const sharedRetrievalDir = await mkdtemp(join(tmpdir(), 'rebuild-index-shared-retrieval-'));
+    const sharedRetrievalDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-shared-retrieval-'));
     cleanup.push(() => rm(sharedRetrievalDir, { recursive: true, force: true }));
 
-    const serverHomeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-shared-server-home-'));
+    const serverHomeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-shared-server-home-'));
     cleanup.push(() => rm(serverHomeDir, { recursive: true, force: true }));
 
-    const rebuildHomeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-shared-rebuild-home-'));
+    const rebuildHomeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-shared-rebuild-home-'));
     cleanup.push(() => rm(rebuildHomeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -543,7 +560,8 @@ describe('rebuild-index acceptance', () => {
           id: 'shared-retrieval-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -614,7 +632,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a markerless stdio server started without --mode is still active for the same config', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-markerless-stdio-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-markerless-stdio-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -623,7 +641,8 @@ describe('rebuild-index acceptance', () => {
           id: 'markerless-stdio-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -687,7 +706,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a markerless process started from the built entrypoint is still active for the same config', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-markerless-built-entrypoint-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-markerless-built-entrypoint-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -696,7 +715,8 @@ describe('rebuild-index acceptance', () => {
           id: 'markerless-built-entrypoint-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -735,7 +755,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a markerless legacy process uses an equivalent retrieval path spelling', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-markerless-normalized-path-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-markerless-normalized-path-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -747,7 +767,8 @@ describe('rebuild-index acceptance', () => {
           id: 'markerless-normalized-path-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -786,7 +807,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild when a markerless tsx server uses --tsconfig before the entrypoint', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-markerless-tsx-tsconfig-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-markerless-tsx-tsconfig-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -795,7 +816,8 @@ describe('rebuild-index acceptance', () => {
           id: 'markerless-tsx-tsconfig-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -833,7 +855,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('ignores unrelated commands that only mention src/index.ts in argv', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-non-entrypoint-argv-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-non-entrypoint-argv-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -842,7 +864,8 @@ describe('rebuild-index acceptance', () => {
           id: 'non-entrypoint-argv-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -896,7 +919,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a markerless HTTP server process is still active for the same config', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-markerless-http-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-markerless-http-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const managedPort = await reserveFreePort();
@@ -907,7 +930,8 @@ describe('rebuild-index acceptance', () => {
           id: 'markerless-http-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -985,7 +1009,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('ignores stale runtime markers whose pid has been recycled by another process', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-stale-runtime-marker-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-stale-runtime-marker-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
@@ -997,7 +1021,8 @@ describe('rebuild-index acceptance', () => {
           id: 'stale-runtime-marker-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -1036,10 +1061,10 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('ignores stale rebuild locks whose pid has been recycled by another process', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-stale-rebuild-lock-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-stale-rebuild-lock-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const retrievalStateDir = await mkdtemp(join(tmpdir(), 'rebuild-index-stale-rebuild-lock-store-'));
+    const retrievalStateDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-stale-rebuild-lock-store-'));
     cleanup.push(() => rm(retrievalStateDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -1048,7 +1073,8 @@ describe('rebuild-index acceptance', () => {
           id: 'stale-rebuild-lock-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -1117,10 +1143,10 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('blocks new server startup while rebuild-index holds the recovery lock', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-lock-guard-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-lock-guard-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const retrievalStateDir = await mkdtemp(join(tmpdir(), 'rebuild-index-lock-guard-store-'));
+    const retrievalStateDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-lock-guard-store-'));
     cleanup.push(() => rm(retrievalStateDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -1129,7 +1155,8 @@ describe('rebuild-index acceptance', () => {
           id: 'lock-guard-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ],
       fail: false
@@ -1194,10 +1221,10 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to replace rebuilt artifacts when a markerless legacy server starts after the initial offline check', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-late-legacy-start-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-late-legacy-start-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const retrievalStateDir = await mkdtemp(join(tmpdir(), 'rebuild-index-late-legacy-start-store-'));
+    const retrievalStateDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-late-legacy-start-store-'));
     cleanup.push(() => rm(retrievalStateDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -1206,7 +1233,8 @@ describe('rebuild-index acceptance', () => {
           id: 'late-legacy-start-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -1290,7 +1318,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('refuses to rebuild while a frozen managed HTTP service is actively serving the same config', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-live-service-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-live-service-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const managedPort = await reserveFreePort();
@@ -1301,7 +1329,8 @@ describe('rebuild-index acceptance', () => {
           id: 'live-service-record',
           text: 'Recovered semantic retrieval fixture',
           timestamp: '2026-04-13T09:00:00.000Z',
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -1408,7 +1437,7 @@ describe('rebuild-index acceptance', () => {
   });
 
   it('reports needs-rebuild before recovery when the checkpoint exists but the vector store is missing, then rebuilds full older history', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'rebuild-index-acceptance-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-acceptance-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const appDir = join(homeDir, '.canary-alpha-mcp');
@@ -1425,7 +1454,8 @@ describe('rebuild-index acceptance', () => {
           id: 'rebuild-fixture-1',
           text: 'Recovered semantic retrieval fixture',
           timestamp: fixtureTimestamp,
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -1533,7 +1563,12 @@ describe('rebuild-index acceptance', () => {
       cursor: 'rebuild-fixture-1',
       timestamp: fixtureTimestamp
     });
-    expect(rebuiltVectorStore.records.map((record) => record.id)).toEqual(['rebuild-fixture-1']);
+    // Post-task-6.1: vector-store records are keyed by
+    // `extracted:${frameId}`; assert presence rather than the legacy
+    // record id (the original `record.id` is preserved in the
+    // record's `text` and metadata, but the top-level id changed).
+    expect(rebuiltVectorStore.records).toHaveLength(1);
+    expect(rebuiltVectorStore.records[0]?.id).toMatch(/^extracted:/);
 
     const connection = await connectStdioClient({
       HOME: homeDir
@@ -1558,25 +1593,9 @@ describe('rebuild-index acceptance', () => {
     expect(statusStructured.retrieval.vectorStoreKind).toBe('chroma');
     expect(statusStructured.retrieval.recoveryStatus).toBe('ready');
 
-    const searchResult = await connection.client.callTool({
-      name: 'search-screen',
-      arguments: {
-        query: 'recovered semantic retrieval fixture',
-        mode: 'semantic'
-      }
-    });
-    const searchStructured = searchResult.structuredContent as {
-      degraded?: unknown;
-      evidence: Array<{ id: string; source: string }>;
-      error?: unknown;
-    };
-
-    expect(searchStructured.error).toBeUndefined();
-    expect(searchStructured.degraded).toBeUndefined();
-    expect(searchStructured.evidence).toHaveLength(1);
-    expect(searchStructured.evidence[0]).toMatchObject({
-      id: 'rebuild-fixture-1',
-      source: 'semantic'
-    });
+    // Note: the legacy `search-screen` retrievability check after rebuild was
+    // removed by task 8.1 of the work-activity-analysis spec. The replacement
+    // `find` / `recall` / `inspect` tools will re-cover this assertion once
+    // tasks 8.2 - 8.5 land.
   });
 });

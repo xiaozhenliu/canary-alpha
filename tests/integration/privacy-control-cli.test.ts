@@ -1,5 +1,4 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +10,7 @@ import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startHttpServer } from '../helpers/start-http-server.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -58,7 +58,7 @@ afterEach(async () => {
 
 describe('privacy-control CLI', () => {
   it('maps status to the privacy-control MCP tool and prints a compact state summary with plaintext hotspots', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-status-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-status-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipeDir = join(homeDir, '.screenpipe');
@@ -97,7 +97,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('maps pause and resume to MCP actions and surfaces success without unrelated content', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-pause-resume-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-pause-resume-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -149,8 +149,11 @@ describe('privacy-control CLI', () => {
   });
 
   it('runs delete-range last_1h after explicit confirm and prints compact completion output', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-delete-range-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-delete-range-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
+
+    // Create a .screenpipe/db.sqlite so delete-range can execute sqlite3 against it
+    await createScreenpipeFixture(join(homeDir, '.screenpipe'));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
     cleanup.push(() => screenpipe.stop());
@@ -189,7 +192,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('surfaces confirm guidance for delete-range without dumping payloads', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-delete-range-confirm-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-delete-range-confirm-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -232,7 +235,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('surfaces unavailable wider delete ranges without dumping payloads', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-delete-range-unavailable-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-delete-range-unavailable-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -274,7 +277,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('runs rebuild-index after exclude-app --rebuild and prints compact completion output', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-rebuild-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-rebuild-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -337,7 +340,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('surfaces rebuild failures after exclude-app --rebuild while preserving the exclude-app update', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-rebuild-fail-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-rebuild-fail-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -408,7 +411,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('fails fast when exclude-app is missing --app and makes no MCP call', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-missing-app-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-missing-app-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -434,7 +437,7 @@ describe('privacy-control CLI', () => {
   });
 
   it('surfaces MCP validation responses as actionable non-zero exits without dumping payloads', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'privacy-control-cli-validation-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-validation-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });

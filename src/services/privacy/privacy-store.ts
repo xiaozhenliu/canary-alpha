@@ -32,16 +32,30 @@ function normalizeSuppressedRanges(value: unknown): PrivacySuppressedRange[] {
 
     const normalizedFrom = normalizeTimestamp(candidate.from) ?? EARLIEST_PRIVACY_TIMESTAMP;
     const normalizedTo = normalizeTimestamp(candidate.to) ?? LATEST_PRIVACY_TIMESTAMP;
+    const orderedFrom = Date.parse(normalizedFrom) <= Date.parse(normalizedTo)
+      ? normalizedFrom
+      : normalizedTo;
+    const orderedTo = orderedFrom === normalizedFrom ? normalizedTo : normalizedFrom;
 
-    return Date.parse(normalizedFrom) <= Date.parse(normalizedTo)
-      ? [{
-          from: normalizedFrom,
-          to: normalizedTo
-        }]
-      : [{
-          from: normalizedTo,
-          to: normalizedFrom
-        }];
+    const range: PrivacySuppressedRange = {
+      from: orderedFrom,
+      to: orderedTo
+    };
+    if (candidate.reason === 'pause' || candidate.reason === 'delete-range' || candidate.reason === 'cascade-failure') {
+      range.reason = candidate.reason;
+    }
+    if (Array.isArray(candidate.failedFrameIds)) {
+      const ids = candidate.failedFrameIds.filter((id): id is number => typeof id === 'number' && Number.isInteger(id));
+      if (ids.length > 0) {
+        range.failedFrameIds = ids;
+      }
+    }
+    const createdAt = normalizeTimestamp(candidate.createdAt);
+    if (createdAt !== undefined) range.createdAt = createdAt;
+    const resolvedAt = normalizeTimestamp(candidate.resolvedAt);
+    if (resolvedAt !== undefined) range.resolvedAt = resolvedAt;
+
+    return [range];
   });
 }
 

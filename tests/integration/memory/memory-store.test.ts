@@ -1,14 +1,14 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FileMemoryStore } from '../../../src/services/memory/memory-store.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('file memory store', () => {
   it('creates missing directories and writes scope files atomically', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'memory-store-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'memory-store-'));
     const memoryPath = join(tempDir, 'nested', 'memory.md');
     const userPath = join(tempDir, 'nested', 'user.md');
     const store = new FileMemoryStore({
@@ -30,7 +30,7 @@ describe('file memory store', () => {
   });
 
   it('returns empty strings for scopes that have not been written yet', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'memory-store-empty-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'memory-store-empty-'));
     const store = new FileMemoryStore({
       memory: join(tempDir, 'memory.md'),
       user: join(tempDir, 'user.md')

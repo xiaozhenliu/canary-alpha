@@ -1,0 +1,24 @@
+{
+  "_comment": "Ground truth for noise-control-center fixture. App: Control Center (macOS system UI). The AX tree contains only AXButton nodes with no substantive text content. Generic heuristic should produce an Empty_Extraction (extractedText = ''). This frame should NOT appear in find results. It still participates in sessionization but contributes no searchable content.",
+  "frame_id": 5001,
+  "extractedText": "",
+  "extractionRuleKind": "generic",
+  "contextLabel": "Control Center",
+  "contextKey": "control center::control center",
+  "is_empty_extraction": true,
+  "session_count": 1,
+  "session_boundaries": [
+    {
+      "app_name": "Control Center",
+      "context_key": "control center::control center",
+      "frame_ids": [5001]
+    }
+  ],
+  "find_hit_frame_ids": [],
+  "find_queries": [
+    "Wi-Fi",
+    "Bluetooth",
+    "Control Center"
+  ],
+  "_note": "find_hit_frame_ids is empty because Empty_Extraction frames are not indexed for keyword or semantic search. The frame still creates a session entry but extractedText is '' so it won't match any query."
+}

@@ -9,7 +9,8 @@ function evidence(id: string, source: RetrievalEvidenceItem['source'], text = id
     text,
     timestamp: '2026-04-13T12:00:00.000Z',
     appName: 'Claude',
-    source
+    source,
+    sourceTypes: []
   };
 }
 

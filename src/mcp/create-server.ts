@@ -1,10 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/server';
 
+import { getPackageVersion } from '../lib/version.js';
+
 export function createMcpServer(): McpServer {
   return new McpServer(
     {
       name: 'canary-alpha-mcp',
-      version: '0.1.0'
+      version: getPackageVersion()
     },
     {
       capabilities: {

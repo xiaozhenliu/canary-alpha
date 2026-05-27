@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 
 import { Client, StdioClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
+import { getPackageVersion } from '../../src/lib/version.js';
+
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export interface ConnectedClient {
@@ -13,7 +15,7 @@ export interface ConnectedClient {
 function createClient(): Client {
   return new Client({
     name: 'canary-alpha-mcp-test-client',
-    version: '0.1.0'
+    version: getPackageVersion()
   });
 }
 

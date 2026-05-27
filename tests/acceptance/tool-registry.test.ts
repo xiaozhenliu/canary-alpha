@@ -1,5 +1,4 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -9,6 +8,7 @@ import { connectStdioClient } from '../helpers/mcp-client.js';
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const ROUTINE_TOOL_NAMES = ['routine-list', 'routine-create', 'routine-history'] as const;
 
@@ -25,7 +25,7 @@ afterEach(async () => {
 
 describe('tool registry visibility', () => {
   it('exposes the focused v1 tool manifest over MCP', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-registry-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-registry-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });

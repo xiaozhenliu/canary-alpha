@@ -41,7 +41,8 @@ describe('privacy control service', () => {
       suppressedRanges: [
         {
           from: '2026-04-13T11:55:00.000Z',
-          to: '2026-04-13T12:04:59.999Z'
+          to: '2026-04-13T12:04:59.999Z',
+          reason: 'pause'
         }
       ]
     });
@@ -104,7 +105,8 @@ describe('privacy control service', () => {
       suppressedRanges: [
         {
           from: '2026-04-13T12:05:00.000Z',
-          to: '2026-04-13T12:05:00.000Z'
+          to: '2026-04-13T12:05:00.000Z',
+          reason: 'pause'
         }
       ]
     });
@@ -145,14 +147,19 @@ describe('privacy control service', () => {
         },
         {
           from: '2026-04-13T11:05:00.000Z',
-          to: '2026-04-13T12:05:00.000Z'
+          to: '2026-04-13T12:05:00.000Z',
+          reason: 'delete-range'
         }
       ]
     });
   });
 
   it('keeps wider confirmed delete-range requests unavailable', async () => {
-    const service = new DefaultPrivacyControlService(new InMemoryPrivacyStore());
+    // Use a non-existent screenpipeDirectory so the delete always degrades to PRIVACY_DELETE_UNAVAILABLE
+    // regardless of whether a real Screenpipe DB exists on the test machine.
+    const service = new DefaultPrivacyControlService(new InMemoryPrivacyStore(), undefined, {
+      screenpipeDirectory: '/nonexistent/path/for-test-isolation'
+    });
 
     await expect(service.execute({ action: 'delete-range', range: 'last_1d', confirm: true })).resolves.toMatchObject({
       confirmed: true,

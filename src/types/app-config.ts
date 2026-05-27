@@ -9,11 +9,21 @@ import type {
   EmbeddingProvider,
   FreshnessPolicy,
   IndexingService,
-  RecentActivityService,
   ScreenpipeClient,
-  SearchScreenService,
   VectorStore
 } from '../services/retrieval/types.js';
+import type { FindService } from '../services/work-activity/find/find-service.js';
+import type { InspectService } from '../services/work-activity/inspect/inspect-service.js';
+import type { RecallService } from '../services/work-activity/recall/recall-service.js';
+import type { CascadeDeleteCoordinator } from '../services/work-activity/cascade-delete-coordinator.js';
+import type { CaptureStatus, IngestionMix, DiskBudget } from '../services/diagnostics/ingestion-observability-service.js';
+import type {
+  ExtractionStatus,
+  ObservabilityDegradation,
+  ProvidersStatus,
+  SessionsStatus,
+  SummaryRollup
+} from '../services/work-activity/observability/work-activity-observability-service.js';
 
 export type ServerMode = 'stdio' | 'http';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -48,6 +58,42 @@ export interface VectorStoreConfig {
   path?: string;
 }
 
+/**
+ * Summary provider kinds delivered in this spec.
+ *
+ * - `template` (default): deterministic local string templating; zero outbound traffic.
+ * - `remote-llm`: OpenAI-compatible chat/completions call via `llm.base_url`.
+ *
+ * The abstraction is designed for backward-compatible extension (e.g. local LLMs).
+ */
+export type SummaryProviderKind = 'template' | 'remote-llm';
+
+export interface AnalysisSessionsConfig {
+  idleThresholdSeconds: number;
+}
+
+export interface AnalysisSummaryConfig {
+  provider: SummaryProviderKind;
+  remoteLlmTimeoutMs: number;
+}
+
+export interface AnalysisEmbeddingsConfig {
+  topK: number;
+  minScore: number;
+}
+
+export interface AnalysisConfig {
+  sessions: AnalysisSessionsConfig;
+  summary: AnalysisSummaryConfig;
+  embeddings: AnalysisEmbeddingsConfig;
+}
+
+export interface LlmConfig {
+  base_url?: string;
+  api_key?: string;
+  model: string;
+}
+
 export interface AppConfig {
   server: {
     mode: ServerMode;
@@ -77,11 +123,31 @@ export interface AppConfig {
     configFile: string;
     logDirectory: string;
     serviceLogFile: string;
+    /**
+     * Derived SQLite database path used by the work-activity-analysis layer
+     * (extracted_content / sessions / embedding_hash_index tables).
+     * Defaults to `~/.canary-alpha-mcp/derived.sqlite`.
+     */
+    derivedDatabase: string;
   };
   trim: {
     enabled: boolean;
     intervalSeconds: number;
   };
+  capture: {
+    livenessThresholdSeconds: number;
+    permissionsGracePeriodSeconds: number;
+  };
+  storage: {
+    diskBudgetBytes: number | null;
+    retentionDays: number;
+  };
+  privacy: {
+    excludeApps: string[];
+    secureAxRoles: string[];
+  };
+  analysis: AnalysisConfig;
+  llm: LlmConfig;
 }
 
 export interface ScreenpipeTrimResult {
@@ -304,6 +370,12 @@ export interface BootstrapStatus {
   port: number;
   pid: number;
   configFile: string;
+  /** Capture liveness state (from IngestionObservabilityService). Optional: absent when collection fails. */
+  capture?: CaptureStatus;
+  /** Ingestion source mix over the last 24 h. Optional: absent when collection fails. */
+  ingestionMix?: IngestionMix;
+  /** Disk budget snapshot. Optional: absent when collection fails. */
+  diskBudget?: DiskBudget;
   retrieval: {
     checkpointExists: boolean;
     checkpointTimestamp?: string;
@@ -311,7 +383,33 @@ export interface BootstrapStatus {
     recoveryStatus: 'ready' | 'needs-rebuild' | 'degraded';
   };
   screenpipeStorage: ScreenpipeStorageDiagnostics;
+  /**
+   * Work-activity-analysis observability rollups (design §9 / R2 / R4 / R8).
+   * Each block is optional so a `WorkActivityObservabilityService` failure
+   * (or absence at boot before the wiring lands) collapses the field rather
+   * than failing the entire `internal-status` call.
+   */
+  extraction?: ExtractionStatus;
+  sessions?: SessionsStatus;
+  summary?: SummaryRollup;
+  providers?: ProvidersStatus;
+  /**
+   * Per-section degradation reasons (design §9 Error Handling). Populated
+   * only when `WorkActivityObservabilityService.collect()` falls back for
+   * one or more sections. Omitted entirely when every section is healthy.
+   */
+  degraded?: ObservabilityDegradation;
 }
+
+// Re-export for convenience so callers don't need to import from two places.
+export type { CaptureStatus, IngestionMix, DiskBudget };
+export type {
+  ExtractionStatus,
+  ObservabilityDegradation,
+  ProvidersStatus,
+  SessionsStatus,
+  SummaryRollup
+};
 
 export interface AppServices {
   bootstrapStatus: {
@@ -328,8 +426,22 @@ export interface AppServices {
     checkpointStore: CheckpointStore;
     freshnessPolicy: FreshnessPolicy;
     indexing: IndexingService;
-    searchScreen: SearchScreenService;
-    recentActivity: RecentActivityService;
+  };
+  /**
+   * Work-activity-analysis read services backing the `find` / `recall`
+   * / `inspect` MCP tools (task 8.x). Each tool delegates to its
+   * service so the schemas live in `src/mcp/tools/` while the SQL
+   * lives in `src/services/work-activity/`. Services are wired in
+   * `bootstrap/create-app.ts`.
+   *
+   * `cascadeDelete` is the coordinator used by the retention pass and
+   * `delete-range` to clean up derived data (task 10.2, R9.1).
+   */
+  workActivity: {
+    find: FindService;
+    inspect: InspectService;
+    recall: RecallService;
+    cascadeDelete: CascadeDeleteCoordinator;
   };
 }
 

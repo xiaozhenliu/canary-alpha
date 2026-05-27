@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-04-16
+last_updated: 2026-05-27
 ---
 
 # Troubleshooting
@@ -163,6 +163,42 @@ The service only analyzes supported text input. Binary content is rejected expli
 - verify the path is correct
 - retry with a text file rather than a binary asset
 
+## Capture & ingestion observability
+
+Use `internal-status` to inspect the live capture and ingestion state. The tool returns three diagnostic blocks — `capture`, `ingestionMix`, and `diskBudget` — that map directly to the failure modes below.
+
+### Failure modes
+
+**ScreenPipe process is not running**
+
+`capture.state == "process-down"`
+
+The `screenpipe-safe-record` process is not registered in the runtime registry. Start it with `npm run screenpipe:safe-record` or via the Screenpipe desktop app, then re-check `internal-status`.
+
+**macOS Accessibility permission is missing**
+
+`capture.state == "permissions-missing"`
+
+The process started recently but no frames have been written yet, and the grace period has elapsed. Open **System Settings → Privacy & Security → Accessibility** and grant permission to Screenpipe, then restart the process.
+
+**Process is running but producing no new frames**
+
+`capture.state == "idle"`
+
+The process is alive but `frames.timestamp` has not advanced beyond the liveness threshold (default 120 s). Common causes: the screen is locked, the machine is sleeping, or `--ignored-windows` / `excludedApps` is too broad. Check `capture.lastFrameTimestamp` and `capture.reason` for details.
+
+**Disk budget exhausted with no reclaimable data**
+
+`diskBudget.warning` is a non-empty string
+
+The database has exceeded `storage.diskBudgetBytes` and there are no rows older than `storage.retentionDays` left to delete. Either raise the budget in `~/.canary-alpha-mcp/config.yaml` (`storage.diskBudgetBytes`) or shorten the retention window (`storage.retentionDays`).
+
+**AX / OCR ingestion ratio is severely imbalanced**
+
+`ingestionMix.ratio` is near `0` or near `1`
+
+`ratio` is `accessibilityCount / (accessibilityCount + ocrCount)` over the last 24 h. A value near `0` means almost all indexed content came from OCR (Accessibility capture may be blocked or the AX path is failing). A value near `1` means OCR fallback is never firing (expected in a healthy AX-primary setup, but worth confirming). Cross-reference with `capture.state` and the Screenpipe logs.
+
 ## Verification commands
 
 Use these commands when narrowing down a problem:
@@ -170,10 +206,18 @@ Use these commands when narrowing down a problem:
 ```bash
 npm run service:status
 npm run service:logs
-npm run test:http-tool-flow
-npm run smoke:http
-npm run test:acceptance
+npm run test
+npm run test:contract
+npm run eval:coverage
 ```
+
+## Privacy delete-range cascade failures
+
+When `privacy-control` runs `delete-range`, it first deletes upstream Screenpipe rows and then cascades the delete into the derived store (`extracted_content`, `sessions`, vector index). If the upstream delete succeeds but the cascade fails, the service writes a `cascade-failure` tombstone covering the requested window so retrieval results stay consistent with the user's privacy intent.
+
+While the tombstone is active, `find` and `recall` filter out evidence and sessions whose timestamps fall inside that window — even though the underlying derived rows still exist. Look for `privacy-control delete-range` warnings in `npm run service:logs` and check the `cascade.cascade` field in the `privacy-control` response (`partial` or `failed` indicates an active tombstone).
+
+Once you have resolved the underlying issue with the derived database (disk space, file lock, schema mismatch, etc.), re-run `privacy-control` against the same range. The reconciliation entry point retries the cascade and clears each tombstone on success, after which `find` / `recall` stop suppressing the window.
 
 ## Related docs
 

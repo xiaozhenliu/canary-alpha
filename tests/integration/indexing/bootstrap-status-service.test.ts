@@ -1,5 +1,4 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
@@ -10,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { BootstrapStatusService } from '../../../src/services/bootstrap-status-service.js';
 import type { AppConfig } from '../../../src/types/app-config.js';
 import type { CheckpointStore, IndexedCheckpoint, VectorStore, VectorStoreInspection, VectorSearchRequest } from '../../../src/services/retrieval/types.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const cleanup: Array<() => Promise<void>> = [];
@@ -131,6 +131,7 @@ class SlowVectorStore implements VectorStore {
 }
 
 function createConfig(): AppConfig {
+  const fixtureRoot = join(testTempRoot(), 'bootstrap-status-fixture');
   return {
     server: {
       mode: 'stdio',
@@ -152,7 +153,7 @@ function createConfig(): AppConfig {
     },
     vectorStore: {
       kind: 'chroma',
-      path: '/tmp/bootstrap-status-test'
+      path: fixtureRoot
     },
     retrieval: {
       freshnessWindowMinutes: 15,
@@ -161,16 +162,26 @@ function createConfig(): AppConfig {
       maxCatchUpRecords: 500
     },
     paths: {
-      configFile: '/tmp/bootstrap-status-test.yaml',
-      logDirectory: '/tmp/bootstrap-status-test-logs',
-      serviceLogFile: '/tmp/bootstrap-status-test-logs/service.log'
+      configFile: join(fixtureRoot, 'config.yaml'),
+      logDirectory: join(fixtureRoot, 'logs'),
+      serviceLogFile: join(fixtureRoot, 'logs', 'service.log'),
+      derivedDatabase: join(fixtureRoot, 'derived.sqlite')
     },
     routines: {
       enabled: false,
-      definitionsPath: '/tmp/routines/definitions',
-      historyPath: '/tmp/routines/history'
+      definitionsPath: join(fixtureRoot, 'routines', 'definitions'),
+      historyPath: join(fixtureRoot, 'routines', 'history')
     },
-    trim: { enabled: true, intervalSeconds: 600 }
+    trim: { enabled: true, intervalSeconds: 600 },
+    capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    storage: { diskBudgetBytes: null, retentionDays: 7 },
+    privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
+    analysis: {
+      sessions: { idleThresholdSeconds: 120 },
+      summary: { provider: 'template', remoteLlmTimeoutMs: 30000 },
+      embeddings: { topK: 20, minScore: 0 }
+    },
+    llm: { model: 'gpt-4o-mini' }
   };
 }
 
@@ -288,7 +299,7 @@ describe('bootstrap status service', () => {
   });
 
   it('reports Screenpipe db.sqlite totals with dominant table diagnostics when SQLite inspection succeeds', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'bootstrap-status-storage-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'bootstrap-status-storage-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(homeDir, '.screenpipe');
@@ -362,7 +373,7 @@ describe('bootstrap status service', () => {
   });
 
   it('degrades only screenpipeStorage when SQLite table inspection is unavailable', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'bootstrap-status-storage-degraded-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'bootstrap-status-storage-degraded-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(homeDir, '.screenpipe');

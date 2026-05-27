@@ -1,11 +1,11 @@
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FileRoutineStore, normalizeRoutineName } from '../../../src/services/routines/routine-store.js';
 import type { RoutineDefinition, RoutineRunRecord } from '../../../src/services/routines/types.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 function createDefinition(overrides: Partial<RoutineDefinition> = {}): RoutineDefinition {
   const now = '2026-05-02T12:00:00.000Z';
@@ -47,7 +47,7 @@ describe('file routine store', () => {
   });
 
   it('persists one slugged definition and updates in place', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'routine-store-definitions-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'routine-store-definitions-'));
     const definitionsDirectory = join(tempDir, 'definitions');
     const historyDirectory = join(tempDir, 'history');
     const store = new FileRoutineStore({ definitionsDirectory, historyDirectory });
@@ -125,7 +125,7 @@ describe('file routine store', () => {
   });
 
   it('stores history newest-first and survives a fresh store instance', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'routine-store-history-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'routine-store-history-'));
     const definitionsDirectory = join(tempDir, 'definitions');
     const historyDirectory = join(tempDir, 'history');
     const store = new FileRoutineStore({ definitionsDirectory, historyDirectory });
@@ -284,7 +284,7 @@ describe('file routine store', () => {
   });
 
   it('fails closed for malformed persisted definition and history JSON', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'routine-store-malformed-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'routine-store-malformed-'));
     const definitionsDirectory = join(tempDir, 'definitions');
     const historyDirectory = join(tempDir, 'history');
     const store = new FileRoutineStore({ definitionsDirectory, historyDirectory });

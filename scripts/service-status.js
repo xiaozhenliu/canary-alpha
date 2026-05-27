@@ -10,6 +10,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
+import { getPackageVersion } from './version.js';
 
 const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
@@ -56,7 +57,7 @@ function readLaunchctlPid(output) {
 function createClient() {
   return new Client({
     name: 'canary-alpha-mcp-service-script',
-    version: '0.1.0'
+    version: getPackageVersion()
   });
 }
 

@@ -1,10 +1,10 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { DefaultFileAnalyzeService } from '../../../src/services/file-analysis/file-analyze-service.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('file analyze validation', () => {
   it('returns an explicit error for a missing file path', async () => {
@@ -16,7 +16,7 @@ describe('file analyze validation', () => {
   });
 
   it('returns an explicit error for a directory path', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-dir-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-dir-'));
 
     try {
       const service = new DefaultFileAnalyzeService();
@@ -29,7 +29,7 @@ describe('file analyze validation', () => {
   });
 
   it('returns an explicit error for an unsupported extension', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-pdf-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-pdf-'));
     const filePath = join(tempDir, 'doc.pdf');
 
     try {
@@ -45,7 +45,7 @@ describe('file analyze validation', () => {
   });
 
   it('returns an explicit error for binary content detected via NUL byte', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-binary-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-binary-'));
     const filePath = join(tempDir, 'binary.txt');
 
     try {

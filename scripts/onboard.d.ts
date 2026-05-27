@@ -1,15 +1,15 @@
-export interface RecentActivityValidationSummary {
-  resultCount: number;
-  itemIds: string[];
+export interface RecallValidationSummary {
+  sessionCount: number;
+  sessionIds: string[];
 }
 
-export interface SearchScreenValidationSummary {
-  searchResultCount: number;
-  searchItemIds: string[];
-  searchStatus: string;
+export interface FindValidationSummary {
+  findResultCount: number;
+  findItemIds: string[];
+  findStatus: string;
 }
 
-export interface ValidationToolCallSummary extends RecentActivityValidationSummary, SearchScreenValidationSummary {
+export interface ValidationToolCallSummary extends RecallValidationSummary, FindValidationSummary {
   status: unknown;
 }
 
@@ -43,7 +43,7 @@ export function createSearchScreenWindow(now?: Date): {
   from: string;
   to: string;
 };
-export function summarizeRecentActivityValidation(structuredContent: unknown): RecentActivityValidationSummary;
-export function summarizeSearchScreenValidation(structuredContent: unknown): SearchScreenValidationSummary;
+export function summarizeRecallValidation(structuredContent: unknown): RecallValidationSummary;
+export function summarizeFindValidation(structuredContent: unknown): FindValidationSummary;
 export function summarizeOllamaModelProbe(probe: JsonProbeResult, model: string): OllamaModelProbeSummary;
 export function runValidationToolCalls(client: ValidationToolClient, now?: Date): Promise<ValidationToolCallSummary>;
