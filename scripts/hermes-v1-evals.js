@@ -13,6 +13,7 @@ import { startScreenpipeStub } from '../tests/helpers/screenpipe-stub.ts';
 import { startHttpServer } from '../tests/helpers/start-http-server.ts';
 import { writeTestConfig } from '../tests/helpers/test-config.ts';
 import { V1_EVALUATION_TASKS } from '../tests/evaluations/v1-evaluation-manifest.ts';
+import { V1_EVALS_TOOL_INCLUDES } from './hermes-tool-includes.js';
 import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
@@ -85,7 +86,7 @@ function buildIsolatedHermesConfig(endpoint) {
         url: endpoint,
         enabled: true,
         tools: {
-          include: ['internal-status', 'search-screen', 'recent-activity', 'memory-read', 'memory-write']
+          include: [...V1_EVALS_TOOL_INCLUDES]
         }
       }
     }

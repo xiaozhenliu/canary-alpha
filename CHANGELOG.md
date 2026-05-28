@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Align Hermes-side scripts and the v1 evaluation manifest to the registered MCP tool surface; replace retired `search-screen` and `recent-activity` references with `find` and `recall`. Adds a contract test (`tests/contract/hermes-tools-include.contract.test.ts`) to prevent future drift.
+
 ## [2.0.0] - 2026-05-27
 
 ### Added

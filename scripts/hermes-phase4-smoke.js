@@ -11,6 +11,7 @@ import { promisify } from 'node:util';
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
+import { PHASE4_TOOL_INCLUDES } from './hermes-tool-includes.js';
 import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
@@ -91,7 +92,7 @@ function buildIsolatedHermesConfig(endpoint) {
         url: endpoint,
         enabled: true,
         tools: {
-          include: ['internal-status', 'search-screen', 'recent-activity']
+          include: [...PHASE4_TOOL_INCLUDES]
         }
       }
     }
@@ -162,7 +163,7 @@ async function main() {
         '--toolsets',
         hermesServerName,
         '--query',
-        'Use the configured MCP server only. First confirm internal-status, then call recent-activity with minutes 10 and format raw, and report the returned item ids.'
+        'Use the configured MCP server only. First confirm internal-status, then call recall over the last 10 minutes with granularity session and includeSummary false (use to = the current time and from = ten minutes before that), and report the returned session ids.'
       ], {
         env: hermesEnv,
         timeout: 180_000
