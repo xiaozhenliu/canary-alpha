@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Anchor the v1 evaluation harness to the registered tool surface: surface stable `frameId` numerics on fixture records (`eval-recent-1` → 9101, `eval-search-1` → 9102, `eval-refine-1` → 9103, `eval-fallback-1` → 9104), assert on those `frameId` substrings instead of unreachable screenpipe `record.id` values, and replace relative recall windows with explicit ISO `from` / `to` anchored at `FIXTURE_NOW = 2026-04-13T12:00:00.000Z`. Extends `tests/contract/hermes-tools-include.contract.test.ts` to fail on future fixture-id / time-anchor drift.
 - Align Hermes-side scripts and the v1 evaluation manifest to the registered MCP tool surface; replace retired `search-screen` and `recent-activity` references with `find` and `recall`. Adds a contract test (`tests/contract/hermes-tools-include.contract.test.ts`) to prevent future drift.
 
 ## [2.0.0] - 2026-05-27

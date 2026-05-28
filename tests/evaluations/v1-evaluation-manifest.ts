@@ -27,11 +27,11 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     query: [
       'Use only the configured MCP server.',
       'First call internal-status.',
-      'Then call recall over the last 10 minutes with granularity session and includeSummary false.',
-      'Report the server mode and every returned session id.',
+      'Then call recall with from "2026-04-13T11:50:00.000Z" to "2026-04-13T12:00:00.000Z" granularity session and includeSummary false.',
+      'Report the server mode and every returned session id and evidence frame id.',
       'End your final answer with exactly: EVAL status-and-recent-activity PASS'
     ].join(' '),
-    requiredTranscriptTokens: ['EVAL status-and-recent-activity PASS', 'http', 'eval-recent-1'],
+    requiredTranscriptTokens: ['EVAL status-and-recent-activity PASS', 'http', '9101'],
     requiredToolMarkers: [
       'preparing mcp_screenpipe_memory_v1_evals_internal_status',
       'preparing mcp_screenpipe_memory_v1_evals_recall'
@@ -48,10 +48,10 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     query: [
       'Use only the configured MCP server.',
       'Call find with query "budget planning evaluation" in hybrid mode.',
-      'Report the best matching item id, then summarize the evidence in one sentence.',
+      'Report the best matching frameId, then summarize the evidence in one sentence.',
       'End your final answer with exactly: EVAL retrieval-summary PASS'
     ].join(' '),
-    requiredTranscriptTokens: ['EVAL retrieval-summary PASS', 'eval-search-1', 'budget planning evaluation note'],
+    requiredTranscriptTokens: ['EVAL retrieval-summary PASS', '9102', 'budget planning evaluation note'],
     requiredToolMarkers: ['preparing mcp_screenpipe_memory_v1_evals_find']
   },
   {
@@ -65,11 +65,11 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     query: [
       'Use only the configured MCP server.',
       'First call find with query "action item evaluation" in hybrid mode.',
-      'Then refine the answer by calling recall over the last 60 minutes with granularity session and includeSummary false.',
-      'Identify the item id that still matches the action-item request after refinement.',
+      'Then refine the answer by calling recall with from "2026-04-13T11:00:00.000Z" to "2026-04-13T12:00:00.000Z" granularity session and includeSummary false.',
+      'Identify the evidence frame id that still matches the action-item request after refinement.',
       'End your final answer with exactly: EVAL find-then-refine PASS'
     ].join(' '),
-    requiredTranscriptTokens: ['EVAL find-then-refine PASS', 'eval-refine-1'],
+    requiredTranscriptTokens: ['EVAL find-then-refine PASS', '9103'],
     requiredToolMarkers: [
       'preparing mcp_screenpipe_memory_v1_evals_find',
       'preparing mcp_screenpipe_memory_v1_evals_recall'
@@ -111,10 +111,10 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     query: [
       'Use only the configured MCP server.',
       'Call find with query "fallback failure evaluation" in hybrid mode.',
-      'If the retrieval degrades, continue and report the returned item id plus the fallback mode.',
+      'If the retrieval degrades, continue and report the returned frameId plus the matchSource or fallback mode.',
       'End your final answer with exactly: EVAL failure-recovery PASS'
     ].join(' '),
-    requiredTranscriptTokens: ['EVAL failure-recovery PASS', 'keyword', 'eval-fallback-1'],
+    requiredTranscriptTokens: ['EVAL failure-recovery PASS', 'keyword', '9104'],
     requiredToolMarkers: ['preparing mcp_screenpipe_memory_v1_evals_find']
   }
 ];

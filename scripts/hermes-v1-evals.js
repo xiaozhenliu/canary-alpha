@@ -14,6 +14,8 @@ import { startHttpServer } from '../tests/helpers/start-http-server.ts';
 import { writeTestConfig } from '../tests/helpers/test-config.ts';
 import { V1_EVALUATION_TASKS } from '../tests/evaluations/v1-evaluation-manifest.ts';
 import { V1_EVALS_TOOL_INCLUDES } from './hermes-tool-includes.js';
+import { FIXTURE_NOW, minusFixtureMinutesIso } from './hermes-v1-fixture-clock.js';
+import { V1_EVALS_FIXTURE_RECORDS } from './hermes-v1-fixture-records.js';
 import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
@@ -23,15 +25,10 @@ const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'evaluations', 'v1-hermes');
 const hermesCommand = 'hermes';
 const hermesServerName = 'screenpipe-memory-v1-evals';
-const FIXTURE_NOW = new Date('2026-04-13T12:00:00.000Z');
 
 function fail(message, code = 1) {
   console.error(message);
   process.exit(code);
-}
-
-function minusFixtureMinutes(minutes) {
-  return new Date(FIXTURE_NOW.getTime() - minutes * 60_000).toISOString();
 }
 
 async function ensureDirectory(path) {
@@ -101,32 +98,8 @@ async function createIsolatedHermesHome(endpoint) {
 }
 
 function buildFixtureRecords() {
-  return [
-    {
-      id: 'eval-recent-1',
-      text: 'Recent activity fixture for evaluation status checks',
-      timestamp: minusFixtureMinutes(1),
-      appName: 'Claude'
-    },
-    {
-      id: 'eval-search-1',
-      text: 'Budget planning evaluation note for retrieval summary coverage',
-      timestamp: minusFixtureMinutes(15),
-      appName: 'Finance'
-    },
-    {
-      id: 'eval-refine-1',
-      text: 'Action item evaluation note that survives refinement',
-      timestamp: minusFixtureMinutes(20),
-      appName: 'Meetings'
-    },
-    {
-      id: 'eval-fallback-1',
-      text: 'Fallback failure evaluation keyword record for degraded recovery coverage',
-      timestamp: minusFixtureMinutes(90),
-      appName: 'Claude'
-    }
-  ];
+  // Deep-copy so callers cannot mutate the frozen canonical set.
+  return V1_EVALS_FIXTURE_RECORDS.map((record) => ({ ...record }));
 }
 
 async function setupControlledEnvironment() {
@@ -154,7 +127,7 @@ async function setupControlledEnvironment() {
     join(checkpointDir, 'retrieval-checkpoint.json'),
     JSON.stringify({
       cursor: 'v1-evals-checkpoint',
-      timestamp: minusFixtureMinutes(1)
+      timestamp: minusFixtureMinutesIso(1)
     }, null, 2),
     'utf8'
   );
