@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-07-15
+
 ### Added
 
 - `npm run hermes:verify` (`scripts/hermes-e2e.js`): real end-to-end smoke gate that runs a Hermes chat scenario against the user's live `~/.hermes/config.yaml` and local MCP service, with distinct actionable errors per failure mode (`hermes-missing`, `llm-not-configured`, `mcp-service-down`, `tool-call-failed`).

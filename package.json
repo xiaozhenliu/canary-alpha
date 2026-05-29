@@ -1,6 +1,6 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
@@ -23,6 +23,7 @@
     "service:status": "node scripts/service-status.js",
     "service:logs": "node scripts/service-logs.js",
     "smoke:http": "vitest run tests/acceptance/http-smoke.test.ts",
+    "hermes:verify": "node scripts/hermes-e2e.js",
     "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
     "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
     "linear": "node --import tsx scripts/linear.ts",
