@@ -30,6 +30,7 @@ import {
   writeHermesConfigFile
 } from './onboarding-config.js';
 import { getPackageVersion } from './version.js';
+import { detectHermes } from './hermes-detector.js';
 
 const execFileAsync = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -425,6 +426,7 @@ async function main() {
   const validation = await runFirstValidation(paths.configPath);
   const hermesPaths = resolveHermesPaths();
   const hermesConfig = await writeHermesConfigFile(hermesPaths.configPath, validation.endpoint);
+  const hermesDetection = await detectHermes();
 
   console.log('\nOnboarding complete.');
   console.log(`- config: ${paths.configPath}${backupPath ? ` (previous config backed up to ${backupPath})` : ''}`);
@@ -434,6 +436,12 @@ async function main() {
   console.log(`- endpoint: ${validation.endpoint}`);
   console.log(`- Hermes MCP config: ${hermesConfig.configPath}`);
   console.log(`- Hermes MCP server: ${hermesConfig.serverName}`);
+  if (hermesDetection.present) {
+    console.log(`- hermes version: ${hermesDetection.version}`);
+  } else {
+    console.log(`- hermes: not found on PATH — install from ${hermesDetection.installGuidanceUrl}`);
+    console.log('  (Hermes config was still written; install hermes and it will pick up the config.)');
+  }
   console.log(`- service status: ${validation.status?.status ?? 'unknown'}`);
   console.log(`- retrieval recovery: ${validation.status?.retrieval?.recoveryStatus ?? 'unknown'}`);
   console.log(`- recall sessions in last 10m: ${validation.sessionCount}`);
@@ -450,6 +458,7 @@ async function main() {
   console.log('2. hermes mcp list');
   console.log('3. hermes mcp test screenpipe-memory');
   console.log('4. hermes chat --toolsets screenpipe-memory --query "Call recall over the last 10 minutes and summarize what you see."');
+  console.log('5. npm run hermes:verify   ← smoke gate: confirms real tool call round-trip');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

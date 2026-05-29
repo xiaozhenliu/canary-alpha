@@ -14,3 +14,14 @@ export const V1_EVALS_TOOL_INCLUDES = Object.freeze([
   'memory-read',
   'memory-write'
 ]);
+
+// Full onboarding tool set written to ~/.hermes/config.yaml by npm run onboard.
+export const ONBOARDING_TOOL_INCLUDES = Object.freeze([
+  'internal-status',
+  'find',
+  'recall',
+  'memory-read',
+  'memory-write',
+  'file-analyze',
+  'privacy-control'
+]);

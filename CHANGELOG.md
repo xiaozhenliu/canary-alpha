@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `npm run hermes:verify` (`scripts/hermes-e2e.js`): real end-to-end smoke gate that runs a Hermes chat scenario against the user's live `~/.hermes/config.yaml` and local MCP service, with distinct actionable errors per failure mode (`hermes-missing`, `llm-not-configured`, `mcp-service-down`, `tool-call-failed`).
+- `docs/clients/hermes.md`: Hermes quickstart walkthrough from onboarding to first real tool call, with failure mode reference matching `hermes:verify` output vocabulary.
+- `scripts/hermes-detector.js`: shared Hermes CLI detection module used by all five Hermes-touching entry points (`setup`, `onboard`, `test:hermes:phase4`, `test:evaluations:v1`, `hermes:verify`).
+- Hermes CLI detection warning in `npm run setup` and `npm run onboard` (non-blocking; both scripts continue and exit 0 when Hermes is absent).
+- `npm run hermes:verify` added to the `npm run onboard` "Next commands" hint as step 5.
+- Fixed `DEFAULT_HERMES_TOOL_INCLUDE` in `scripts/onboarding-config.js` to use registered tool names (`find`, `recall`) instead of retired names (`search-screen`, `recent-activity`).
+
 ### Fixed
 
 - Anchor the v1 evaluation harness to the registered tool surface: surface stable `frameId` numerics on fixture records (`eval-recent-1` → 9101, `eval-search-1` → 9102, `eval-refine-1` → 9103, `eval-fallback-1` → 9104), assert on those `frameId` substrings instead of unreachable screenpipe `record.id` values, and replace relative recall windows with explicit ISO `from` / `to` anchored at `FIXTURE_NOW = 2026-04-13T12:00:00.000Z`. Extends `tests/contract/hermes-tools-include.contract.test.ts` to fail on future fixture-id / time-anchor drift.

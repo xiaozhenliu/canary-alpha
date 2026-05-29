@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 
 import YAML from 'yaml';
 
+import { ONBOARDING_TOOL_INCLUDES } from './hermes-tool-includes.js';
+
 export const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 export const CONFIG_FILE_NAME = 'config.yaml';
 export const LOG_DIRECTORY_NAME = 'logs';
@@ -15,15 +17,7 @@ export const ROUTINE_HISTORY_DIRECTORY_NAME = 'history';
 export const HERMES_DIRECTORY_NAME = '.hermes';
 export const HERMES_CONFIG_FILE_NAME = 'config.yaml';
 export const DEFAULT_HERMES_SERVER_NAME = 'screenpipe-memory';
-export const DEFAULT_HERMES_TOOL_INCLUDE = [
-  'internal-status',
-  'search-screen',
-  'recent-activity',
-  'memory-read',
-  'memory-write',
-  'file-analyze',
-  'privacy-control'
-];
+export const DEFAULT_HERMES_TOOL_INCLUDE = ONBOARDING_TOOL_INCLUDES;
 export const MINIMUM_NODE_MAJOR = 22;
 
 export const DEFAULT_SERVER_PORT = 18765;

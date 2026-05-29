@@ -10,3 +10,4 @@
 
 export const PHASE4_TOOL_INCLUDES: readonly string[];
 export const V1_EVALS_TOOL_INCLUDES: readonly string[];
+export const ONBOARDING_TOOL_INCLUDES: readonly string[];

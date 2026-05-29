@@ -14,6 +14,7 @@ import { startHttpServer } from '../tests/helpers/start-http-server.ts';
 import { writeTestConfig } from '../tests/helpers/test-config.ts';
 import { V1_EVALUATION_TASKS } from '../tests/evaluations/v1-evaluation-manifest.ts';
 import { V1_EVALS_TOOL_INCLUDES } from './hermes-tool-includes.js';
+import { detectHermes } from './hermes-detector.js';
 import { FIXTURE_NOW, minusFixtureMinutesIso } from './hermes-v1-fixture-clock.js';
 import { V1_EVALS_FIXTURE_RECORDS } from './hermes-v1-fixture-records.js';
 import { testTempRoot } from './test-tmp.js';
@@ -62,16 +63,6 @@ async function runHermes(args, options = {}) {
     timeout: options.timeout ?? 180_000,
     maxBuffer: 10 * 1024 * 1024
   });
-}
-
-async function detectHermes() {
-  try {
-    const result = await runHermes(['--version'], { timeout: 30_000 });
-    return (result.stdout || result.stderr || '').trim() || 'unknown';
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. (${detail})`);
-  }
 }
 
 function buildIsolatedHermesConfig(endpoint) {
@@ -161,7 +152,11 @@ function findMissingTokens(transcript, tokens, options = {}) {
 async function main() {
   await ensureDirectory(evidenceDirectory);
 
-  const hermesVersion = await detectHermes();
+  const detectionResult = await detectHermes();
+  if (!detectionResult.present) {
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. See ${detectionResult.installGuidanceUrl}`);
+  }
+  const hermesVersion = detectionResult.version;
   await writeEvidenceFile('hermes-version.txt', `${hermesVersion}\n`);
 
   const environment = await setupControlledEnvironment();

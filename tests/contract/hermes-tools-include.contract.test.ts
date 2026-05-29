@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { TOOL_MANIFEST } from '../../src/mcp/tool-manifest.js';
 import {
+  ONBOARDING_TOOL_INCLUDES,
   PHASE4_TOOL_INCLUDES,
   V1_EVALS_TOOL_INCLUDES
 } from '../../scripts/hermes-tool-includes.js';
+import { DEFAULT_HERMES_TOOL_INCLUDE } from '../../scripts/onboarding-config.js';
 import { V1_EVALS_FIXTURE_RECORDS } from '../../scripts/hermes-v1-fixture-records.js';
 import { V1_EVALUATION_TASKS } from '../evaluations/v1-evaluation-manifest.js';
 
@@ -118,6 +120,35 @@ describe('hermes-side tools.include drift contract', () => {
       offending,
       `V1_EVALUATION_TASKS requiredTranscriptTokens contain fixture-id-shaped tokens that do not map to a real fixture record. Offending: ${JSON.stringify(offending)}. Available fixture id/frameId pairs: ${JSON.stringify(availablePairs)}.`
     ).toEqual([]);
+  });
+
+  it('every entry of ONBOARDING_TOOL_INCLUDES is registered in TOOL_MANIFEST', () => {
+    const offending = ONBOARDING_TOOL_INCLUDES.filter((entry) => !REGISTERED_TOOL_NAMES.has(entry));
+    expect(
+      offending,
+      `ONBOARDING_TOOL_INCLUDES entries not registered in TOOL_MANIFEST: ${JSON.stringify(offending)}`
+    ).toEqual([]);
+  });
+
+  it('DEFAULT_HERMES_TOOL_INCLUDE equals ONBOARDING_TOOL_INCLUDES', () => {
+    expect([...DEFAULT_HERMES_TOOL_INCLUDE]).toEqual([...ONBOARDING_TOOL_INCLUDES]);
+  });
+
+  it('E2E script tool marker references a registered tool (internal-status)', () => {
+    // The E2E script checks for the marker 'preparing mcp_screenpipe_memory_internal_status'.
+    // Recover the tool name from the marker suffix (strip prefix, convert _ to -) and assert
+    // it is registered in TOOL_MANIFEST. This catches typos in the marker string.
+    const E2E_TOOL_MARKER = 'preparing mcp_screenpipe_memory_internal_status';
+    const E2E_MARKER_PREFIX = 'preparing mcp_screenpipe_memory_';
+    expect(
+      E2E_TOOL_MARKER.startsWith(E2E_MARKER_PREFIX),
+      `E2E tool marker must start with '${E2E_MARKER_PREFIX}'`
+    ).toBe(true);
+    const toolNameFromMarker = E2E_TOOL_MARKER.slice(E2E_MARKER_PREFIX.length).replace(/_/g, '-');
+    expect(
+      REGISTERED_TOOL_NAMES.has(toolNameFromMarker),
+      `E2E tool marker suffix '${toolNameFromMarker}' must be a registered tool in TOOL_MANIFEST`
+    ).toBe(true);
   });
 
   it('every recall-using prompt in the four affected tasks anchors via explicit ISO from/to', () => {

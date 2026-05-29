@@ -10,6 +10,7 @@ import {
   resolveAppPaths,
   writeConfigYamlFile
 } from './onboarding-config.js';
+import { detectHermes } from './hermes-detector.js';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
@@ -31,6 +32,7 @@ async function main() {
 
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);
   const createdConfig = await ensureConfigFile();
+  const hermesDetection = await detectHermes();
 
   console.log('canary-alpha-mcp setup complete.');
   console.log(`- repo: ${repositoryRoot}`);
@@ -39,6 +41,14 @@ async function main() {
   console.log(`- routines definitions: ${paths.routinesDefinitionsDirectory}`);
   console.log(`- routines history: ${paths.routinesHistoryDirectory}`);
   console.log(`- dependencies: ${installedDependencies ? 'installed with npm install' : 'already present'}`);
+  if (hermesDetection.present) {
+    console.log(`- hermes: ${hermesDetection.version}`);
+  } else {
+    console.log('');
+    console.log('⚠ Hermes CLI not found on PATH.');
+    console.log(`  Install instructions: ${hermesDetection.installGuidanceUrl}`);
+    console.log('  npm run hermes:verify will not be runnable until hermes is on PATH.');
+  }
   console.log('');
   console.log('Next steps:');
   console.log('1. Start Screenpipe if it is not already running: npm run screenpipe:safe-record');

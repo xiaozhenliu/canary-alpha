@@ -1,7 +1,7 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
-last_updated: 2026-04-17
+last_updated: 2026-07-15
 ---
 
 # Governed Documents
@@ -42,6 +42,7 @@ Excluded from governance:
 | `docs/documentation/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, validation rules | adequate | none |
 | `docs/documentation/mcp-tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input shape, output expectations, usage notes | adequate | none |
 | `docs/clients/generic-mcp.md` | Client integrators | Generic MCP client setup | HTTP endpoint usage, transport expectations, onboarding and verification path | adequate | none |
+| `docs/clients/hermes.md` | New Hermes users | Hermes-specific end-to-end walkthrough | Step-by-step path from onboarding to first real tool call; failure mode reference | adequate | none |
 | `docs/troubleshooting.md` | Operators and maintainers | Operational diagnosis and recovery | Service unreachable, provider errors, rebuild path, log inspection | adequate | none |
 
 ## State Vocabulary

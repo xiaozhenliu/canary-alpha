@@ -121,6 +121,7 @@ This single command exercises the full AX-primary retrieval path with fixed fixt
 | [docs/documentation/configuration.md](docs/documentation/configuration.md) | Users | Config fields, defaults, provider examples |
 | [docs/documentation/mcp-tools.md](docs/documentation/mcp-tools.md) | Client integrators | Tool contracts and schemas |
 | [docs/clients/generic-mcp.md](docs/clients/generic-mcp.md) | Client integrators | Generic HTTP client setup |
+| [docs/clients/hermes.md](docs/clients/hermes.md) | Hermes users | Hermes end-to-end quickstart |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Operators | Diagnosis and recovery |
 | [docs/delivery/http-service.md](docs/delivery/http-service.md) | Operators | Managed service lifecycle |
 | [docs/delivery/hermes.md](docs/delivery/hermes.md) | Operators | Hermes interoperability proof |

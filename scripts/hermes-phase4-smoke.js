@@ -12,6 +12,7 @@ import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
 import { PHASE4_TOOL_INCLUDES } from './hermes-tool-includes.js';
+import { detectHermes } from './hermes-detector.js';
 import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
@@ -73,16 +74,6 @@ async function runHermes(args, options = {}) {
   });
 }
 
-async function detectHermes() {
-  try {
-    const result = await runHermes(['--version']);
-    return (result.stdout || result.stderr || '').trim() || 'unknown';
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running this smoke gate. (${detail})`);
-  }
-}
-
 function buildIsolatedHermesConfig(endpoint) {
   return YAML.stringify({
     model: '',
@@ -113,7 +104,11 @@ async function main() {
     fail(`Missing config file at ${configPath}. Run npm run setup first.`);
   }
 
-  const hermesVersion = await detectHermes();
+  const detectionResult = await detectHermes();
+  if (!detectionResult.present) {
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running this smoke gate. See ${detectionResult.installGuidanceUrl}`);
+  }
+  const hermesVersion = detectionResult.version;
   const server = await loadConfiguredServer();
   const endpoint = `http://${server.host}:${server.port}/mcp`;
 
