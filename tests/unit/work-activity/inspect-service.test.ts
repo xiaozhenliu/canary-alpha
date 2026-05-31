@@ -76,7 +76,7 @@ beforeEach(() => {
   // exercise the W27 paused path — that property is owned by the
   // SummaryWorker / Registry tests.
   const privacyState: PrivacyStateReader = {
-    read: async () => ({ paused: false })
+    read: async () => ({ paused: false, excludedApps: [] })
   };
 
   summaryWorker = new SummaryWorker({

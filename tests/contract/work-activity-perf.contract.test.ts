@@ -113,7 +113,7 @@ const noopSummaryWorker: SummaryWorker = {
     text: null,
     providerKind: 'template'
   })
-};
+} as unknown as SummaryWorker;
 
 // ---------------------------------------------------------------------------
 // 13.1 — find(mode='keyword') P95 ≤ 500 ms

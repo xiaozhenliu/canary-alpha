@@ -95,19 +95,19 @@ const outputSchema = z
   // — we instead enforce the shape via a refinement so an empty
   // `{ granularity, narrativeText }` payload (which would silently
   // satisfy the lax base schema) is rejected.
-  .refine(
-    (value) =>
-      value.granularity === 'session'
-        ? value.sessions !== undefined
-        : value.blocks !== undefined,
-    (value) => ({
-      message:
-        value.granularity === 'session'
-          ? 'sessions array is required when granularity="session"'
-          : 'blocks array is required when granularity="hour"|"day"',
-      path: [value.granularity === 'session' ? 'sessions' : 'blocks']
-    })
-  );
+  .superRefine((value, context) => {
+    const expectedField = value.granularity === 'session' ? 'sessions' : 'blocks';
+    if (value[expectedField] === undefined) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          value.granularity === 'session'
+            ? 'sessions array is required when granularity="session"'
+            : 'blocks array is required when granularity="hour"|"day"',
+        path: [expectedField]
+      });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Registration

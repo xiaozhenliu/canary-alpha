@@ -123,6 +123,7 @@ function makeVectorRecord(frameId: number, timestamp: string): VectorStoreRecord
     text: `content for frame ${frameId}`,
     timestamp,
     appName: 'TestApp',
+    sourceTypes: ['accessibility'],
     embedding: [0.1, 0.2, 0.3],
     metadata: {
       frameId,
@@ -261,7 +262,7 @@ describe('Cascade_Delete via delete-range (R9.1, W25, W26)', () => {
     expect(openCount).toBe(0);
 
     // Verify vector store records are gone
-    const vsRecords = await vectorStore.query([0.1, 0.2, 0.3], 100);
+    const vsRecords = await vectorStore.query({ queryEmbedding: [0.1, 0.2, 0.3], limit: 100 });
     expect(vsRecords).toHaveLength(0);
   });
 
@@ -396,7 +397,7 @@ describe('Cascade_Delete via retention pass (R9.1, W25)', () => {
     expect(allSessions).toHaveLength(0);
 
     // Verify vector store records are gone
-    const vsRecords = await vectorStore.query([0.1, 0.2, 0.3], 100);
+    const vsRecords = await vectorStore.query({ queryEmbedding: [0.1, 0.2, 0.3], limit: 100 });
     expect(vsRecords).toHaveLength(0);
   });
 
