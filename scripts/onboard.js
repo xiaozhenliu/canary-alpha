@@ -29,6 +29,8 @@ import {
   writeConfigYamlFile,
   writeHermesConfigFile
 } from './onboarding-config.js';
+import { getPackageVersion } from './version.js';
+import { detectHermes } from './hermes-detector.js';
 
 const execFileAsync = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -43,8 +45,8 @@ function fail(message) {
 
 function createClient() {
   return new Client({
-    name: 'screenpipe-memory-mcp-onboard',
-    version: '1.0.0'
+    name: 'canary-alpha-mcp-onboard',
+    version: getPackageVersion()
   });
 }
 
@@ -314,36 +316,29 @@ export function createSearchScreenWindow(now = new Date()) {
   return { from, to };
 }
 
-export function summarizeRecentActivityValidation(structuredContent) {
-  const raw = Array.isArray(structuredContent?.raw) ? structuredContent.raw : [];
+export function summarizeRecallValidation(structuredContent) {
+  const sessions = Array.isArray(structuredContent?.sessions) ? structuredContent.sessions : [];
 
   return {
-    resultCount: raw.length,
-    itemIds: raw.map((item) => item.id).filter((value) => typeof value === 'string')
+    sessionCount: sessions.length,
+    sessionIds: sessions.map((item) => item.sessionId).filter((value) => typeof value === 'string')
   };
 }
 
-export function summarizeSearchScreenValidation(structuredContent) {
-  const evidence = Array.isArray(structuredContent?.evidence) ? structuredContent.evidence : [];
-  const itemIds = evidence.map((item) => item.id).filter((value) => typeof value === 'string');
+export function summarizeFindValidation(structuredContent) {
+  const data = Array.isArray(structuredContent?.data) ? structuredContent.data : [];
+  const itemIds = data
+    .map((item) => (typeof item.frameId === 'number' ? String(item.frameId) : item.frameId))
+    .filter((value) => typeof value === 'string' && value.length > 0);
   const degradedReason = typeof structuredContent?.degraded?.reason === 'string'
     ? structuredContent.degraded.reason
     : undefined;
-  const fallbackMode = typeof structuredContent?.degraded?.fallbackMode === 'string'
-    ? structuredContent.degraded.fallbackMode
-    : undefined;
-  const errorMessage = typeof structuredContent?.error?.message === 'string'
-    ? structuredContent.error.message
-    : undefined;
-  const status = errorMessage
-    ?? degradedReason
-    ?? (fallbackMode ? `fallback: ${fallbackMode}` : undefined)
-    ?? 'ok';
+  const status = degradedReason ?? 'ok';
 
   return {
-    searchResultCount: evidence.length,
-    searchItemIds: itemIds,
-    searchStatus: status
+    findResultCount: data.length,
+    findItemIds: itemIds,
+    findStatus: status
   };
 }
 
@@ -352,28 +347,31 @@ export async function runValidationToolCalls(client, now = new Date()) {
     name: 'internal-status',
     arguments: {}
   });
-  const recentResult = await client.callTool({
-    name: 'recent-activity',
+  const recallWindow = createSearchScreenWindow(now);
+  const recallResult = await client.callTool({
+    name: 'recall',
     arguments: {
-      minutes: 10,
-      format: 'raw'
+      from: recallWindow.from,
+      to: recallWindow.to,
+      granularity: 'session',
+      includeSummary: false
     }
   });
-  const searchWindow = createSearchScreenWindow(now);
-  const searchResult = await client.callTool({
-    name: 'search-screen',
+  const findResult = await client.callTool({
+    name: 'find',
     arguments: {
       query: 'screenpipe',
       mode: 'keyword',
-      from: searchWindow.from,
-      to: searchWindow.to
+      from: recallWindow.from,
+      to: recallWindow.to,
+      limit: 5
     }
   });
 
   return {
     status: statusResult.structuredContent,
-    ...summarizeRecentActivityValidation(recentResult.structuredContent),
-    ...summarizeSearchScreenValidation(searchResult.structuredContent)
+    ...summarizeRecallValidation(recallResult.structuredContent),
+    ...summarizeFindValidation(findResult.structuredContent)
   };
 }
 
@@ -402,7 +400,7 @@ async function runFirstValidation(configPath) {
 
 async function main() {
   ensureSupportedNodeVersion();
-  console.log('screenpipe-memory-mcp onboarding');
+  console.log('canary-alpha-mcp onboarding');
   console.log('================================');
 
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);
@@ -428,6 +426,7 @@ async function main() {
   const validation = await runFirstValidation(paths.configPath);
   const hermesPaths = resolveHermesPaths();
   const hermesConfig = await writeHermesConfigFile(hermesPaths.configPath, validation.endpoint);
+  const hermesDetection = await detectHermes();
 
   console.log('\nOnboarding complete.');
   console.log(`- config: ${paths.configPath}${backupPath ? ` (previous config backed up to ${backupPath})` : ''}`);
@@ -437,22 +436,29 @@ async function main() {
   console.log(`- endpoint: ${validation.endpoint}`);
   console.log(`- Hermes MCP config: ${hermesConfig.configPath}`);
   console.log(`- Hermes MCP server: ${hermesConfig.serverName}`);
+  if (hermesDetection.present) {
+    console.log(`- hermes version: ${hermesDetection.version}`);
+  } else {
+    console.log(`- hermes: not found on PATH — install from ${hermesDetection.installGuidanceUrl}`);
+    console.log('  (Hermes config was still written; install hermes and it will pick up the config.)');
+  }
   console.log(`- service status: ${validation.status?.status ?? 'unknown'}`);
   console.log(`- retrieval recovery: ${validation.status?.retrieval?.recoveryStatus ?? 'unknown'}`);
-  console.log(`- live recent-activity items (10m): ${validation.resultCount}`);
-  console.log(`- search-screen validation items (keyword, 10m): ${validation.searchResultCount} (${validation.searchStatus})`);
-  if (validation.searchItemIds.length > 0) {
-    console.log(`- search-screen sample item ids: ${validation.searchItemIds.join(', ')}`);
+  console.log(`- recall sessions in last 10m: ${validation.sessionCount}`);
+  console.log(`- find validation items (keyword "screenpipe", 10m): ${validation.findResultCount} (${validation.findStatus})`);
+  if (validation.findItemIds.length > 0) {
+    console.log(`- find sample frame ids: ${validation.findItemIds.join(', ')}`);
   }
-  if (validation.itemIds.length > 0) {
-    console.log(`- sample item ids: ${validation.itemIds.join(', ')}`);
+  if (validation.sessionIds.length > 0) {
+    console.log(`- recall sample session ids: ${validation.sessionIds.join(', ')}`);
   }
 
   console.log('\nNext commands:');
   console.log('1. npm run service:status');
   console.log('2. hermes mcp list');
   console.log('3. hermes mcp test screenpipe-memory');
-  console.log('4. hermes chat --toolsets screenpipe-memory --query "Call recent-activity with minutes 10 and summarize what you find."');
+  console.log('4. hermes chat --toolsets screenpipe-memory --query "Call recall over the last 10 minutes and summarize what you see."');
+  console.log('5. npm run hermes:verify   ← smoke gate: confirms real tool call round-trip');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

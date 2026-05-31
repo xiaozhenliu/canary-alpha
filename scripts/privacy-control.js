@@ -10,8 +10,10 @@ import { promisify } from 'node:util';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import YAML from 'yaml';
 
+import { getPackageVersion } from './version.js';
+
 const execFileAsync = promisify(execFile);
-const APP_DIRECTORY_NAME = '.screenpipe-memory-mcp';
+const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
@@ -39,8 +41,8 @@ function usage() {
 
 function createClient() {
   return new Client({
-    name: 'screenpipe-memory-mcp-privacy-control-cli',
-    version: '1.0.0'
+    name: 'canary-alpha-mcp-privacy-control-cli',
+    version: getPackageVersion()
   });
 }
 

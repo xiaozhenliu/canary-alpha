@@ -1,13 +1,18 @@
 export const TOOL_MANIFEST = [
   {
-    name: 'search-screen',
-    title: 'Search Screen History',
-    category: 'retrieval'
+    name: 'find',
+    title: 'Find Evidence',
+    category: 'work-activity'
   },
   {
-    name: 'recent-activity',
-    title: 'Recent Activity',
-    category: 'retrieval'
+    name: 'recall',
+    title: 'Recall Time Window',
+    category: 'work-activity'
+  },
+  {
+    name: 'inspect',
+    title: 'Inspect Session or Frame',
+    category: 'work-activity'
   },
   {
     name: 'memory-read',

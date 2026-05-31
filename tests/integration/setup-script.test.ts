@@ -1,6 +1,5 @@
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -14,6 +13,7 @@ import {
   resolveRoutineHistoryDirectory,
   resolveRoutinesDirectory
 } from '../../src/config/paths.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -33,7 +33,7 @@ afterEach(async () => {
 
 describe('setup script', () => {
   it('creates the default config and points users to npm run onboard', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'setup-script-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'setup-script-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     await mkdir(join(PROJECT_ROOT, 'node_modules'), { recursive: true });

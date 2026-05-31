@@ -1,0 +1,22 @@
+{
+  "_comment": "Ground truth for ide-vscode fixture. App: VS Code (Code), window: TypeScript file editor. Generic heuristic should find AXWebArea and extract its value text.",
+  "frame_id": 1001,
+  "extractedText": "import { ExtractionRegistry } from './extraction/registry';\nimport { SessionAggregator } from './sessions/aggregator';\n\nexport class WorkActivityAnalysisService {\n  constructor(\n    private readonly extractionRegistry: ExtractionRegistry,\n    private readonly sessionAggregator: SessionAggregator\n  ) {}\n\n  async processFrame(frame: ScreenPipeFrame): Promise<void> {\n    const extraction = this.extractionRegistry.extract(toExtractionInput(frame));\n    await this.sessionAggregator.handleExtraction(extraction);\n  }\n}",
+  "extractionRuleKind": "generic",
+  "contextLabel": "work-activity-analysis.ts — canary-alpha-mcp",
+  "contextKey": "code::work-activity-analysis.ts — canary-alpha-mcp",
+  "session_count": 1,
+  "session_boundaries": [
+    {
+      "app_name": "Code",
+      "context_key": "code::work-activity-analysis.ts — canary-alpha-mcp",
+      "frame_ids": [1001]
+    }
+  ],
+  "find_hit_frame_ids": [1001],
+  "find_queries": [
+    "ExtractionRegistry",
+    "WorkActivityAnalysisService",
+    "processFrame"
+  ]
+}

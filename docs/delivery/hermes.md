@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-04-17
+last_updated: 2026-05-27
 ---
 
 # Hermes delivery proof
@@ -23,8 +23,7 @@ npm run setup
 npm run build
 npm run service:start
 npm run service:status
-npm run test:http-tool-flow
-npm run smoke:http
+npm run test
 npm run test:hermes:phase4
 ```
 
@@ -87,7 +86,7 @@ The scripted Hermes scenario is intentionally narrow:
 
 - confirm MCP connectivity to the delivered HTTP service
 - confirm tool discovery through Hermes
-- attempt a bounded retrieval flow using `internal-status` and `recent-activity`
+- attempt a bounded retrieval flow using `internal-status` and `recall`
 
 This bounded outer proof is not intended to prove open-ended agent quality, replace `npm run onboard`, or replace the deterministic retrieval acceptance suite.
 
@@ -103,7 +102,7 @@ If the local HTTP service is not reachable, the script fails with a message poin
 
 - `npm run service:start`
 - `npm run service:status`
-- `npm run smoke:http`
+- `npm run test`
 
 ### Chat scenario blocked
 

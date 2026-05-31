@@ -1,14 +1,14 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { FileCheckpointStore } from '../../../src/services/retrieval/checkpoint-store.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('file checkpoint store', () => {
   it('writes checkpoints atomically via temp-file replacement', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'checkpoint-store-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'checkpoint-store-'));
     const checkpointPath = join(tempDir, 'retrieval-checkpoint.json');
     const store = new FileCheckpointStore(checkpointPath);
 

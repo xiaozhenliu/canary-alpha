@@ -1,13 +1,14 @@
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT_PATH = join(PROJECT_ROOT, 'scripts', 'service-status.js');
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -23,10 +24,10 @@ afterEach(async () => {
 
 describe('service:status script', () => {
   it('reports launchd state even when config.yaml is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -36,7 +37,7 @@ describe('service:status script', () => {
     await mkdir(fakeBinDir, { recursive: true });
 
     await writeFile(join(appDir, 'config.yaml'), 'server: [broken\n', 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -50,7 +51,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.screenpipe-memory-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -76,10 +77,10 @@ describe('service:status script', () => {
   });
 
   it('reports launchd state even when managed MCP_PORT is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-bad-managed-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-managed-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -110,7 +111,7 @@ describe('service:status script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -126,7 +127,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.screenpipe-memory-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -152,10 +153,10 @@ describe('service:status script', () => {
   });
 
   it('reports launchd state even when the frozen managed port is malformed', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-bad-frozen-port-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-frozen-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -186,7 +187,7 @@ describe('service:status script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -198,7 +199,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.screenpipe-memory-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -224,10 +225,10 @@ describe('service:status script', () => {
   });
 
   it('surfaces launchctl execution errors instead of reporting not loaded', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-status-launchctl-error-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-launchctl-error-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
 

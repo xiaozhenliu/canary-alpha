@@ -1,5 +1,4 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -10,6 +9,7 @@ import {
   parseSimpleEnv,
   readLinearEnv
 } from '../../../scripts/linear.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -24,7 +24,7 @@ afterEach(async () => {
 
 describe('linear script helpers', () => {
   it('parses a minimal env file for Linear settings', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'linear-env-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'linear-env-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const envPath = join(homeDir, '.env');

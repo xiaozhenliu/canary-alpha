@@ -10,10 +10,11 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
+import { getPackageVersion } from './version.js';
 
-const APP_DIRECTORY_NAME = '.screenpipe-memory-mcp';
+const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
-const LABEL = 'com.screenpipe-memory-mcp';
+const LABEL = 'com.canary-alpha-mcp';
 const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
 const configPath = join(homedir(), APP_DIRECTORY_NAME, CONFIG_FILE_NAME);
 const serviceLogPath = join(homedir(), APP_DIRECTORY_NAME, 'logs', 'service.log');
@@ -55,8 +56,8 @@ function readLaunchctlPid(output) {
 
 function createClient() {
   return new Client({
-    name: 'screenpipe-memory-mcp-service-script',
-    version: '0.1.0'
+    name: 'canary-alpha-mcp-service-script',
+    version: getPackageVersion()
   });
 }
 

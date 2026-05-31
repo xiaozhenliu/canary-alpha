@@ -1,0 +1,27 @@
+[
+  {
+    "id": "Q1",
+    "query": "buildSearchUrl",
+    "description": "Matches IDE fixture AX text: 'function buildSearchUrl' in Code window"
+  },
+  {
+    "id": "Q2",
+    "query": "content_type=accessibility",
+    "description": "Matches IDE fixture AX text: 'content_type=accessibility' in Code window"
+  },
+  {
+    "id": "Q3",
+    "query": "eval:coverage",
+    "description": "Matches Terminal fixture AX text: 'npm run eval:coverage' in Terminal window"
+  },
+  {
+    "id": "Q4",
+    "query": "Acceptance Criteria",
+    "description": "Matches Browser fixture AX text: 'Acceptance Criteria 1' in Google Chrome window"
+  },
+  {
+    "id": "Q5",
+    "query": "PRD 第 7.3",
+    "description": "Matches Browser fixture AX text: 'PRD 第 7.3 节' in Google Chrome window"
+  }
+]

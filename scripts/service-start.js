@@ -11,10 +11,11 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, readServerConfig, renderManagedServiceEnvironmentXml } from './service-runtime-config.js';
+import { getPackageVersion } from './version.js';
 
-const APP_DIRECTORY_NAME = '.screenpipe-memory-mcp';
+const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
-const LABEL = 'com.screenpipe-memory-mcp';
+const LABEL = 'com.canary-alpha-mcp';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
@@ -152,8 +153,8 @@ function assertPortAvailable(port) {
 
 function createClient() {
   return new Client({
-    name: 'screenpipe-memory-mcp-service-script',
-    version: '0.1.0'
+    name: 'canary-alpha-mcp-service-script',
+    version: getPackageVersion()
   });
 }
 
@@ -232,7 +233,7 @@ async function waitForManagedService(domain, host, port, expectedConfigFile, tim
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
 
-  throw new Error(`screenpipe-memory-mcp did not become ready at http://${host}:${port}/mcp within ${timeoutMs}ms.`);
+  throw new Error(`canary-alpha-mcp did not become ready at http://${host}:${port}/mcp within ${timeoutMs}ms.`);
 }
 
 async function installResolvedPlist() {
@@ -287,7 +288,7 @@ async function main() {
   }
 
   const endpoint = `http://${server.host}:${server.port}/mcp`;
-  console.log('screenpipe-memory-mcp service started.');
+  console.log('canary-alpha-mcp service started.');
   console.log(`- label: ${LABEL}`);
   console.log(`- plist: ${installedPlistPath}`);
   console.log(`- endpoint: ${endpoint}`);

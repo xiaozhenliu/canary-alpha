@@ -1,8 +1,10 @@
 import { createServer } from 'node:http';
+import { join } from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createEmbeddingProvider } from '../../../src/services/retrieval/provider-factory.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -83,7 +85,7 @@ describe('embedding concurrency limit', () => {
       },
       vectorStore: {
         kind: 'chroma',
-        path: '/tmp/provider-concurrency-test'
+        path: join(testTempRoot(), 'provider-concurrency-test')
       },
       retrieval: {
         freshnessWindowMinutes: 15,
@@ -92,16 +94,26 @@ describe('embedding concurrency limit', () => {
         maxCatchUpRecords: 500
       },
       paths: {
-        configFile: '/tmp/provider-concurrency-test.yaml',
-        logDirectory: '/tmp/logs',
-        serviceLogFile: '/tmp/logs/service.log'
+        configFile: join(testTempRoot(), 'provider-concurrency-test.yaml'),
+        logDirectory: join(testTempRoot(), 'provider-concurrency-test-logs'),
+        serviceLogFile: join(testTempRoot(), 'provider-concurrency-test-logs', 'service.log'),
+        derivedDatabase: join(testTempRoot(), 'provider-concurrency-test', 'derived.sqlite')
       },
       routines: {
         enabled: false,
-        definitionsPath: '/tmp/routines/definitions',
-        historyPath: '/tmp/routines/history'
+        definitionsPath: join(testTempRoot(), 'provider-concurrency-routines', 'definitions'),
+        historyPath: join(testTempRoot(), 'provider-concurrency-routines', 'history')
       },
-      trim: { enabled: true, intervalSeconds: 600 }
+      trim: { enabled: true, intervalSeconds: 600 },
+      capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+      storage: { diskBudgetBytes: null, retentionDays: 7 },
+      privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
+      analysis: {
+        sessions: { idleThresholdSeconds: 120 },
+        summary: { provider: 'template', remoteLlmTimeoutMs: 30000 },
+        embeddings: { topK: 20, minScore: 0 }
+      },
+      llm: { model: 'gpt-4o-mini' }
     });
 
     const results = await Promise.all([

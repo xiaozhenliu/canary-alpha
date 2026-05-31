@@ -53,7 +53,9 @@ export function fuseHybridResults(
       text: item.text,
       timestamp: item.timestamp,
       appName: item.appName,
+      windowName: item.windowName,
       score: Number(item.fusedScore.toFixed(6)),
-      source: item.sources.size > 1 ? 'hybrid' : (item.source as RetrievalEvidenceItem['source'])
+      source: item.sources.size > 1 ? 'hybrid' : (item.source as RetrievalEvidenceItem['source']),
+      sourceTypes: item.sourceTypes
     }));
 }

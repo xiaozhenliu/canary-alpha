@@ -1,0 +1,7 @@
+{
+  "id": 5001,
+  "timestamp": "2024-01-15T10:20:00.000Z",
+  "app_name": "Control Center",
+  "window_name": "Control Center",
+  "accessibility_tree_json": "{\"_synthetic\":true,\"role\":\"AXApplication\",\"title\":\"Control Center\",\"children\":[{\"role\":\"AXWindow\",\"title\":\"Control Center\",\"children\":[{\"role\":\"AXGroup\",\"children\":[{\"role\":\"AXButton\",\"title\":\"Wi-Fi\"},{\"role\":\"AXButton\",\"title\":\"Bluetooth\"},{\"role\":\"AXButton\",\"title\":\"AirDrop\"},{\"role\":\"AXButton\",\"title\":\"Focus\"},{\"role\":\"AXButton\",\"title\":\"Screen Mirroring\"},{\"role\":\"AXButton\",\"title\":\"Display\"},{\"role\":\"AXButton\",\"title\":\"Sound\"},{\"role\":\"AXButton\",\"title\":\"Now Playing\"}]}]}]}"
+}

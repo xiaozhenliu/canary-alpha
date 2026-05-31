@@ -1,0 +1,22 @@
+{
+  "_comment": "Ground truth for unknown-app fixture. App: MyCustomApp (not in any refinement rule set). Generic heuristic fallback should apply. AXMenuBar, AXMenuBarItem, AXStatusBar nodes should be filtered. AXTextArea inside AXScrollArea should be the extraction anchor.",
+  "frame_id": 4001,
+  "extractedText": "Project: canary-alpha-mcp\nStatus: In Progress\nLast updated: 2024-01-15\n\nActive tasks:\n- Implement work activity analysis\n- Add synthetic fixtures\n- Write evaluation scripts",
+  "extractionRuleKind": "generic",
+  "contextLabel": "Project Dashboard",
+  "contextKey": "mycustomapp::project dashboard",
+  "session_count": 1,
+  "session_boundaries": [
+    {
+      "app_name": "MyCustomApp",
+      "context_key": "mycustomapp::project dashboard",
+      "frame_ids": [4001]
+    }
+  ],
+  "find_hit_frame_ids": [4001],
+  "find_queries": [
+    "canary-alpha-mcp",
+    "synthetic fixtures",
+    "work activity analysis"
+  ]
+}

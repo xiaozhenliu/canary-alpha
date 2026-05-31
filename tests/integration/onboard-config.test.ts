@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,9 +8,10 @@ import {
   askSecret,
   runValidationToolCalls,
   summarizeOllamaModelProbe,
-  summarizeRecentActivityValidation,
-  summarizeSearchScreenValidation
+  summarizeRecallValidation,
+  summarizeFindValidation
 } from '../../scripts/onboard.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 import {
   backupConfigIfPresent,
   buildConfigObject,
@@ -32,7 +33,7 @@ import {
   writeHermesConfigFile
 } from '../../scripts/onboarding-config.js';
 
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cleanup: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
@@ -84,7 +85,7 @@ describe('onboarding config helpers', () => {
   });
 
   it('backs up an existing config before overwriting it', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'onboard-config-backup-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'onboard-config-backup-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const paths = resolveAppPaths(homeDir);
@@ -99,7 +100,7 @@ describe('onboarding config helpers', () => {
   });
 
   it('writes the selected config shape to disk', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'onboard-config-write-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'onboard-config-write-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const paths = resolveAppPaths(homeDir);
@@ -183,7 +184,7 @@ describe('onboarding config helpers', () => {
   });
 
   it('writes Hermes config under an isolated home directory', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'hermes-config-write-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'hermes-config-write-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const paths = resolveHermesPaths(homeDir);
@@ -198,7 +199,7 @@ describe('onboarding config helpers', () => {
   });
 
   it('fails invalid Hermes YAML without overwriting the original file', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'hermes-config-invalid-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'hermes-config-invalid-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const paths = resolveHermesPaths(homeDir);
@@ -367,59 +368,57 @@ describe('onboarding config helpers', () => {
     });
   });
 
-  it('summarizes recent-activity validation content', () => {
-    expect(summarizeRecentActivityValidation({
-      raw: [
-        { id: 'item-1' },
-        { id: 'item-2' },
-        { id: 3 }
+  it('summarizes recall validation content without exposing session text', () => {
+    expect(summarizeRecallValidation({
+      sessions: [
+        { sessionId: 'session-1', appName: 'Cursor', contextLabel: 'editing' },
+        { sessionId: 'session-2', appName: 'Cursor', contextLabel: 'reviewing' },
+        { sessionId: 3 }
       ]
     })).toEqual({
-      resultCount: 3,
-      itemIds: ['item-1', 'item-2']
+      sessionCount: 3,
+      sessionIds: ['session-1', 'session-2']
     });
   });
 
-  it('summarizes search-screen validation evidence without exposing retrieved text', () => {
-    expect(summarizeSearchScreenValidation({
-      evidence: [
-        { id: 'search-1', text: 'hidden OCR text' },
-        { id: 'search-2', text: 'hidden OCR text' }
+  it('summarizes find validation evidence without exposing extracted text', () => {
+    expect(summarizeFindValidation({
+      data: [
+        { frameId: 'frame-1', extractedText: 'hidden OCR text' },
+        { frameId: 'frame-2', extractedText: 'hidden OCR text' },
+        { frameId: 42, extractedText: 'numeric frame id' }
       ]
     })).toEqual({
-      searchResultCount: 2,
-      searchItemIds: ['search-1', 'search-2'],
-      searchStatus: 'ok'
+      findResultCount: 3,
+      findItemIds: ['frame-1', 'frame-2', '42'],
+      findStatus: 'ok'
     });
   });
 
-  it('summarizes degraded search-screen validation status', () => {
-    expect(summarizeSearchScreenValidation({
-      evidence: [],
+  it('summarizes degraded find validation status', () => {
+    expect(summarizeFindValidation({
+      data: [],
       degraded: {
-        reason: 'Embedding provider failed; returned keyword-backed results instead.',
-        fallbackMode: 'keyword'
+        requestedMode: 'semantic',
+        actualMode: 'keyword',
+        reason: 'Embedding provider failed; returned keyword-backed results instead.'
       }
     })).toEqual({
-      searchResultCount: 0,
-      searchItemIds: [],
-      searchStatus: 'Embedding provider failed; returned keyword-backed results instead.'
+      findResultCount: 0,
+      findItemIds: [],
+      findStatus: 'Embedding provider failed; returned keyword-backed results instead.'
     });
   });
 
-  it('summarizes search-screen actionable errors', () => {
-    expect(summarizeSearchScreenValidation({
-      error: {
-        message: 'Screenpipe is unavailable.'
-      }
-    })).toEqual({
-      searchResultCount: 0,
-      searchItemIds: [],
-      searchStatus: 'Screenpipe is unavailable.'
+  it('summarizes find without data field as empty', () => {
+    expect(summarizeFindValidation({})).toEqual({
+      findResultCount: 0,
+      findItemIds: [],
+      findStatus: 'ok'
     });
   });
 
-  it('calls onboarding validation tools in order with a bounded search-screen probe', async () => {
+  it('calls onboarding validation tools in order with a bounded find probe', async () => {
     const calls: Array<{ name: string; arguments: Record<string, unknown> }> = [];
     const client = {
       async callTool(request: { name: string; arguments: Record<string, unknown> }) {
@@ -428,11 +427,21 @@ describe('onboarding config helpers', () => {
         if (request.name === 'internal-status') {
           return { structuredContent: { status: 'ok' } };
         }
-        if (request.name === 'recent-activity') {
-          return { structuredContent: { raw: [{ id: 'recent-1' }] } };
+        if (request.name === 'recall') {
+          return {
+            structuredContent: {
+              granularity: 'session',
+              sessions: [{ sessionId: 'session-1', appName: 'Cursor', contextLabel: 'editing' }]
+            }
+          };
         }
-        if (request.name === 'search-screen') {
-          return { structuredContent: { evidence: [{ id: 'search-1', text: 'hidden OCR text' }] } };
+        if (request.name === 'find') {
+          return {
+            structuredContent: {
+              data: [{ frameId: 'frame-1', extractedText: 'hidden OCR text' }],
+              narrativeText: ''
+            }
+          };
         }
 
         throw new Error(`Unexpected tool call: ${request.name}`);
@@ -447,29 +456,32 @@ describe('onboarding config helpers', () => {
         arguments: {}
       },
       {
-        name: 'recent-activity',
+        name: 'recall',
         arguments: {
-          minutes: 10,
-          format: 'raw'
+          from: '2026-04-17T04:00:00.000Z',
+          to: '2026-04-17T04:10:00.000Z',
+          granularity: 'session',
+          includeSummary: false
         }
       },
       {
-        name: 'search-screen',
+        name: 'find',
         arguments: {
           query: 'screenpipe',
           mode: 'keyword',
           from: '2026-04-17T04:00:00.000Z',
-          to: '2026-04-17T04:10:00.000Z'
+          to: '2026-04-17T04:10:00.000Z',
+          limit: 5
         }
       }
     ]);
     expect(validation).toEqual({
       status: { status: 'ok' },
-      resultCount: 1,
-      itemIds: ['recent-1'],
-      searchResultCount: 1,
-      searchItemIds: ['search-1'],
-      searchStatus: 'ok'
+      sessionCount: 1,
+      sessionIds: ['session-1'],
+      findResultCount: 1,
+      findItemIds: ['frame-1'],
+      findStatus: 'ok'
     });
   });
 });

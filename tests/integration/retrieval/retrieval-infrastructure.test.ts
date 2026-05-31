@@ -12,6 +12,7 @@ import {
   resolveVectorStoreDirectory
 } from '../../../src/services/retrieval/vector-store.js';
 import { createTempVectorStorePath } from '../../helpers/temp-vector-store.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const servers: Array<() => Promise<void>> = [];
 
@@ -35,7 +36,8 @@ describe('retrieval infrastructure correctness', () => {
           {
             object: 'embedding',
             index: 0,
-            embedding: [0.5, 0.25, 0.125]
+            embedding: [0.5, 0.25, 0.125],
+            sourceTypes: ['ocr']
           }
         ],
         model: 'text-embedding-3-small'
@@ -85,7 +87,7 @@ describe('retrieval infrastructure correctness', () => {
       },
       vectorStore: {
         kind: 'chroma',
-        path: '/tmp/retrieval-provider-test'
+        path: join(testTempRoot(), 'retrieval-provider-test')
       },
       retrieval: {
         freshnessWindowMinutes: 15,
@@ -94,16 +96,26 @@ describe('retrieval infrastructure correctness', () => {
         maxCatchUpRecords: 500
       },
       paths: {
-        configFile: '/tmp/retrieval-provider-test.yaml',
-        logDirectory: '/tmp/logs',
-        serviceLogFile: '/tmp/logs/service.log'
+        configFile: join(testTempRoot(), 'retrieval-provider-test.yaml'),
+        logDirectory: join(testTempRoot(), 'retrieval-provider-test-logs'),
+        serviceLogFile: join(testTempRoot(), 'retrieval-provider-test-logs', 'service.log'),
+        derivedDatabase: join(testTempRoot(), 'retrieval-provider-test', 'derived.sqlite')
       },
       routines: {
         enabled: false,
-        definitionsPath: '/tmp/routines/definitions',
-        historyPath: '/tmp/routines/history'
+        definitionsPath: join(testTempRoot(), 'retrieval-provider-routines', 'definitions'),
+        historyPath: join(testTempRoot(), 'retrieval-provider-routines', 'history')
       },
-      trim: { enabled: true, intervalSeconds: 600 }
+      trim: { enabled: true, intervalSeconds: 600 },
+      capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+      storage: { diskBudgetBytes: null, retentionDays: 7 },
+      privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
+      analysis: {
+        sessions: { idleThresholdSeconds: 120 },
+        summary: { provider: 'template', remoteLlmTimeoutMs: 30000 },
+        embeddings: { topK: 20, minScore: 0 }
+      },
+      llm: { model: 'gpt-4o-mini' }
     });
 
     await expect(provider.embed('hello world')).resolves.toEqual([0.5, 0.25, 0.125]);
@@ -112,7 +124,7 @@ describe('retrieval infrastructure correctness', () => {
   it('ranks semantic matches using the query embedding', async () => {
     const store = new InMemoryVectorStore({
       kind: 'chroma',
-      path: '/tmp/retrieval-vector-test'
+      path: join(testTempRoot(), 'retrieval-vector-test')
     });
 
     await store.upsert([
@@ -121,21 +133,24 @@ describe('retrieval infrastructure correctness', () => {
         text: 'Aligned vector',
         timestamp: '2026-04-13T11:10:00.000Z',
         appName: 'Claude',
-        embedding: [1, 0, 0]
+        embedding: [1, 0, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-b',
         text: 'Partially aligned vector',
         timestamp: '2026-04-13T11:11:00.000Z',
         appName: 'Claude',
-        embedding: [0.5, 0.4, 0]
+        embedding: [0.5, 0.4, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-c',
         text: 'Different app',
         timestamp: '2026-04-13T11:12:00.000Z',
         appName: 'Screenpipe',
-        embedding: [0.9, 0, 0]
+        embedding: [0.9, 0, 0],
+        sourceTypes: ['ocr']
       }
     ]);
 
@@ -154,7 +169,7 @@ describe('retrieval infrastructure correctness', () => {
   it('applies offset after semantic ranking', async () => {
     const store = new InMemoryVectorStore({
       kind: 'chroma',
-      path: '/tmp/retrieval-vector-offset-test'
+      path: join(testTempRoot(), 'retrieval-vector-offset-test')
     });
 
     await store.upsert([
@@ -163,21 +178,24 @@ describe('retrieval infrastructure correctness', () => {
         text: 'Best match',
         timestamp: '2026-04-13T11:10:00.000Z',
         appName: 'Claude',
-        embedding: [1, 0, 0]
+        embedding: [1, 0, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-b',
         text: 'Second match',
         timestamp: '2026-04-13T11:11:00.000Z',
         appName: 'Claude',
-        embedding: [0.8, 0, 0]
+        embedding: [0.8, 0, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-c',
         text: 'Third match',
         timestamp: '2026-04-13T11:12:00.000Z',
         appName: 'Claude',
-        embedding: [0.7, 0, 0]
+        embedding: [0.7, 0, 0],
+        sourceTypes: ['ocr']
       }
     ]);
 
@@ -195,7 +213,7 @@ describe('retrieval infrastructure correctness', () => {
   it('applies semantic time filters using instants for offset timestamps', async () => {
     const store = new InMemoryVectorStore({
       kind: 'chroma',
-      path: '/tmp/retrieval-vector-time-filter-test'
+      path: join(testTempRoot(), 'retrieval-vector-time-filter-test')
     });
 
     await store.upsert([
@@ -204,21 +222,24 @@ describe('retrieval infrastructure correctness', () => {
         text: 'Before UTC window',
         timestamp: '2026-04-13T19:59:00+08:00',
         appName: 'Claude',
-        embedding: [1, 0, 0]
+        embedding: [1, 0, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-offset-match',
         text: 'Inside UTC window',
         timestamp: '2026-04-13T20:01:00+08:00',
         appName: 'Claude',
-        embedding: [0.8, 0, 0]
+        embedding: [0.8, 0, 0],
+        sourceTypes: ['ocr']
       },
       {
         id: 'vector-offset-late',
         text: 'After UTC window',
         timestamp: '2026-04-13T20:07:00+08:00',
         appName: 'Claude',
-        embedding: [0.7, 0, 0]
+        embedding: [0.7, 0, 0],
+        sourceTypes: ['ocr']
       }
     ]);
 
@@ -269,7 +290,8 @@ describe('retrieval infrastructure correctness', () => {
           text: 'Persisted semantic note',
           timestamp: '2026-04-13T11:30:00.000Z',
           appName: 'Claude',
-          embedding: [0.9, 0.1, 0]
+          embedding: [0.9, 0.1, 0],
+          sourceTypes: ['ocr']
         }
       ]);
       await firstStore.close();
@@ -308,7 +330,8 @@ describe('retrieval infrastructure correctness', () => {
           text: 'Persisted semantic note',
           timestamp: '2026-04-13T11:30:00.000Z',
           appName: 'Claude',
-          embedding: [0.9, 0.1, 0]
+          embedding: [0.9, 0.1, 0],
+          sourceTypes: ['ocr']
         }
       ]);
 
@@ -323,7 +346,8 @@ describe('retrieval infrastructure correctness', () => {
         text: `Persisted semantic note ${'x'.repeat(500)}-${index}`,
         timestamp: '2026-04-13T11:31:00.000Z',
         appName: 'Claude',
-        embedding: [0.9, 0.1, 0]
+        embedding: [0.9, 0.1, 0],
+        sourceTypes: ['ocr']
       })));
 
       await expect(store.inspect?.()).resolves.toEqual({
@@ -347,7 +371,8 @@ describe('retrieval infrastructure correctness', () => {
         text: `Persisted semantic note ${'x'.repeat(1000)}-${index}`,
         timestamp: '2026-04-13T11:30:00.000Z',
         appName: 'Claude',
-        embedding: [0.9, 0.1, 0]
+        embedding: [0.9, 0.1, 0],
+        sourceTypes: ['ocr']
       }));
       await writeFile(
         filePath,
@@ -481,7 +506,8 @@ describe('retrieval infrastructure correctness', () => {
                 text: 'Persisted before concurrent access',
                 timestamp: '2026-04-13T11:30:00.000Z',
                 appName: 'Claude',
-                embedding: [1, 0, 0]
+                embedding: [1, 0, 0],
+                sourceTypes: ['ocr']
               }
             ]
           },
@@ -527,7 +553,8 @@ describe('retrieval infrastructure correctness', () => {
           text: 'Written during initial load',
           timestamp: '2026-04-13T11:31:00.000Z',
           appName: 'Claude',
-          embedding: [0.8, 0.2, 0]
+          embedding: [0.8, 0.2, 0],
+          sourceTypes: ['ocr']
         }
       ]);
 
@@ -568,7 +595,8 @@ describe('retrieval infrastructure correctness', () => {
           text: 'Persisted semantic note',
           timestamp: '2026-04-13T11:30:00.000Z',
           appName: 'Claude',
-          embedding: [0.9, 0.1, 0]
+          embedding: [0.9, 0.1, 0],
+          sourceTypes: ['ocr']
         }
       ]);
 
@@ -595,22 +623,22 @@ describe('retrieval infrastructure correctness', () => {
       kind: 'chroma'
     });
 
-    expect(directory.endsWith('/.screenpipe-memory-mcp')).toBe(true);
+    expect(directory.endsWith('/.canary-alpha-mcp')).toBe(true);
   });
 
   it('expands a tilde-prefixed vector store path into the user home directory', () => {
     const directory = resolveVectorStoreDirectory({
       kind: 'chroma',
-      path: '~/.screenpipe-memory-mcp/chroma'
+      path: '~/.canary-alpha-mcp/chroma'
     });
 
-    expect(directory).toBe(`${homedir()}/.screenpipe-memory-mcp/chroma`);
+    expect(directory).toBe(`${homedir()}/.canary-alpha-mcp/chroma`);
   });
 
   it('starts empty instead of seeding production fixture records', async () => {
     const store = new InMemoryVectorStore({
       kind: 'chroma',
-      path: '/tmp/retrieval-empty-store-test'
+      path: join(testTempRoot(), 'retrieval-empty-store-test')
     });
 
     const results = await store.query({

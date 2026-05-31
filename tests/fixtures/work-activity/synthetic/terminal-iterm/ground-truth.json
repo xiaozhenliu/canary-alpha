@@ -1,0 +1,22 @@
+{
+  "_comment": "Ground truth for terminal-iterm fixture. App: iTerm2, window: bash shell. Terminal refinement rule should match iTerm2 and extract the unique AXTextArea subtree text.",
+  "frame_id": 2001,
+  "extractedText": "$ npm run test\n\n> canary-alpha-mcp@1.0.0 test\n> vitest run\n\n RUN  v1.0.0\n\n✓ tests/unit/work-activity/extraction-registry.test.ts (12 tests) 45ms\n✓ tests/unit/work-activity/session-aggregator.test.ts (8 tests) 32ms\n\nTest Files  2 passed (2)\nTests       20 passed (20)\nDuration    1.23s\n$ ",
+  "extractionRuleKind": "terminal",
+  "contextLabel": "bash — 80×24",
+  "contextKey": "iterm2::bash — 80×24",
+  "session_count": 1,
+  "session_boundaries": [
+    {
+      "app_name": "iTerm2",
+      "context_key": "iterm2::bash — 80×24",
+      "frame_ids": [2001]
+    }
+  ],
+  "find_hit_frame_ids": [2001],
+  "find_queries": [
+    "npm run test",
+    "vitest run",
+    "extraction-registry.test.ts"
+  ]
+}

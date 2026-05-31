@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-04-17
+last_updated: 2026-05-27
 ---
 
 # Configuration
@@ -55,8 +55,8 @@ retrieval:
 If Ollama is not reachable at `http://localhost:11434/v1`, or if the configured `nomic-embed-text` model is missing, onboarding prints an actionable local-model message and falls back to a hosted OpenAI-compatible provider. It only asks for:
 
 - API key
-- base URL (default: `https://api.openai.com/v1`)
-- model (default: `text-embedding-3-large`)
+- base URL (default: `https://api.deepseek.com`)
+- model (default: `text-embedding-3-large` placeholder; override to whatever embedding model your hosted provider exposes)
 
 No username, auth-mode, Hermes snippet paste, or manual YAML editing is required for the standard onboarding path.
 
@@ -72,8 +72,9 @@ mcp_servers:
     tools:
       include:
         - internal-status
-        - search-screen
-        - recent-activity
+        - find
+        - recall
+        - inspect
         - memory-read
         - memory-write
         - file-analyze
@@ -113,10 +114,19 @@ The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
 | `kind` | string | `openai-compatible` in schema; onboarding writes `ollama` when reachable | The code accepts any string, but official examples use `ollama` and OpenAI-compatible providers. |
-| `baseUrl` | string | unset in schema | Embedding API base URL. Onboarding defaults to `http://localhost:11434/v1` for Ollama or `https://api.openai.com/v1` for hosted providers. |
-| `model` | string | unset in schema | Embedding model name. Onboarding defaults to `nomic-embed-text` for Ollama or `text-embedding-3-large` for hosted providers. |
-| `apiKey` | string | unset | Optional for local providers such as Ollama; usually required for hosted providers. |
+| `baseUrl` | string | unset in schema | Embedding API base URL. Onboarding defaults to `http://localhost:11434/v1` for Ollama or a hosted OpenAI-compatible endpoint when Ollama is unavailable. |
+| `model` | string | unset in schema | Embedding model name. Onboarding defaults to `nomic-embed-text` for Ollama or the embedding model exposed by the hosted provider you select. |
+| `apiKey` | string | unset | Optional for local providers such as Ollama; usually required for hosted providers. This credential is for the embedding endpoint only — the LLM summary path uses its own DeepSeek key (see below). |
 | `concurrency` | positive integer | `2` | Caps simultaneous embedding requests across the shared runtime provider. Lower it for hosted providers with strict concurrency or rate limits. |
+
+### LLM provider for summary generation
+
+The embeddings layer and the LLM layer are configured independently:
+
+- **Embeddings** (`providers.embeddings`) accept any OpenAI-compatible API endpoint. The local default is Ollama at `http://localhost:11434/v1`; any hosted OpenAI-compatible provider works too.
+- **LLM summaries** (`analysis.summary.provider`) default to the local `template` provider. When you opt into `remote-llm`, the summary worker calls the DeepSeek chat endpoint described under `llm.{base_url, api_key, model}`. The standard values are `https://api.deepseek.com`, `${DEEPSEEK_API_KEY}`, and `deepseek-chat`. See `config.yaml.example` for the full block.
+
+In other words: pick whichever embedding endpoint you like, but the `remote-llm` summary path is DeepSeek only.
 
 ### `vectorStore`
 
@@ -177,6 +187,8 @@ retrieval:
 
 ## Example: hosted OpenAI-compatible embeddings
 
+The example below uses the OpenAI-compatible API shape generically — `apiKey` is the credential for the embedding endpoint only and is unrelated to the DeepSeek key used by the `remote-llm` summary provider.
+
 ```yaml
 server:
   mode: http
@@ -192,8 +204,8 @@ screenpipe:
 providers:
   embeddings:
     kind: openai-compatible
-    baseUrl: https://api.openai.com/v1
-    model: text-embedding-3-large
+    baseUrl: https://api.example-embeddings.com/v1
+    model: your-embedding-model
     apiKey: sk-your-key
     concurrency: 2
 
@@ -205,7 +217,7 @@ vectorStore:
 
 - `npm run onboard` fails early if local Screenpipe is not reachable at the default local endpoint.
 - `npm run onboard` prefers local Ollama when reachable and the configured embedding model is installed; otherwise it prompts for hosted-provider credentials.
-- `npm run onboard` runs first live MCP validation (`internal-status`, `recent-activity`, and `search-screen`) after the service starts, then writes Hermes config. This is a real-user install check, not the same thing as the controlled-real Hermes evaluation harness.
+- `npm run onboard` runs first live MCP validation (`internal-status`, `recall`, and `find`) after the service starts, then writes Hermes config. This is a real-user install check, not the same thing as the controlled-real Hermes evaluation harness.
 - If the config file exists but does not match the schema, startup fails with an `Invalid config file` error.
 - `service:start` rejects any `server.host` other than `127.0.0.1`.
 

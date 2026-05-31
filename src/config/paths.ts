@@ -17,6 +17,7 @@ export const SERVICE_LOG_FILE_NAME = 'service.log';
 export const PRIVACY_STATE_FILE_NAME = 'privacy-state.json';
 export const RUNTIME_REGISTRY_DIRECTORY_NAME = 'runtime-processes';
 export const REBUILD_LOCK_FILE_NAME = 'rebuild-index.lock';
+export const DERIVED_DATABASE_FILE_NAME = 'derived.sqlite';
 
 export function resolveAppDirectory(): string {
   return join(homedir(), APP_DIRECTORY_NAME);
@@ -78,4 +79,23 @@ export function resolveRuntimeRegistryPath(vectorStore?: AppConfig['vectorStore'
 
 export function resolveRebuildLockPath(vectorStore?: AppConfig['vectorStore']): string {
   return join(resolveRetrievalArtifactsDirectory(vectorStore), REBUILD_LOCK_FILE_NAME);
+}
+
+/**
+ * Resolve the derived SQLite database path used by the work-activity-analysis layer.
+ *
+ * Resolution order:
+ * 1. Explicit `config.paths.derivedDatabase` (supports `~/...` expansion)
+ * 2. Default: `<app dir>/derived.sqlite` (typically `~/.canary-alpha-mcp/derived.sqlite`)
+ *
+ * Accepts a partial config so this helper can be called pre-bootstrap (e.g. CLI tools).
+ */
+export function resolveDerivedDatabasePath(config?: { paths?: { derivedDatabase?: string } }): string {
+  const configured = config?.paths?.derivedDatabase;
+  if (configured && configured.length > 0) {
+    return configured.startsWith('~/')
+      ? join(homedir(), configured.slice(2))
+      : configured;
+  }
+  return join(resolveAppDirectory(), DERIVED_DATABASE_FILE_NAME);
 }

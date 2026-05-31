@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-04-16
+last_updated: 2026-05-27
 ---
 
 # canary-alpha-mcp v1 Engineering Standards
@@ -45,7 +45,7 @@ Standards:
 Current anchors:
 - `src/mcp/register-tools.ts` is a thin registry that wires tool registrars into the server
 - `src/mcp/tools/shared.ts` centralizes MCP result-shaping helpers
-- `search-screen`, `recent-activity`, `memory-write`, and similar tool files follow the thin MCP tools pattern
+- `find`, `recall`, `inspect`, `memory-write`, and similar tool files follow the thin MCP tools pattern
 
 ### `src/services/**` own domain behavior
 
@@ -98,7 +98,7 @@ These standards should describe the naming already present in the repo:
 
 Examples grounded in the codebase:
 - `registerTools(server, app)` in `src/mcp/register-tools.ts`
-- `createSearchScreenService`, `createRecentActivityService`, `createIndexingService`
+- `registerFindTool`, `registerRecallTool`, `registerInspectTool`, `createIndexingService`
 - `DefaultMemoryService`, `FileMemoryStore`, `FilePrivacyStore`
 - retrieval result contracts in `src/services/retrieval/types.ts`
 
@@ -179,7 +179,7 @@ Standards:
 - do not rely only on mock-heavy unit tests for changes that affect runtime behavior, degraded behavior, config switching, or interoperability
 
 Current anchors:
-- `tests/acceptance/http-tool-flow.test.ts` verifies structured content over Streamable HTTP
+- `tests/acceptance/http-init.test.ts` verifies structured content over Streamable HTTP
 - the acceptance harness starts the real server and talks to it through MCP client helpers
 - helper modules under `tests/helpers/**` support realistic transport/bootstrap/provider test flows
 

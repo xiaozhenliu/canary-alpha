@@ -1,13 +1,14 @@
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT_PATH = join(PROJECT_ROOT, 'scripts', 'service-stop.js');
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -23,13 +24,13 @@ afterEach(async () => {
 
 describe('service:stop script', () => {
   it('fails instead of reporting success when launchctl cannot inspect the service', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-stop-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-stop-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
-    const plistPath = join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
 
     await mkdir(launchAgentsDir, { recursive: true });
     await mkdir(fakeBinDir, { recursive: true });

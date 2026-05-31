@@ -1,5 +1,4 @@
 import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +7,7 @@ import { connectStdioClient } from '../helpers/mcp-client.js';
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -22,7 +22,7 @@ afterEach(async () => {
 
 describe('stdio MCP initialization', () => {
   it('connects a real MCP client over stdio', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'stdio-init-connect-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'stdio-init-connect-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -46,7 +46,7 @@ describe('stdio MCP initialization', () => {
   });
 
   it('removes the runtime marker when a stdio session shuts down', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'stdio-init-runtime-marker-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'stdio-init-runtime-marker-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -62,7 +62,7 @@ describe('stdio MCP initialization', () => {
     });
 
     const connection = await connectStdioClient({ HOME: homeDir });
-    const runtimeDir = join(homeDir, '.screenpipe-memory-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
 
     await connection.client.listTools();
     expect((await readdir(runtimeDir)).length).toBeGreaterThan(0);
@@ -89,7 +89,7 @@ describe('stdio MCP initialization', () => {
   });
 
   it('does not write stdio session logs into the managed service log', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'stdio-init-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'stdio-init-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -110,7 +110,7 @@ describe('stdio MCP initialization', () => {
     await connection.client.listTools();
     await connection.close();
 
-    await expect(access(join(homeDir, '.screenpipe-memory-mcp', 'logs', 'service.log'))).rejects.toMatchObject({
+    await expect(access(join(homeDir, '.canary-alpha-mcp', 'logs', 'service.log'))).rejects.toMatchObject({
       code: 'ENOENT'
     });
   });

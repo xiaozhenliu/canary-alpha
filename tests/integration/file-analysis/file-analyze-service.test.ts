@@ -1,14 +1,14 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { DefaultFileAnalyzeService } from '../../../src/services/file-analysis/file-analyze-service.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('file analyze service', () => {
   it('returns a concise summary and highlights for a supported markdown file', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-summary-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-summary-'));
     const filePath = join(tempDir, 'notes.md');
 
     try {
@@ -31,7 +31,7 @@ describe('file analyze service', () => {
   });
 
   it('returns a direct answer and evidence snippets with line numbers in question mode', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-question-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-question-'));
     const filePath = join(tempDir, 'service.ts');
 
     try {
@@ -66,7 +66,7 @@ describe('file analyze service', () => {
   });
 
   it('preserves literal Chinese question terms during normalization', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-chinese-literal-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-chinese-literal-'));
     const filePath = join(tempDir, 'plan.md');
 
     try {
@@ -105,7 +105,7 @@ describe('file analyze service', () => {
   });
 
   it('matches combining-mark scripts in question mode', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-combining-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-combining-'));
     const filePath = join(tempDir, 'hindi.md');
 
     try {
@@ -136,7 +136,7 @@ describe('file analyze service', () => {
   });
 
   it('matches CJK segments inside mixed alphanumeric tokens in question mode', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-mixed-cjk-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-mixed-cjk-'));
     const filePath = join(tempDir, 'mixed.md');
 
     try {
@@ -174,7 +174,7 @@ describe('file analyze service', () => {
   });
 
   it('matches single-character questions inside pure CJK tokens in question mode', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-pure-cjk-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-pure-cjk-'));
     const filePath = join(tempDir, 'pure-cjk.md');
 
     try {
@@ -204,7 +204,7 @@ describe('file analyze service', () => {
   });
 
   it('keeps ASCII query matching for mixed CJK tokens in question mode', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-mixed-ascii-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-mixed-ascii-'));
     const filePath = join(tempDir, 'mixed-ascii.md');
 
     try {
@@ -235,7 +235,7 @@ describe('file analyze service', () => {
   });
 
   it('ignores short non-cjk stopwords when ranking question-mode matches', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-short-non-cjk-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-short-non-cjk-'));
     const filePath = join(tempDir, 'russian-stopwords.md');
 
     try {
@@ -265,7 +265,7 @@ describe('file analyze service', () => {
   });
 
   it('ignores short combining-mark stopwords when ranking question-mode matches', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-combining-stopwords-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-combining-stopwords-'));
     const filePath = join(tempDir, 'hindi-stopwords.md');
 
     try {
@@ -295,7 +295,7 @@ describe('file analyze service', () => {
   });
 
   it('does not match unrelated whitespace-delimited non-ascii words by shared fragments', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-cyrillic-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-cyrillic-'));
     const filePath = join(tempDir, 'russian.md');
 
     try {
@@ -323,7 +323,7 @@ describe('file analyze service', () => {
   });
 
   it('does not expand pure Japanese syllabary questions into noisy single-character matches', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-japanese-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-japanese-'));
     const filePath = join(tempDir, 'japanese.md');
 
     try {
@@ -355,7 +355,7 @@ describe('file analyze service', () => {
   });
 
   it('does not expand pure Korean syllable questions into noisy single-character matches', async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), 'file-analyze-korean-'));
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-korean-'));
     const filePath = join(tempDir, 'korean.md');
 
     try {

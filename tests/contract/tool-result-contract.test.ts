@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -11,6 +10,7 @@ import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startHttpServer } from '../helpers/start-http-server.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -85,10 +85,10 @@ describe('focused v1 tool result contract', () => {
   });
 
   it('returns stable structuredContent keys for focused v1 stdio tools', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-result-contract-stdio-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-result-contract-stdio-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.json'),
@@ -112,7 +112,8 @@ describe('focused v1 tool result contract', () => {
           id: 'contract-1',
           text: 'Focused v1 retrieval fixture for contract coverage',
           timestamp: minusMinutes(1),
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: []
         }
       ]
     });
@@ -130,44 +131,10 @@ describe('focused v1 tool result contract', () => {
     const connection = await connectStdioClient({ HOME: homeDir });
     cleanup.push(() => connection.close());
 
-    const searchResult = await connection.client.callTool({
-      name: 'search-screen',
-      arguments: {
-        query: 'contract',
-        mode: 'hybrid',
-        appName: 'Claude'
-      }
-    });
-
-    expect(searchResult.isError).toBeFalsy();
-    expect(searchResult.structuredContent).toMatchObject({
-      summary: expect.any(String),
-      evidence: expect.any(Array),
-      freshness: expect.objectContaining({
-        status: expect.any(String),
-        lagMinutes: expect.anything(),
-        windowMinutes: expect.any(Number),
-        checkpoint: expect.anything()
-      })
-    });
-
-    const recentResult = await connection.client.callTool({
-      name: 'recent-activity',
-      arguments: {
-        minutes: 10,
-        format: 'raw'
-      }
-    });
-
-    expect(recentResult.isError).toBeFalsy();
-    expect(recentResult.structuredContent).toMatchObject({
-      summary: expect.any(String),
-      evidence: expect.any(Array),
-      raw: expect.any(Array),
-      freshness: expect.objectContaining({
-        status: expect.any(String)
-      })
-    });
+    // Note: legacy `search-screen` / `recent-activity` calls were removed by
+    // task 8.1 of the work-activity-analysis spec. The replacement `find` /
+    // `recall` / `inspect` tools have their own contract assertions once
+    // tasks 8.2 - 8.5 land.
 
     const memoryWriteResult = await connection.client.callTool({
       name: 'memory-write',
@@ -246,7 +213,7 @@ describe('focused v1 tool result contract', () => {
   });
 
   it('preserves stable error semantics for privacy-control confirmation failures', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-result-contract-privacy-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-result-contract-privacy-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -286,7 +253,7 @@ describe('focused v1 tool result contract', () => {
   });
 
   it('keeps internal-status output aligned with the declared HTTP contract surface', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'tool-result-contract-http-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'tool-result-contract-http-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });

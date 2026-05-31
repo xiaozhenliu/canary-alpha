@@ -1,6 +1,11 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { Client, StdioClientTransport, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+import { getPackageVersion } from '../../src/lib/version.js';
+
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export interface ConnectedClient {
   client: Client;
@@ -9,8 +14,8 @@ export interface ConnectedClient {
 
 function createClient(): Client {
   return new Client({
-    name: 'screenpipe-memory-mcp-test-client',
-    version: '0.1.0'
+    name: 'canary-alpha-mcp-test-client',
+    version: getPackageVersion()
   });
 }
 

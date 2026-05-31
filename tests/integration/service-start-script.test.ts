@@ -1,13 +1,14 @@
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT_PATH = join(PROJECT_ROOT, 'scripts', 'service-start.js');
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -23,17 +24,17 @@ afterEach(async () => {
 
 describe('service:start script', () => {
   it('removes the installed plist when launchctl bootstrap fails', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-start-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-start-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
     const lsofPath = join(fakeBinDir, 'lsof');
     const distDir = join(PROJECT_ROOT, 'dist', 'src');
     const distEntrypoint = join(distDir, 'index.js');
-    const plistPath = join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
 
     await mkdir(appDir, { recursive: true });
     await mkdir(launchAgentsDir, { recursive: true });
@@ -90,17 +91,17 @@ describe('service:start script', () => {
   });
 
   it('fails fast when another process is already listening on the managed port', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-start-port-conflict-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-start-port-conflict-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.screenpipe-memory-mcp');
+    const appDir = join(homeDir, '.canary-alpha-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
     const lsofPath = join(fakeBinDir, 'lsof');
     const distDir = join(PROJECT_ROOT, 'dist', 'src');
     const distEntrypoint = join(distDir, 'index.js');
-    const plistPath = join(launchAgentsDir, 'com.screenpipe-memory-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
 
     await mkdir(appDir, { recursive: true });
     await mkdir(launchAgentsDir, { recursive: true });

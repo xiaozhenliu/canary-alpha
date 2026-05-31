@@ -13,27 +13,59 @@ import { createServices } from '../services/bootstrap-status-service.js';
 import { FileCheckpointStore } from '../services/retrieval/checkpoint-store.js';
 import { createFreshnessPolicy } from '../services/retrieval/freshness-policy.js';
 import { createIndexingService } from '../services/retrieval/indexing-service.js';
-import { createRecentActivityService } from '../services/retrieval/recent-activity-service.js';
 import { createEmbeddingProvider } from '../services/retrieval/provider-factory.js';
-import { createSearchScreenService } from '../services/retrieval/search-screen-service.js';
 import { runTrimOnce } from '../services/trim/screenpipe-trim-service.js';
 import { DefaultScreenpipeControlService } from '../services/screenpipe-control/screenpipe-control-service.js';
 import { createScreenpipeClient } from '../services/retrieval/screenpipe-client.js';
 import { createVectorStore, resolveVectorStoreDirectory } from '../services/retrieval/vector-store.js';
+import {
+  initDerivedSchema,
+  openDerivedDatabase,
+  resolveDerivedDatabasePath
+} from '../services/work-activity/derived-database.js';
+import { SqliteExtractedContentStore } from '../services/work-activity/extraction/extracted-content-store.js';
+import { createExtractionRegistry } from '../services/work-activity/extraction/registry.js';
+import { SqliteHashIndex } from '../services/work-activity/hash-index.js';
+import { DefaultEmbeddingService } from '../services/work-activity/embedding-service.js';
+import { DefaultFindService } from '../services/work-activity/find/find-service.js';
+import { DefaultInspectService } from '../services/work-activity/inspect/inspect-service.js';
+import { SqliteScreenpipeFramesReader } from '../services/work-activity/inspect/screenpipe-frames-reader.js';
+import { DefaultRecallService } from '../services/work-activity/recall/recall-service.js';
+import { DefaultSessionAggregator } from '../services/work-activity/sessions/aggregator.js';
+import { SqliteSessionStore } from '../services/work-activity/sessions/session-store.js';
+import { createSummaryProviderRegistry } from '../services/work-activity/summary/registry.js';
+import { SummaryWorker } from '../services/work-activity/summary/worker.js';
+import { ProviderHealthRegistry } from '../services/work-activity/observability/provider-health-registry.js';
+import { WorkActivityObservabilityService } from '../services/work-activity/observability/work-activity-observability-service.js';
+import { createCascadeDeleteCoordinator, type CascadeDeleteCoordinator } from '../services/work-activity/cascade-delete-coordinator.js';
+import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../types/app-config.js';
 
 function resolveCheckpointPath(vectorStorePath?: string): string {
   return join(vectorStorePath ?? join(homedir(), '.canary-alpha-mcp'), 'retrieval-checkpoint.json');
 }
 
-export function startTrimPoller(app: Pick<AppContext, 'config' | 'logger'>): void {
+export function startTrimPoller(
+  app: Pick<AppContext, 'config' | 'logger'>,
+  cascadeDeleteCoordinator?: CascadeDeleteCoordinator,
+  privacyStore?: import('../services/privacy/types.js').PrivacyStore
+): void {
   const intervalMs = app.config.trim.intervalSeconds * 1_000;
   let trimming = false;
 
   const trimOnce = (): void => {
     if (trimming) return;
     trimming = true;
-    void runTrimOnce(join(resolveScreenpipeDirectory(), 'db.sqlite'))
+    void runTrimOnce(join(resolveScreenpipeDirectory(), 'db.sqlite'), {
+      budgetBytes: app.config.storage.diskBudgetBytes,
+      retentionDays: app.config.storage.retentionDays,
+      cascadeDeleteCoordinator,
+      // Wire the privacy store so retention cascade failures are
+      // persisted as `cascade-failure` tombstones — same audit /
+      // retrieval-gating discipline as privacy `delete-range`.
+      privacyStore,
+      logger: app.logger
+    })
       .then((result) => { app.logger.info('screenpipe trim complete', { ...result }); })
       .finally(() => { trimming = false; });
   };
@@ -95,10 +127,6 @@ export async function createApp(overrides?: {
   const screenpipeClient = createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey);
   const vectorStore = createVectorStore(config);
   const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(resolveVectorStoreDirectory(config.vectorStore)));
-  const services = createServices(config, {
-    checkpointStore,
-    vectorStore
-  });
   const fileAnalysis = new DefaultFileAnalyzeService();
   const memory = new DefaultMemoryService(
     new FileMemoryStore({
@@ -107,14 +135,150 @@ export async function createApp(overrides?: {
     })
   );
   const privacyStore = new FilePrivacyStore(resolvePrivacyStatePath());
-  const privacy = new DefaultPrivacyControlService(privacyStore, undefined, {
-    appDirectory: join(homedir(), '.canary-alpha-mcp'),
-    retrievalArtifactsDirectory: resolveRetrievalArtifactsDirectory(config.vectorStore),
-    screenpipeDirectory: resolveScreenpipeDirectory()
-  });
   const freshnessPolicy = createFreshnessPolicy({
     freshnessWindowMinutes: config.retrieval.freshnessWindowMinutes
   });
+
+  // Work-activity-analysis tail (task 6.1 / 6.2): open derived
+  // database, materialise schema, build the per-frame collaborators
+  // (extraction registry, extracted_content store, session aggregator,
+  // embedding service) the indexing service now requires. The handles
+  // live for the entire app lifetime — `derived.sqlite` is opened
+  // once on boot and the `SqliteExtractedContentStore` /
+  // `SqliteSessionStore` / `SqliteHashIndex` adapters share the same
+  // `DatabaseSync` connection.
+  const derivedDatabase = openDerivedDatabase(resolveDerivedDatabasePath(config));
+  initDerivedSchema(derivedDatabase);
+  const extractedContentStore = new SqliteExtractedContentStore(derivedDatabase);
+  const sessionStore = new SqliteSessionStore(derivedDatabase);
+  const hashIndex = new SqliteHashIndex(derivedDatabase);
+  const extractionRegistry = createExtractionRegistry();
+  const sessionAggregator = new DefaultSessionAggregator({
+    store: sessionStore,
+    idleThresholdSeconds: config.analysis.sessions.idleThresholdSeconds,
+    now: () => new Date(),
+    generateSessionId: () => randomUUID()
+  });
+  const embeddingService = new DefaultEmbeddingService({
+    embeddingProvider,
+    vectorStore,
+    hashIndex,
+    now: () => new Date()
+  });
+
+  // Cascade_Delete coordinator (task 10.1 / 10.2, R9.1). Wired here so
+  // both the trim poller (retention pass) and the privacy control service
+  // (delete-range) can trigger derived-data cleanup after upstream frames
+  // are removed. The coordinator is constructed once and shared between
+  // the two callers so they use the same storage adapters.
+  const cascadeDeleteCoordinator = createCascadeDeleteCoordinator({
+    sessionStore,
+    extractedContentStore,
+    vectorStore,
+    derivedDatabase,
+    logger
+  });
+
+  // Privacy control service — now receives the cascade coordinator so
+  // `delete-range` cleans up derived data (sessions / extracted_content /
+  // embeddings) after the upstream ScreenPipe frames are removed (R9.1).
+  const privacy = new DefaultPrivacyControlService(
+    privacyStore,
+    undefined,
+    {
+      appDirectory: join(homedir(), '.canary-alpha-mcp'),
+      retrievalArtifactsDirectory: resolveRetrievalArtifactsDirectory(config.vectorStore),
+      screenpipeDirectory: resolveScreenpipeDirectory()
+    },
+    cascadeDeleteCoordinator,
+    logger
+  );
+
+  // Read service for the `find` MCP tool (task 8.2 / 8.3). Reads
+  // directly from the same `derivedDatabase` handle the writers above
+  // use so the keyword search sees newly-extracted rows without
+  // going through a second SQLite connection. Task 8.3 wires the
+  // semantic collaborators (embedding provider, vector store, and
+  // extracted-content store) so `mode='semantic'` / `'hybrid'` can
+  // run honestly; if any of them is unavailable at request time the
+  // service degrades to keyword (R7.6) rather than raising.
+  const findService = new DefaultFindService({
+    db: derivedDatabase,
+    embeddingProvider,
+    vectorStore,
+    extractedContentStore,
+    privacyState: privacyStore
+  });
+
+  // Read service for the `inspect` MCP tool (task 8.5). Wraps the
+  // session store, the per-frame extracted_content store, the
+  // SummaryWorker, and a read-only adapter over ScreenPipe's
+  // upstream `db.sqlite` (so `inspect({frameId})` can surface the
+  // raw AX tree on demand). The frames reader is wired against the
+  // standard ScreenPipe directory; if `db.sqlite` is missing the
+  // adapter degrades gracefully (`getFrame -> null`) and the tool
+  // collapses to the documented "原始 AX 树不可访问" narrative.
+  const summaryRegistry = createSummaryProviderRegistry(config);
+  const summaryWorker = new SummaryWorker({
+    registry: summaryRegistry,
+    sessionStore,
+    extractedContentStore,
+    privacyState: privacyStore,
+    now: () => new Date()
+  });
+  const screenpipeFramesReader = new SqliteScreenpipeFramesReader(
+    join(resolveScreenpipeDirectory(), 'db.sqlite')
+  );
+  const inspectService = new DefaultInspectService({
+    sessionStore,
+    extractedContentStore,
+    summaryWorker,
+    screenpipeFramesReader,
+    now: () => new Date()
+  });
+
+  // Read service for the `recall` MCP tool (task 8.4). Shares the
+  // session store, extracted-content store, session aggregator, and
+  // summary worker with `inspect` so all three tools agree on which
+  // sessions are open, what evidence they hold, and which provider
+  // wrote any given summary. The aggregator's `flushIdleOpenSessions`
+  // call at the entry of `recall(...)` keeps the third "called from"
+  // site documented in design §4 honest.
+  const recallService = new DefaultRecallService({
+    sessionStore,
+    extractedContentStore,
+    sessionAggregator,
+    summaryWorker,
+    now: () => new Date(),
+    idleThresholdSeconds: config.analysis.sessions.idleThresholdSeconds,
+    privacyState: privacyStore
+  });
+
+  // Work-activity observability (task 9.1 / 9.2, design §9). The
+  // `ProviderHealthRegistry` is a process-singleton the embedding /
+  // summary call sites would record into; today none of those sites
+  // is wired (out-of-scope for task 9.2), so the registry surfaces
+  // the documented zero-call default (`status: 'unknown'`, W24).
+  // Construction here keeps the wiring explicit so the eventual
+  // recordOk / recordFailure plumbing can attach without re-shaping
+  // the bootstrap.
+  const providerHealth = new ProviderHealthRegistry();
+  const workActivityObservability = new WorkActivityObservabilityService({
+    extractedContentStore,
+    sessionStore,
+    sessionAggregator,
+    summaryProviderRegistry: summaryRegistry,
+    providerHealth,
+    embeddingProviderKind: config.providers.embeddings.kind,
+    now: () => new Date()
+  });
+
+  const services = createServices(config, {
+    checkpointStore,
+    vectorStore,
+    workActivityObservability
+  });
+
   const indexing = createIndexingService({
     embeddingProvider,
     screenpipeClient,
@@ -123,7 +287,18 @@ export async function createApp(overrides?: {
     freshnessWindowMinutes: config.retrieval.freshnessWindowMinutes,
     maxCatchUpBatches: config.retrieval.maxCatchUpBatches,
     maxCatchUpRecords: config.retrieval.maxCatchUpRecords,
-    privacyState: privacyStore
+    privacyState: privacyStore,
+    // Pass through the privacy slice so `IndexingService` can honour
+    // `config.privacy.secureAxRoles` (otherwise it falls back to the
+    // hard-coded `['AXSecureTextField']` default and ignores user
+    // configuration). Same for `logger` — without it the secure-role
+    // pruner cannot emit its degraded-mode debug line.
+    config: { privacy: config.privacy },
+    logger,
+    extractionRegistry,
+    extractedContentStore,
+    sessionAggregator,
+    embeddingService
   });
   const retrieval = {
     embeddingProvider,
@@ -131,21 +306,7 @@ export async function createApp(overrides?: {
     vectorStore,
     checkpointStore,
     freshnessPolicy,
-    indexing,
-    searchScreen: createSearchScreenService({
-      embeddingProvider,
-      screenpipeClient,
-      vectorStore,
-      checkpointStore,
-      freshnessPolicy,
-      privacyState: privacyStore
-    }),
-    recentActivity: createRecentActivityService({
-      screenpipeClient,
-      checkpointStore,
-      freshnessPolicy,
-      privacyState: privacyStore
-    })
+    indexing
   };
 
   const app = {
@@ -157,7 +318,13 @@ export async function createApp(overrides?: {
       fileAnalysis,
       privacy,
       screenpipeControl: new DefaultScreenpipeControlService(),
-      retrieval
+      retrieval,
+      workActivity: {
+        find: findService,
+        inspect: inspectService,
+        recall: recallService,
+        cascadeDelete: cascadeDeleteCoordinator
+      }
     }
   } satisfies AppContext;
 
@@ -166,7 +333,7 @@ export async function createApp(overrides?: {
   }
 
   if (app.config.trim.enabled) {
-    startTrimPoller(app);
+    startTrimPoller(app, cascadeDeleteCoordinator, privacyStore);
   }
 
   return app;

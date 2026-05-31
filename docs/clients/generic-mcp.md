@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-04-17
+last_updated: 2026-05-28
 ---
 
 # Generic MCP Client Setup
@@ -53,15 +53,16 @@ Any client should support these steps:
 2. Set the server URL to `http://127.0.0.1:<port>/mcp`
 3. Connect and list available tools
 4. Confirm these tools appear:
-   - `search-screen`
-   - `recent-activity`
+   - `find`
+   - `recall`
+   - `inspect`
    - `memory-read`
    - `memory-write`
    - `file-analyze`
    - `privacy-control`
    - `internal-status`
 5. Run `internal-status` with `{}` to confirm runtime health
-6. Run a simple retrieval call such as `recent-activity` or `search-screen`
+6. Run a simple retrieval call such as `recall` or `find`
 
 ## Suggested first calls
 
@@ -84,16 +85,18 @@ Expected result shape:
 
 ### Retrieval smoke test
 
-Tool: `recent-activity`
+Tool: `recall`
 
 ```json
 {
-  "minutes": 10,
-  "format": "summary"
+  "from": "<ISO timestamp ten minutes before now>",
+  "to": "<ISO timestamp now>",
+  "granularity": "session",
+  "includeSummary": false
 }
 ```
 
-Or tool: `search-screen`
+Or tool: `find`
 
 ```json
 {

@@ -25,6 +25,8 @@ pnpm-debug.log*
 .cache/
 .tmp/
 tmp/
+# Repo-internal test temp root (see tests/helpers/test-tmp.ts)
+.test-tmp/
 
 # Local databases
 *.db
@@ -34,12 +36,16 @@ tmp/
 # Local runtime state
 .worktrees/
 .screenpipe-memory-mcp/
+.canary-alpha-mcp/
+.codex-review/
 .claude/
 .mcp.json
-CLAUDE.md
+# Development-only instructions and private product specification
 AGENTS.md
-.planning/
+CLAUDE.md
+PRD_screenpipe_memory_mcp_v4.1.md
 docs/superpowers/
+docs/plan/
 
 # AI/agent planning artifacts
 **/plans/

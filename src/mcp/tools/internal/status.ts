@@ -129,6 +129,118 @@ const screenpipeRecentCaptureReuseSchema = z.object({
   signals: z.array(screenpipeRecentCaptureReuseSignalSchema)
 });
 
+const captureStatusSchema = z.object({
+  state: z.enum(['ok', 'idle', 'process-down', 'permissions-missing', 'unknown']),
+  lastFrameTimestamp: z.string().optional(),
+  livenessThresholdSeconds: z.number().int().positive(),
+  reason: z.string().optional()
+});
+
+const ingestionMixSchema = z.object({
+  windowSeconds: z.number().int().positive(),
+  accessibilityCount: z.number().int().nonnegative(),
+  ocrCount: z.number().int().nonnegative(),
+  ratio: z.number().min(0).max(1)
+});
+
+const diskBudgetSchema = z.object({
+  budgetBytes: z.number().int().nonnegative().nullable(),
+  currentSizeBytes: z.number().int().nonnegative(),
+  headroomBytes: z.number().int().nonnegative().nullable(),
+  warning: z.string().optional()
+});
+
+// ---------------------------------------------------------------------------
+// Work-activity-analysis blocks (design §9.1, task 9.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * `extraction` — most recent successful extraction timestamp plus the
+ * ratio of `Empty_Extraction` rows in the trailing 24h window
+ * (R2.1 / R2.2). `lastExtractedAt` is `null` until the first non-empty
+ * extraction lands. `unextractedFrameRatio` is `0` on an empty sample
+ * (the contract is "empty input ⇒ 0", not `NaN`). `totalFramesLast24h`
+ * is the denominator the ratio was computed against — surfaced
+ * verbatim per design §9.1 so callers can interpret the ratio
+ * without re-querying the store.
+ */
+const extractionStatusSchema = z.object({
+  lastExtractedAt: z.string().nullable(),
+  unextractedFrameRatio: z.number().min(0).max(1),
+  totalFramesLast24h: z.number().int().nonnegative()
+});
+
+/**
+ * `sessions` — open / recently closed / 24h totals (R4.1 / R4.2).
+ */
+const sessionsStatusSchema = z.object({
+  openSessionCount: z.number().int().nonnegative(),
+  lastClosedAt: z.string().nullable(),
+  totalSessionsLast24h: z.number().int().nonnegative()
+});
+
+/**
+ * `summary` — aggregate counts of pending and failed/degraded session
+ * summaries (R8.1). `failedCount` aggregates `'failed'` and
+ * `'degraded'` per design §9.2.
+ */
+const summaryStatusSchema = z.object({
+  pendingCount: z.number().int().nonnegative(),
+  failedCount: z.number().int().nonnegative()
+});
+
+/**
+ * `providers.embedding` — wire identifier of the configured embedding
+ * provider plus its most recent call outcome (R8.2). `kind` is
+ * open-ended (`'openai-compatible'` / `'ollama'` / `'none'`); `status`
+ * is `'unknown'` on a fresh bootstrap (W24).
+ *
+ * `lastErrorAt` is declared `nullable().optional()` per design §9.1
+ * so a future caller that wants to emit an explicit `null` (rather
+ * than omit the field) does not violate the schema. Today's
+ * implementation only ever omits the field — both shapes are
+ * accepted on the wire.
+ */
+const providersEmbeddingSchema = z.object({
+  kind: z.string(),
+  status: z.enum(['ok', 'unavailable', 'unknown']),
+  lastErrorAt: z.string().nullable().optional(),
+  lastLatencyMs: z.number().int().nonnegative().optional()
+});
+
+/**
+ * `providers.summary` — user-configured summary provider plus its
+ * most recent call outcome (R8.3 / W23). `kind` reflects the
+ * configured provider, NOT any runtime fallback the worker is doing.
+ *
+ * `lastErrorAt` follows the same `nullable().optional()` shape as
+ * `providers.embedding` for parity with design §9.1.
+ */
+const providersSummarySchema = z.object({
+  kind: z.enum(['template', 'remote-llm']),
+  status: z.enum(['ok', 'unavailable', 'unknown']),
+  lastErrorAt: z.string().nullable().optional(),
+  lastLatencyMs: z.number().int().nonnegative().optional()
+});
+
+const providersStatusSchema = z.object({
+  embedding: providersEmbeddingSchema,
+  summary: providersSummarySchema
+});
+
+/**
+ * `degraded` — per-section degradation envelope (design §9 Error
+ * Handling). Each key carries the error message captured at the
+ * section boundary. The map is omitted entirely when every section
+ * is healthy.
+ */
+const observabilityDegradedSchema = z.object({
+  extraction: z.string().optional(),
+  sessions: z.string().optional(),
+  summary: z.string().optional(),
+  providers: z.string().optional()
+});
+
 const outputSchema = z.object({
   status: z.literal('ok'),
   mode: z.enum(['stdio', 'http']),
@@ -136,6 +248,9 @@ const outputSchema = z.object({
   port: z.number().int().positive(),
   pid: z.number().int().positive(),
   configFile: z.string(),
+  capture: captureStatusSchema.optional(),
+  ingestionMix: ingestionMixSchema.optional(),
+  diskBudget: diskBudgetSchema.optional(),
   retrieval: z.object({
     checkpointExists: z.boolean(),
     checkpointTimestamp: z.string().optional(),
@@ -153,7 +268,15 @@ const outputSchema = z.object({
     recentTextDuplication: screenpipeRecentTextDuplicationSchema.optional(),
     recentElementDuplication: screenpipeRecentElementDuplicationSchema.optional(),
     recentCaptureReuse: screenpipeRecentCaptureReuseSchema.optional()
-  })
+  }),
+  // Work-activity-analysis additions (design §9.1). All optional so a
+  // partial bootstrap or a `WorkActivityObservabilityService` outage
+  // collapses the four blocks rather than failing the whole tool.
+  extraction: extractionStatusSchema.optional(),
+  sessions: sessionsStatusSchema.optional(),
+  summary: summaryStatusSchema.optional(),
+  providers: providersStatusSchema.optional(),
+  degraded: observabilityDegradedSchema.optional()
 });
 
 export function registerInternalStatusTool(server: McpServer, app: AppContext): void {
@@ -171,7 +294,7 @@ export function registerInternalStatusTool(server: McpServer, app: AppContext): 
     },
     async (): Promise<CallToolResult> => {
       const status = await app.services.bootstrapStatus.getStatus();
-      const structuredStatus = {
+      const structuredStatus: Record<string, unknown> = {
         status: status.status,
         mode: status.mode,
         host: status.host,
@@ -181,6 +304,39 @@ export function registerInternalStatusTool(server: McpServer, app: AppContext): 
         retrieval: status.retrieval,
         screenpipeStorage: status.screenpipeStorage
       };
+
+      // Include the three new observability blocks when available.
+      if (status.capture !== undefined) {
+        structuredStatus['capture'] = status.capture;
+      }
+      if (status.ingestionMix !== undefined) {
+        structuredStatus['ingestionMix'] = status.ingestionMix;
+      }
+      if (status.diskBudget !== undefined) {
+        structuredStatus['diskBudget'] = status.diskBudget;
+      }
+
+      // Work-activity-analysis blocks (design §9.1, task 9.2). Each
+      // is independently optional so a missing observability service
+      // (partial bootstrap, test wiring, or service-level failure)
+      // simply collapses the field — the upstream `screenpipeStorage`
+      // / `retrieval` / `capture` / `ingestionMix` / `diskBudget`
+      // contract stays intact (R2.3 / R4.3 / R8.6).
+      if (status.extraction !== undefined) {
+        structuredStatus['extraction'] = status.extraction;
+      }
+      if (status.sessions !== undefined) {
+        structuredStatus['sessions'] = status.sessions;
+      }
+      if (status.summary !== undefined) {
+        structuredStatus['summary'] = status.summary;
+      }
+      if (status.providers !== undefined) {
+        structuredStatus['providers'] = status.providers;
+      }
+      if (status.degraded !== undefined) {
+        structuredStatus['degraded'] = status.degraded;
+      }
 
       return {
         content: [

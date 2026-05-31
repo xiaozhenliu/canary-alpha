@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -14,6 +13,11 @@ import { startScreenpipeStub } from '../tests/helpers/screenpipe-stub.ts';
 import { startHttpServer } from '../tests/helpers/start-http-server.ts';
 import { writeTestConfig } from '../tests/helpers/test-config.ts';
 import { V1_EVALUATION_TASKS } from '../tests/evaluations/v1-evaluation-manifest.ts';
+import { V1_EVALS_TOOL_INCLUDES } from './hermes-tool-includes.js';
+import { detectHermes } from './hermes-detector.js';
+import { FIXTURE_NOW, minusFixtureMinutesIso } from './hermes-v1-fixture-clock.js';
+import { V1_EVALS_FIXTURE_RECORDS } from './hermes-v1-fixture-records.js';
+import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,15 +26,10 @@ const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'evaluations', 'v1-hermes');
 const hermesCommand = 'hermes';
 const hermesServerName = 'screenpipe-memory-v1-evals';
-const FIXTURE_NOW = new Date('2026-04-13T12:00:00.000Z');
 
 function fail(message, code = 1) {
   console.error(message);
   process.exit(code);
-}
-
-function minusFixtureMinutes(minutes) {
-  return new Date(FIXTURE_NOW.getTime() - minutes * 60_000).toISOString();
 }
 
 async function ensureDirectory(path) {
@@ -66,16 +65,6 @@ async function runHermes(args, options = {}) {
   });
 }
 
-async function detectHermes() {
-  try {
-    const result = await runHermes(['--version'], { timeout: 30_000 });
-    return (result.stdout || result.stderr || '').trim() || 'unknown';
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. (${detail})`);
-  }
-}
-
 function buildIsolatedHermesConfig(endpoint) {
   return YAML.stringify({
     model: '',
@@ -85,7 +74,7 @@ function buildIsolatedHermesConfig(endpoint) {
         url: endpoint,
         enabled: true,
         tools: {
-          include: ['internal-status', 'search-screen', 'recent-activity', 'memory-read', 'memory-write']
+          include: [...V1_EVALS_TOOL_INCLUDES]
         }
       }
     }
@@ -93,43 +82,19 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(tmpdir(), 'screenpipe-memory-v1-evals-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
 }
 
 function buildFixtureRecords() {
-  return [
-    {
-      id: 'eval-recent-1',
-      text: 'Recent activity fixture for evaluation status checks',
-      timestamp: minusFixtureMinutes(1),
-      appName: 'Claude'
-    },
-    {
-      id: 'eval-search-1',
-      text: 'Budget planning evaluation note for retrieval summary coverage',
-      timestamp: minusFixtureMinutes(15),
-      appName: 'Finance'
-    },
-    {
-      id: 'eval-refine-1',
-      text: 'Action item evaluation note that survives refinement',
-      timestamp: minusFixtureMinutes(20),
-      appName: 'Meetings'
-    },
-    {
-      id: 'eval-fallback-1',
-      text: 'Fallback failure evaluation keyword record for degraded recovery coverage',
-      timestamp: minusFixtureMinutes(90),
-      appName: 'Claude'
-    }
-  ];
+  // Deep-copy so callers cannot mutate the frozen canonical set.
+  return V1_EVALS_FIXTURE_RECORDS.map((record) => ({ ...record }));
 }
 
 async function setupControlledEnvironment() {
-  const homeDir = await mkdtemp(join(tmpdir(), 'screenpipe-memory-v1-evals-'));
+  const homeDir = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-'));
   const port = 8791;
 
   const screenpipe = await startScreenpipeStub({
@@ -147,18 +112,18 @@ async function setupControlledEnvironment() {
     port
   });
 
-  const checkpointDir = join(homeDir, '.screenpipe-memory-mcp');
+  const checkpointDir = join(homeDir, '.canary-alpha-mcp');
   await ensureDirectory(checkpointDir);
   await writeFile(
     join(checkpointDir, 'retrieval-checkpoint.json'),
     JSON.stringify({
       cursor: 'v1-evals-checkpoint',
-      timestamp: minusFixtureMinutes(1)
+      timestamp: minusFixtureMinutesIso(1)
     }, null, 2),
     'utf8'
   );
 
-  const memoryDirectory = join(homeDir, '.screenpipe-memory-mcp', 'memory');
+  const memoryDirectory = join(homeDir, '.canary-alpha-mcp', 'memory');
   await ensureDirectory(memoryDirectory);
   await writeFile(join(memoryDirectory, 'memory.md'), 'seed-memory-prefix', 'utf8');
 
@@ -187,7 +152,11 @@ function findMissingTokens(transcript, tokens, options = {}) {
 async function main() {
   await ensureDirectory(evidenceDirectory);
 
-  const hermesVersion = await detectHermes();
+  const detectionResult = await detectHermes();
+  if (!detectionResult.present) {
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. See ${detectionResult.installGuidanceUrl}`);
+  }
+  const hermesVersion = detectionResult.version;
   await writeEvidenceFile('hermes-version.txt', `${hermesVersion}\n`);
 
   const environment = await setupControlledEnvironment();

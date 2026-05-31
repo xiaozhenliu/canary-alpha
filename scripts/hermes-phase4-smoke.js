@@ -2,7 +2,7 @@
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -11,14 +11,17 @@ import { promisify } from 'node:util';
 import YAML from 'yaml';
 
 import { applyServerEnvironmentOverrides, parseManagedServiceEnvironmentFromPlist, readServerConfig, resolveManagedServiceServer } from './service-runtime-config.js';
+import { PHASE4_TOOL_INCLUDES } from './hermes-tool-includes.js';
+import { detectHermes } from './hermes-detector.js';
+import { testTempRoot } from './test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'phases', '04-delivery-setup-recovery', 'evidence', 'hermes');
-const appDirectory = join(homedir(), '.screenpipe-memory-mcp');
-const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.screenpipe-memory-mcp.plist');
+const appDirectory = join(homedir(), '.canary-alpha-mcp');
+const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
 const configPath = join(appDirectory, 'config.yaml');
 const hermesCommand = 'hermes';
 const hermesServerName = 'screenpipe-memory-phase4';
@@ -71,16 +74,6 @@ async function runHermes(args, options = {}) {
   });
 }
 
-async function detectHermes() {
-  try {
-    const result = await runHermes(['--version']);
-    return (result.stdout || result.stderr || '').trim() || 'unknown';
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running this smoke gate. (${detail})`);
-  }
-}
-
 function buildIsolatedHermesConfig(endpoint) {
   return YAML.stringify({
     model: '',
@@ -90,7 +83,7 @@ function buildIsolatedHermesConfig(endpoint) {
         url: endpoint,
         enabled: true,
         tools: {
-          include: ['internal-status', 'search-screen', 'recent-activity']
+          include: [...PHASE4_TOOL_INCLUDES]
         }
       }
     }
@@ -98,7 +91,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(tmpdir(), 'screenpipe-memory-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
@@ -111,7 +104,11 @@ async function main() {
     fail(`Missing config file at ${configPath}. Run npm run setup first.`);
   }
 
-  const hermesVersion = await detectHermes();
+  const detectionResult = await detectHermes();
+  if (!detectionResult.present) {
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running this smoke gate. See ${detectionResult.installGuidanceUrl}`);
+  }
+  const hermesVersion = detectionResult.version;
   const server = await loadConfiguredServer();
   const endpoint = `http://${server.host}:${server.port}/mcp`;
 
@@ -161,7 +158,7 @@ async function main() {
         '--toolsets',
         hermesServerName,
         '--query',
-        'Use the configured MCP server only. First confirm internal-status, then call recent-activity with minutes 10 and format raw, and report the returned item ids.'
+        'Use the configured MCP server only. First confirm internal-status, then call recall over the last 10 minutes with granularity session and includeSummary false (use to = the current time and from = ten minutes before that), and report the returned session ids.'
       ], {
         env: hermesEnv,
         timeout: 180_000

@@ -1,5 +1,4 @@
 import { access, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +7,7 @@ import { createApp } from '../../../src/bootstrap/create-app.js';
 import { startEmbeddingStub } from '../../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../../helpers/test-config.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('app bootstrap indexing catch-up', () => {
   const cleanup: Array<() => Promise<void>> = [];
@@ -24,7 +24,7 @@ describe('app bootstrap indexing catch-up', () => {
   });
 
   it('starts bootstrap indexing in the background without blocking app creation', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'bootstrap-indexing-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'bootstrap-indexing-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -33,7 +33,8 @@ describe('app bootstrap indexing catch-up', () => {
           id: 'bootstrap-1',
           text: 'Bootstrap indexing note',
           timestamp: new Date(Date.now() - 60_000).toISOString(),
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -52,7 +53,7 @@ describe('app bootstrap indexing catch-up', () => {
 
     await createApp({ mode: 'stdio' });
 
-    const checkpointPath = join(homeDir, '.screenpipe-memory-mcp', 'retrieval-checkpoint.json');
+    const checkpointPath = join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json');
     await expect(access(checkpointPath)).rejects.toBeDefined();
 
     await waitFor(async () => {
@@ -66,7 +67,7 @@ describe('app bootstrap indexing catch-up', () => {
   });
 
   it('continues indexing new records after startup on the polling interval', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'bootstrap-polling-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'bootstrap-polling-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({
@@ -75,7 +76,8 @@ describe('app bootstrap indexing catch-up', () => {
           id: 'bootstrap-1',
           text: 'Bootstrap indexing note',
           timestamp: new Date(Date.now() - 60_000).toISOString(),
-          appName: 'Claude'
+          appName: 'Claude',
+          sourceTypes: ['ocr']
         }
       ]
     });
@@ -99,12 +101,13 @@ describe('app bootstrap indexing catch-up', () => {
       id: 'bootstrap-2',
       text: 'Indexed after startup',
       timestamp: new Date(Date.now()).toISOString(),
-      appName: 'Claude'
+      appName: 'Claude',
+      sourceTypes: ['ocr']
     });
 
     await waitFor(async () => {
       const checkpoint = JSON.parse(
-        await readCheckpoint(join(homeDir, '.screenpipe-memory-mcp', 'retrieval-checkpoint.json'))
+        await readCheckpoint(join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json'))
       ) as { cursor: string };
       expect(checkpoint.cursor).toBe('bootstrap-2');
     });

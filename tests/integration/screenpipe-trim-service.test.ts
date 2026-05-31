@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runTrimOnce } from '../../src/services/trim/screenpipe-trim-service.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
 const cleanup: Array<() => Promise<void>> = [];
@@ -37,7 +37,7 @@ async function createTrimFixture(dir: string): Promise<string> {
 
 describe('runTrimOnce', () => {
   it('removes duplicate frames and their elements, keeps unique frame', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'screenpipe-trim-'));
+    const root = await mkdtemp(join(testTempRoot(), 'screenpipe-trim-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const dbPath = await createTrimFixture(root);
 
@@ -54,7 +54,7 @@ describe('runTrimOnce', () => {
   });
 
   it('nulls accessibility_tree_json on frames that have elements rows', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'screenpipe-trim-null-'));
+    const root = await mkdtemp(join(testTempRoot(), 'screenpipe-trim-null-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const dbPath = await createTrimFixture(root);
 
@@ -76,7 +76,7 @@ describe('runTrimOnce', () => {
   });
 
   it('skips frames with NULL content_hash', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'screenpipe-trim-null-hash-'));
+    const root = await mkdtemp(join(testTempRoot(), 'screenpipe-trim-null-hash-'));
     cleanup.push(() => rm(root, { recursive: true, force: true }));
     const dbPath = join(root, 'db.sqlite');
     const sql = [

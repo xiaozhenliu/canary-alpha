@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const serviceLogPath = join(homedir(), '.screenpipe-memory-mcp', 'logs', 'service.log');
+const serviceLogPath = join(homedir(), '.canary-alpha-mcp', 'logs', 'service.log');
 const rotatedServiceLogPath = `${serviceLogPath}.1`;
-const launchdStdoutPath = join(homedir(), '.screenpipe-memory-mcp', 'logs', 'launchd.stdout.log');
-const launchdStderrPath = join(homedir(), '.screenpipe-memory-mcp', 'logs', 'launchd.stderr.log');
+const launchdStdoutPath = join(homedir(), '.canary-alpha-mcp', 'logs', 'launchd.stdout.log');
+const launchdStderrPath = join(homedir(), '.canary-alpha-mcp', 'logs', 'launchd.stderr.log');
 const MAX_LINES = 80;
 
 function tailLines(content) {
@@ -45,6 +45,6 @@ printed = await printLog(launchdStderrPath, 'launchd stderr') || printed;
 printed = await printLog(launchdStdoutPath, 'launchd stdout') || printed;
 
 if (!printed) {
-  console.error('No log output found yet under ~/.screenpipe-memory-mcp/logs/.');
+  console.error('No log output found yet under ~/.canary-alpha-mcp/logs/.');
   process.exit(1);
 }

@@ -1,6 +1,6 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
@@ -16,8 +16,6 @@
     "test:acceptance": "vitest run tests/acceptance",
     "test:http-tool-flow": "vitest run tests/acceptance/http-tool-flow.test.ts",
     "test:smoke:mcp": "vitest run tests/acceptance/mcp-smoke.test.ts",
-    "review:codex": "codex review -c model='\"gpt-5.4\"' --uncommitted",
-    "feedback:mcp": "npm run test:smoke:mcp && npm run review:codex",
     "setup": "node scripts/setup.js",
     "onboard": "node scripts/onboard.js",
     "service:start": "node scripts/service-start.js",
@@ -25,6 +23,7 @@
     "service:status": "node scripts/service-status.js",
     "service:logs": "node scripts/service-logs.js",
     "smoke:http": "vitest run tests/acceptance/http-smoke.test.ts",
+    "hermes:verify": "node scripts/hermes-e2e.js",
     "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
     "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
     "linear": "node --import tsx scripts/linear.ts",
@@ -32,7 +31,10 @@
     "storage:diagnostics": "node --import tsx scripts/storage-diagnostics.js",
     "rebuild-index": "tsx src/index.ts rebuild-index",
     "dev:stdio": "tsx src/index.ts --mode stdio",
-    "dev:http": "tsx src/index.ts --mode http"
+    "dev:http": "tsx src/index.ts --mode http",
+    "eval:coverage": "tsx tests/evaluations/coverage-scenario/run.ts",
+    "eval:work-activity": "tsx tests/evaluations/work-activity/run-eval.ts",
+    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
@@ -44,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
+    "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

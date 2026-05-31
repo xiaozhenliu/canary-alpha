@@ -9,6 +9,7 @@ import YAML from 'yaml';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
 import { createApp, startIndexingPoller } from './bootstrap/create-app.js';
+import { getPackageVersion } from './lib/version.js';
 import {
   acquireRebuildLock,
   ensureRebuildLockNotHeld,
@@ -97,7 +98,7 @@ function getRecoveryStatus(
 function createClient(): Client {
   return new Client({
     name: 'canary-alpha-mcp-rebuild-index',
-    version: '0.1.0'
+    version: getPackageVersion()
   });
 }
 

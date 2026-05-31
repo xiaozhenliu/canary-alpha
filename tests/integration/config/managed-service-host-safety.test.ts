@@ -1,5 +1,4 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +7,7 @@ import { createApp } from '../../../src/bootstrap/create-app.js';
 import { startEmbeddingStub } from '../../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../../helpers/test-config.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 const originalHome = process.env.HOME;
@@ -36,7 +36,7 @@ afterEach(async () => {
 
 describe('managed service host safety', () => {
   it('rejects managed HTTP startup when config host is not localhost', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'managed-host-check-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'managed-host-check-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
     const screenpipe = await startScreenpipeStub({ records: [] });
@@ -51,7 +51,7 @@ describe('managed service host safety', () => {
       mode: 'http'
     });
 
-    const configPath = join(homeDir, '.screenpipe-memory-mcp', 'config.yaml');
+    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
 
     // overwrite only the host field to simulate a later unsafe edit
     const unsafeConfig = [

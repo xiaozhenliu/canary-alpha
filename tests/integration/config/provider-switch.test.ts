@@ -1,7 +1,10 @@
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { createEmbeddingProvider } from '../../../src/services/retrieval/provider-factory.js';
 import { createTempVectorStorePath } from '../../helpers/temp-vector-store.js';
+import { testTempRoot } from '../../helpers/test-tmp.js';
 
 describe('embedding provider factory', () => {
   it('switches provider adapters via providers.embeddings config only', async () => {
@@ -39,16 +42,26 @@ describe('embedding provider factory', () => {
           maxCatchUpRecords: 500
         },
         paths: {
-          configFile: '/tmp/openai-config.yaml',
-          logDirectory: '/tmp/logs',
-          serviceLogFile: '/tmp/logs/service.log'
+          configFile: join(testTempRoot(), 'provider-switch-openai-config.yaml'),
+          logDirectory: join(testTempRoot(), 'provider-switch-openai-logs'),
+          serviceLogFile: join(testTempRoot(), 'provider-switch-openai-logs', 'service.log'),
+          derivedDatabase: join(testTempRoot(), 'provider-switch-openai', 'derived.sqlite')
         },
         routines: {
           enabled: false,
-          definitionsPath: '/tmp/routines/definitions',
-          historyPath: '/tmp/routines/history'
+          definitionsPath: join(testTempRoot(), 'provider-switch-openai-routines', 'definitions'),
+          historyPath: join(testTempRoot(), 'provider-switch-openai-routines', 'history')
         },
-        trim: { enabled: true, intervalSeconds: 600 }
+        trim: { enabled: true, intervalSeconds: 600 },
+        capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        storage: { diskBudgetBytes: null, retentionDays: 7 },
+        privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
+        analysis: {
+          sessions: { idleThresholdSeconds: 120 },
+          summary: { provider: 'template', remoteLlmTimeoutMs: 30000 },
+          embeddings: { topK: 20, minScore: 0 }
+        },
+        llm: { model: 'gpt-4o-mini' }
       });
 
       const ollamaProvider = createEmbeddingProvider({
@@ -81,16 +94,26 @@ describe('embedding provider factory', () => {
           maxCatchUpRecords: 500
         },
         paths: {
-          configFile: '/tmp/ollama-config.yaml',
-          logDirectory: '/tmp/logs',
-          serviceLogFile: '/tmp/logs/service.log'
+          configFile: join(testTempRoot(), 'provider-switch-ollama-config.yaml'),
+          logDirectory: join(testTempRoot(), 'provider-switch-ollama-logs'),
+          serviceLogFile: join(testTempRoot(), 'provider-switch-ollama-logs', 'service.log'),
+          derivedDatabase: join(testTempRoot(), 'provider-switch-ollama', 'derived.sqlite')
         },
         routines: {
           enabled: false,
-          definitionsPath: '/tmp/routines/definitions',
-          historyPath: '/tmp/routines/history'
+          definitionsPath: join(testTempRoot(), 'provider-switch-ollama-routines', 'definitions'),
+          historyPath: join(testTempRoot(), 'provider-switch-ollama-routines', 'history')
         },
-        trim: { enabled: true, intervalSeconds: 600 }
+        trim: { enabled: true, intervalSeconds: 600 },
+        capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        storage: { diskBudgetBytes: null, retentionDays: 7 },
+        privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
+        analysis: {
+          sessions: { idleThresholdSeconds: 120 },
+          summary: { provider: 'template', remoteLlmTimeoutMs: 30000 },
+          embeddings: { topK: 20, minScore: 0 }
+        },
+        llm: { model: 'gpt-4o-mini' }
       });
 
       expect(openAiProvider).not.toBe(ollamaProvider);

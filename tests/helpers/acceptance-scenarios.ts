@@ -1,5 +1,4 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { ScreenpipeRecord } from '../../src/services/retrieval/types.js';
@@ -7,11 +6,9 @@ import { type ConnectedClient, connectHttpClient, connectStdioClient } from './m
 import { startEmbeddingStub } from './embedding-stub.js';
 import { startHttpServer, type StartedHttpServer } from './start-http-server.js';
 import { startScreenpipeStub, type ScreenpipeStubController } from './screenpipe-stub.js';
+import { testTempRoot } from './test-tmp.js';
 import { writeTestConfig } from './test-config.js';
-
-function minusMinutes(minutes: number): string {
-  return new Date(Date.now() - minutes * 60_000).toISOString();
-}
+import { minusMinutes } from './timestamps.js';
 
 export interface AcceptanceWorkflowScenario {
   homeDir: string;
@@ -28,7 +25,7 @@ interface ScenarioOptions {
 }
 
 async function setupWorkflowScenario(options: ScenarioOptions): Promise<AcceptanceWorkflowScenario> {
-  const homeDir = await mkdtemp(join(tmpdir(), options.prefix));
+  const homeDir = await mkdtemp(join(testTempRoot(), options.prefix));
   const screenpipe = await startScreenpipeStub({ records: options.records });
   const embedding = await startEmbeddingStub();
 
@@ -40,7 +37,7 @@ async function setupWorkflowScenario(options: ScenarioOptions): Promise<Acceptan
   });
 
   await writeFile(
-    join(homeDir, '.screenpipe-memory-mcp', 'retrieval-checkpoint.json'),
+    join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json'),
     JSON.stringify({
       cursor: `${options.prefix}-checkpoint`,
       timestamp: minusMinutes(2)

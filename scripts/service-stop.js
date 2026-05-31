@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const LABEL = 'com.screenpipe-memory-mcp';
+const LABEL = 'com.canary-alpha-mcp';
 const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
 
 function fail(message) {
@@ -37,7 +37,7 @@ if (loadedResult.status !== 0) {
     unlinkSync(installedPlistPath);
   }
 
-  console.log('screenpipe-memory-mcp service is already stopped.');
+  console.log('canary-alpha-mcp service is already stopped.');
   console.log(`- plist removed: ${installedPlistPath}`);
   process.exit(0);
 }
@@ -55,18 +55,18 @@ if (result.status !== 0) {
       unlinkSync(installedPlistPath);
     }
 
-    console.log('screenpipe-memory-mcp service is already stopped.');
+    console.log('canary-alpha-mcp service is already stopped.');
     console.log(`- plist removed: ${installedPlistPath}`);
     process.exit(0);
   }
 
-  fail(combined || 'Failed to stop screenpipe-memory-mcp service.');
+  fail(combined || 'Failed to stop canary-alpha-mcp service.');
 }
 
 if (existsSync(installedPlistPath)) {
   unlinkSync(installedPlistPath);
 }
 
-console.log('screenpipe-memory-mcp service stopped.');
+console.log('canary-alpha-mcp service stopped.');
 console.log(`- label: ${LABEL}`);
 console.log(`- plist removed: ${installedPlistPath}`);

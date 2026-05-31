@@ -15,8 +15,10 @@ export interface RetrievalEvidenceItem {
   text: string;
   timestamp: string;
   appName?: string;
+  windowName?: string;   // NEW
   score?: number;
-  source: 'keyword' | 'semantic' | 'hybrid';
+  source: 'keyword' | 'semantic' | 'hybrid'; // existing: retrieval-mode label
+  sourceTypes: string[]; // NEW: capture-source label (R1.5)
 }
 
 export interface RetrievalDegradedStatus {
@@ -30,34 +32,13 @@ export interface RetrievalActionableError {
   action: string;
 }
 
-export interface SearchScreenRequest {
-  query: string;
-  mode: 'semantic' | 'keyword' | 'hybrid';
-  appName?: string;
-  from?: string;
-  to?: string;
-}
-
-export interface SearchScreenResult {
-  summary: string;
-  evidence: RetrievalEvidenceItem[];
-  degraded?: RetrievalDegradedStatus;
-  freshness?: FreshnessStatus;
-  error?: RetrievalActionableError;
-}
-
-export interface RecentActivityRequest {
-  minutes: number;
-  format: 'summary' | 'raw';
-}
-
-export interface RecentActivityResult {
-  summary: string;
-  evidence: RetrievalEvidenceItem[];
-  raw?: RetrievalEvidenceItem[];
-  freshness?: FreshnessStatus;
-  error?: RetrievalActionableError;
-}
+// Note: the legacy `SearchScreenRequest` / `SearchScreenResult` /
+// `RecentActivityRequest` / `RecentActivityResult` interfaces and their
+// service contracts (`SearchScreenService` / `RecentActivityService`) were
+// removed by task 8.1 of the work-activity-analysis spec. The MCP tools
+// `search-screen` / `recent-activity` they backed are replaced by `find` /
+// `recall` / `inspect`. Their services will be reintroduced under
+// `src/services/work-activity/` once tasks 8.2 - 8.5 land.
 
 export interface EmbeddingProvider {
   readonly kind: string;
@@ -80,6 +61,24 @@ export interface ScreenpipeRecord {
   text: string;
   timestamp: string;
   appName?: string;
+  windowName?: string;   // NEW: used for Noise_Window filtering (R3.4)
+  frameId?: number;      // NEW: used for cross-source deduplication (R1.4)
+  sourceTypes: string[]; // NEW: ['accessibility'] | ['ocr'] (R1.5)
+  // AX element tree fields for Secure_AX_Field subtree pruning (R4.4)
+  role?: string;         // AX element role (e.g. 'AXSecureTextField')
+  parentId?: string;     // parent element id within the same frame's AX tree
+  path?: string;         // dot-separated ancestor path (e.g. '0.1.2')
+  // work-activity-analysis: full accessibility tree JSON. The HTTP screenpipe
+  // client does NOT yet populate this field — task 6.1 reserves the slot so
+  // the indexing service can pass it to the extraction layer once an upstream
+  // task wires the accessibility_tree_json column through ScreenPipe's API.
+  // When `null` (set explicitly by callers / fixtures), the
+  // GenericHeuristicRule emits Empty_Extraction. When `undefined` (the
+  // current production state for HTTP records), the indexing service
+  // synthesises a minimal AX tree from `text` so OCR-only records remain
+  // indexable; see `resolveAccessibilityTreeJson` in
+  // `src/services/retrieval/indexing-service.ts`.
+  accessibilityTreeJson?: string | null;
 }
 
 export interface ScreenpipeClient {
@@ -115,6 +114,33 @@ export interface VectorStore {
   querySnapshot?(request: VectorSearchRequest): Promise<RetrievalEvidenceItem[]>;
   inspect?(): Promise<VectorStoreInspection>;
   close?(): Promise<void>;
+  /**
+   * List all records whose timestamp falls within [from, to] (ISO-8601 strings).
+   * Used by IngestionObservabilityService to aggregate ingestionMix counts.
+   * Optional – implementations that do not support this return undefined.
+   */
+  listByTimeWindow?(from: string, to: string): Promise<VectorStoreRecord[]>;
+  /**
+   * Delete all records whose `metadata.frameId` matches one of the supplied
+   * frame ids. The `frameIds` are normalised via `String(id)` before
+   * comparison so callers may supply numeric or string ids interchangeably.
+   *
+   * Returns the number of records deleted. Records that do not carry a
+   * `metadata.frameId` are left untouched.
+   *
+   * Used by Cascade_Delete (R9) when ScreenPipe frames are removed via
+   * retention or `delete-range`.
+   */
+  deleteByFrameIds?(frameIds: ReadonlyArray<string | number>): Promise<number>;
+  /**
+   * Delete all records whose `metadata.frameTimestamp` (fallback to
+   * `record.timestamp` when the metadata is missing) falls within the
+   * `[from, to]` inclusive ISO-8601 range.
+   *
+   * Returns the number of records deleted. Used by Cascade_Delete (R9)
+   * when `delete-range` removes a contiguous time window.
+   */
+  deleteByTimestampRange?(from: string, to: string): Promise<number>;
 }
 
 export interface CheckpointStore {
@@ -136,10 +162,6 @@ export interface FreshnessPolicy {
   evaluate(checkpoint: IndexedCheckpoint | null, now?: Date): FreshnessStatus;
 }
 
-export interface SearchScreenService {
-  search(request: SearchScreenRequest): Promise<SearchScreenResult>;
-}
-
 export interface IndexingRunResult {
   fetched: number;
   indexed: number;
@@ -152,6 +174,3 @@ export interface IndexingService {
   runOnce(now?: Date, forcedBacklog?: IndexedBacklogProgress | null): Promise<IndexingRunResult>;
 }
 
-export interface RecentActivityService {
-  getRecentActivity(request: RecentActivityRequest): Promise<RecentActivityResult>;
-}

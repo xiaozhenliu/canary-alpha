@@ -3,6 +3,7 @@ import YAML from 'yaml';
 
 import {
   resolveConfigPath,
+  resolveDerivedDatabasePath,
   resolveLogDirectory,
   resolveLogFilePath,
   resolveRoutineDefinitionsDirectory,
@@ -128,11 +129,42 @@ export async function loadConfig(overrides?: {
     paths: {
       configFile,
       logDirectory,
-      serviceLogFile
+      serviceLogFile,
+      derivedDatabase: resolveDerivedDatabasePath(parsed.data)
     },
     trim: {
       enabled: parsed.data.trim.enabled,
       intervalSeconds: parsed.data.trim.intervalSeconds
+    },
+    capture: {
+      livenessThresholdSeconds: parsed.data.capture.livenessThresholdSeconds,
+      permissionsGracePeriodSeconds: parsed.data.capture.permissionsGracePeriodSeconds
+    },
+    storage: {
+      diskBudgetBytes: parsed.data.storage.diskBudgetBytes,
+      retentionDays: parsed.data.storage.retentionDays
+    },
+    privacy: {
+      excludeApps: parsed.data.privacy.excludeApps,
+      secureAxRoles: parsed.data.privacy.secureAxRoles
+    },
+    analysis: {
+      sessions: {
+        idleThresholdSeconds: parsed.data.analysis.sessions.idleThresholdSeconds
+      },
+      summary: {
+        provider: parsed.data.analysis.summary.provider,
+        remoteLlmTimeoutMs: parsed.data.analysis.summary.remoteLlmTimeoutMs
+      },
+      embeddings: {
+        topK: parsed.data.analysis.embeddings.topK,
+        minScore: parsed.data.analysis.embeddings.minScore
+      }
+    },
+    llm: {
+      base_url: parsed.data.llm.base_url,
+      api_key: parsed.data.llm.api_key,
+      model: parsed.data.llm.model
     }
   };
 }

@@ -1,13 +1,14 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);
-const PROJECT_ROOT = '/Users/xz/Projects/lifecapture-mcp';
+const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT_PATH = join(PROJECT_ROOT, 'scripts', 'service-logs.js');
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -23,10 +24,10 @@ afterEach(async () => {
 
 describe('service:logs script', () => {
   it('prints rotated managed service logs when service.log has been rotated away', async () => {
-    const homeDir = await mkdtemp(join(tmpdir(), 'service-logs-'));
+    const homeDir = await mkdtemp(join(testTempRoot(), 'service-logs-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const logDir = join(homeDir, '.screenpipe-memory-mcp', 'logs');
+    const logDir = join(homeDir, '.canary-alpha-mcp', 'logs');
     await mkdir(logDir, { recursive: true });
     await writeFile(join(logDir, 'service.log.1'), [
       '2026-04-15T00:00:00.000Z [INFO] rotated line 1',

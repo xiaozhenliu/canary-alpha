@@ -3,14 +3,67 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { resolveScreenpipeDirectory } from '../config/paths.js';
 import { inspectScreenpipeSqlite } from './diagnostics/storage-diagnostics.js';
+import {
+  IngestionObservabilityService,
+  type RuntimeProcessRegistry
+} from './diagnostics/ingestion-observability-service.js';
+import { findActiveRuntimeProcesses } from './runtime-process-registry.js';
 import type { AppConfig, AppServices, BootstrapStatus } from '../types/app-config.js';
 import type { CheckpointStore, IndexedCheckpoint, VectorStoreInspection, VectorStore } from './retrieval/types.js';
+import type { WorkActivityObservabilityService } from './work-activity/observability/work-activity-observability-service.js';
 
 const VECTOR_STORE_INSPECTION_TIMEOUT_MS = 250;
 
 interface BootstrapStatusDependencies {
   checkpointStore: CheckpointStore;
   vectorStore: VectorStore;
+  /**
+   * Work-activity-analysis read-only rollup (design §9.2). Optional so
+   * unit tests / partial bootstrap paths can keep wiring just the
+   * upstream slice; production wires the real service in
+   * {@link ../bootstrap/create-app.ts}. When absent, the four
+   * `extraction` / `sessions` / `summary` / `providers` blocks are
+   * simply omitted from the response — same shape contract the
+   * upstream observability service follows when its collection fails.
+   */
+  workActivityObservability?: WorkActivityObservabilityService;
+}
+
+/**
+ * Adapts the file-based runtime-process-registry to the RuntimeProcessRegistry
+ * interface expected by IngestionObservabilityService.
+ */
+class RuntimeProcessRegistryAdapter implements RuntimeProcessRegistry {
+  constructor(private readonly config: AppConfig) {}
+
+  async hasActiveProcess(): Promise<boolean> {
+    try {
+      const records = await findActiveRuntimeProcesses(this.config);
+      return records.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async getProcessStartedAt(): Promise<string | null> {
+    try {
+      const records = await findActiveRuntimeProcesses(this.config);
+      if (records.length === 0) {
+        return null;
+      }
+      // Sort by registeredAt descending to get the most recently registered process.
+      const sorted = [...records].sort((a, b) => {
+        const aAt = (a as unknown as Record<string, unknown>)['registeredAt'] as string | undefined ?? '';
+        const bAt = (b as unknown as Record<string, unknown>)['registeredAt'] as string | undefined ?? '';
+        return bAt.localeCompare(aAt);
+      });
+      const first = sorted[0] as unknown as Record<string, unknown>;
+      const startedAt = first['processStartedAt'];
+      return typeof startedAt === 'string' ? startedAt : null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 async function inspectVectorStoreWithTimeout(vectorStore: VectorStore): Promise<VectorStoreInspection | undefined> {
@@ -67,6 +120,61 @@ export class BootstrapStatusService {
   async getStatus(address?: AddressInfo | null): Promise<BootstrapStatus> {
     const screenpipeStorage = await inspectScreenpipeSqlite(resolveScreenpipeDirectory());
 
+    // Collect ingestion observability signals (capture, ingestionMix, diskBudget).
+    // Failures here are non-fatal: the three blocks are simply omitted from the response.
+    let capture: BootstrapStatus['capture'];
+    let ingestionMix: BootstrapStatus['ingestionMix'];
+    let diskBudget: BootstrapStatus['diskBudget'];
+
+    try {
+      const observabilityService = new IngestionObservabilityService({
+        screenpipeDirectory: resolveScreenpipeDirectory(),
+        vectorStore: this.deps.vectorStore,
+        runtimeRegistry: new RuntimeProcessRegistryAdapter(this.config),
+        config: this.config,
+        now: () => new Date()
+      });
+      const observability = await observabilityService.collect();
+      capture = observability.capture;
+      ingestionMix = observability.ingestionMix;
+      diskBudget = observability.diskBudget;
+    } catch {
+      // Observability collection failed; omit the three blocks rather than failing the whole status call.
+    }
+
+    // Collect work-activity rollup (design §9.2). The service's own
+    // `collect()` already absorbs per-section failures into the
+    // `degraded` map (W5 / W6 / W12 / W24), so this outer try/catch
+    // only fires when the entire service blows up — at which point
+    // we omit all four blocks rather than crashing `internal-status`.
+    let extraction: BootstrapStatus['extraction'];
+    let sessions: BootstrapStatus['sessions'];
+    let summary: BootstrapStatus['summary'];
+    let providers: BootstrapStatus['providers'];
+    let degraded: BootstrapStatus['degraded'];
+
+    if (this.deps.workActivityObservability !== undefined) {
+      try {
+        const rollup = await this.deps.workActivityObservability.collect();
+        extraction = rollup.extraction;
+        sessions = rollup.sessions;
+        summary = rollup.summary;
+        providers = rollup.providers;
+        // Only surface `degraded` when the service itself populated
+        // it — otherwise the field is omitted entirely so a healthy
+        // status response stays minimal.
+        if (rollup.degraded !== undefined) {
+          degraded = rollup.degraded;
+        }
+      } catch {
+        // Whole-service failure: omit all four blocks. We deliberately
+        // do NOT synthesise a `degraded` envelope here — the design
+        // §9 Error Handling contract reserves `degraded.<section>` for
+        // per-section failures the service itself attempted, not for
+        // the "service didn't run at all" case.
+      }
+    }
+
     try {
       const checkpoint = await this.deps.checkpointStore.readLatest();
       const usableCheckpoint = isValidIndexedCheckpoint(checkpoint) ? checkpoint : null;
@@ -92,13 +200,21 @@ export class BootstrapStatusService {
         port: address?.port ?? this.config.server.port,
         pid: process.pid,
         configFile: this.config.paths.configFile,
+        capture,
+        ingestionMix,
+        diskBudget,
         retrieval: {
           checkpointExists: checkpoint !== null,
           checkpointTimestamp: usableCheckpoint?.timestamp,
           vectorStoreKind: this.deps.vectorStore.kind,
           recoveryStatus
         },
-        screenpipeStorage
+        screenpipeStorage,
+        ...(extraction !== undefined ? { extraction } : {}),
+        ...(sessions !== undefined ? { sessions } : {}),
+        ...(summary !== undefined ? { summary } : {}),
+        ...(providers !== undefined ? { providers } : {}),
+        ...(degraded !== undefined ? { degraded } : {})
       };
     } catch {
       return {
@@ -108,12 +224,20 @@ export class BootstrapStatusService {
         port: address?.port ?? this.config.server.port,
         pid: process.pid,
         configFile: this.config.paths.configFile,
+        capture,
+        ingestionMix,
+        diskBudget,
         retrieval: {
           checkpointExists: false,
           vectorStoreKind: this.deps.vectorStore.kind,
           recoveryStatus: 'degraded'
         },
-        screenpipeStorage
+        screenpipeStorage,
+        ...(extraction !== undefined ? { extraction } : {}),
+        ...(sessions !== undefined ? { sessions } : {}),
+        ...(summary !== undefined ? { summary } : {}),
+        ...(providers !== undefined ? { providers } : {}),
+        ...(degraded !== undefined ? { degraded } : {})
       };
     }
   }

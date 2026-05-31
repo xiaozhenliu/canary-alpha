@@ -1,12 +1,13 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-export async function createTempVectorStorePath(prefix = 'screenpipe-memory-mcp-'): Promise<{
+import { testTempRoot } from './test-tmp.js';
+
+export async function createTempVectorStorePath(prefix = 'canary-alpha-mcp-'): Promise<{
   path: string;
   cleanup(): Promise<void>;
 }> {
-  const path = await mkdtemp(join(tmpdir(), prefix));
+  const path = await mkdtemp(join(testTempRoot(), prefix));
 
   return {
     path,
