@@ -1,5 +1,5 @@
 ---
-doc_version: 16
+doc_version: 17
 doc_status: active
 last_updated: 2026-06-01
 ---
@@ -130,6 +130,16 @@ Read the [architecture document](docs/architecture.md) for subsystem boundaries,
 | [Hermes](docs/clients/hermes.md) | Hermes onboarding and verification |
 | [Troubleshooting](docs/troubleshooting.md) | Service, provider, capture, and index recovery |
 | [Architecture](docs/architecture.md) | Runtime layers, data flow, and local storage |
+
+## Community
+
+Contributions are welcome. Read the [contribution guide](CONTRIBUTING.md) before
+opening an issue or pull request, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Report suspected vulnerabilities privately through the
+[security policy](SECURITY.md). Do not open a public issue for a security
+report.
 
 ## Development
 

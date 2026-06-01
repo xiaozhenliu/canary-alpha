@@ -1,5 +1,5 @@
 ---
-doc_version: 8
+doc_version: 9
 doc_status: active
 last_updated: 2026-06-01
 ---
@@ -35,6 +35,9 @@ Excluded from governance:
 |------|----------|----------|--------------|---------------|-------------------|
 | `README.md` | New users, evaluators, maintainers | Project entry point and navigation | Project purpose, quick start, primary docs links, official runtime path, public doc map | adequate | none |
 | `README.zh-CN.md` | Chinese-speaking new users, evaluators, maintainers | Simplified Chinese project entry point and navigation | Project purpose, quick start, primary docs links, official runtime path, public doc map | adequate | none |
+| `CONTRIBUTING.md` | Contributors | Contribution workflow and quality expectations | Issue guidance, setup, engineering constraints, verification, documentation governance, PR expectations | adequate | none |
+| `CODE_OF_CONDUCT.md` | Contributors and maintainers | Community participation standards | Contributor Covenant 2.1, enforcement scope, private reporting path | adequate | none |
+| `SECURITY.md` | Security reporters and maintainers | Private vulnerability reporting policy | Supported versions, GitHub Security Advisory path, disclosure constraints | adequate | none |
 | `docs/quickstart.md` | New users | Normal macOS install/start path | Install Screenpipe, verify `localhost:3030`, run `npm run onboard`, confirm Hermes and the MCP endpoint | adequate | none |
 | `docs/delivery/http-service.md` | Operators and integrators | Local HTTP service lifecycle and runtime contract | Setup, launchd lifecycle, recovery, verification commands | adequate | none |
 | `docs/delivery/hermes.md` | Operators validating Hermes interoperability | Hermes-specific verification boundary | Hermes smoke flow, evidence files, failure modes | adequate | none |

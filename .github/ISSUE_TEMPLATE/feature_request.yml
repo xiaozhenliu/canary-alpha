@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a focused improvement for canary-alpha-mcp
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement. Please keep requests focused on the local-first MCP server and its tool, storage, privacy, and operational workflows.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or integration problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or alternative designs you considered.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - MCP tools
+        - Retrieval and memory
+        - Privacy controls
+        - Screenpipe integration
+        - Service lifecycle and diagnostics
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This request preserves the local-first, independent MCP server architecture.
+          required: true

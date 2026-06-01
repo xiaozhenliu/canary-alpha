@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
 last_updated: 2026-06-01
 ---
@@ -130,6 +130,14 @@ flowchart LR
 | [Hermes](docs/clients/hermes.md) | Hermes 初始化与验证 |
 | [故障排查](docs/troubleshooting.md) | 服务、provider、采集与索引恢复 |
 | [架构](docs/architecture.md) | 运行分层、数据流和本地存储 |
+
+## 社区
+
+欢迎参与贡献。提交 issue 或 pull request 前，请先阅读
+[贡献指南](CONTRIBUTING.md)，并遵守[行为准则](CODE_OF_CONDUCT.md)。
+
+如需报告疑似安全漏洞，请根据[安全策略](SECURITY.md)私密提交。请勿为安全
+问题创建公开 issue。
 
 ## 开发
 
