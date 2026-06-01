@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
 last_updated: 2026-06-01
 ---
@@ -66,10 +66,10 @@ appointed representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported privately through the repository's
-[GitHub Security Advisory form](https://github.com/xiaozhenliu/canary-alpha/security/advisories/new).
-Prefix the advisory title with `[Code of Conduct]` and do not submit a public
-issue. All complaints will be reviewed and investigated promptly and fairly.
+reported privately by contacting the
+[repository maintainers through GitHub](https://github.com/xiaozhenliu).
+Do not submit a public issue. All complaints will be reviewed and investigated
+promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.
