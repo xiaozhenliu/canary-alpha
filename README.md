@@ -1,128 +1,166 @@
 ---
-doc_version: 15
+doc_version: 17
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-01
 ---
 
 # canary-alpha-mcp
 
-Local-first MCP server that exposes Screenpipe screen memory, long-term memory, file analysis, and privacy controls as standard MCP tools. Any MCP-compatible agent connects over HTTP and calls the tools directly.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-## Quick start
+[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](docs/clients/generic-mcp.md)
 
-Use the full step-by-step guide in [docs/quickstart.md](docs/quickstart.md) if you are starting from a clean machine. The short version is:
+**A local-first MCP server that turns your Screenpipe history into searchable, privacy-aware memory for AI agents.**
 
-1. Install and launch Screenpipe.
-   - Recommended path: the Screenpipe desktop app from <https://screenpi.pe/onboarding>
-   - On first launch on macOS, grant Screen Recording, Accessibility, and Microphone permissions
-   - Terminal path from this repo: `npm run screenpipe:safe-record`
-   - This wrapper applies repo-recommended safer defaults: PII removal, bounded retention, a narrow default ignored-window set for low-value macOS system UI, a small repo-managed ignored-app set for high-risk local apps, and no audio or vision capture unless you explicitly pass supported capture flags. Supported audio opt-in flags include `--audio-device`, `--use-system-default-audio`, and `--experimental-coreaudio-system-audio`; supported vision opt-in flags include `--monitor-id`, `--use-all-monitors`, and `--included-windows`. If you do opt into audio capture, transcription stays off unless you also choose an audio transcription engine, and an explicit `--disable-audio` still wins over those defaults
-   - Verify that the local API is healthy:
+`canary-alpha-mcp` exposes captured work activity, long-term memory, local file analysis, privacy controls, and runtime diagnostics as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs on your machine, stores derived data locally, and serves MCP clients over a loopback-only Streamable HTTP endpoint.
 
-   ```bash
-   curl http://localhost:3030/health
-   ```
+Use it with any MCP-compatible client that can connect to `http://127.0.0.1:18765/mcp`. The onboarding flow also configures [Hermes](docs/clients/hermes.md) automatically.
 
-2. Install this repo and run the MCP-layer onboarding:
+## Why canary-alpha-mcp?
+
+AI agents are more useful when they can recover context from your actual work without sending an unrestricted activity stream to a hosted service. `canary-alpha-mcp` keeps that memory layer local and exposes a focused MCP interface:
+
+- Search for evidence fragments from captured screen activity.
+- Recall work sessions and summarize bounded time windows.
+- Inspect individual sessions or frames when an agent needs supporting detail.
+- Persist user-approved long-term memory between conversations.
+- Pause capture, exclude applications, or delete captured ranges locally.
+
+## Features
+
+- **Local-first by design**: managed HTTP mode binds to `127.0.0.1`, and derived data stays under `~/.canary-alpha-mcp/`.
+- **Work-activity retrieval**: use `find`, `recall`, and `inspect` for keyword, semantic, and hybrid retrieval workflows.
+- **Persistent memory**: read and write local long-term memory with separate `memory` and `user` scopes.
+- **Privacy controls**: pause and resume collection, exclude applications, delete time ranges, and launch Screenpipe with safer defaults.
+- **Provider configuration**: use local Ollama by default when available, or configure any OpenAI-compatible embedding endpoint.
+- **Operational visibility**: inspect capture health, ingestion mix, disk-budget warnings, and retrieval recovery status.
+- **Two MCP transports**: use Streamable HTTP for the managed service or stdio for compatible local clients.
+
+## Quick Start
+
+### Prerequisites
+
+- macOS
+- Node.js 22+
+- A running [Screenpipe](https://screenpi.pe/onboarding) installation
+
+Launch Screenpipe and verify its local API:
 
 ```bash
+curl http://localhost:3030/health
+```
+
+Then install and onboard `canary-alpha-mcp`:
+
+```bash
+git clone https://github.com/xiaozhenliu/canary-alpha.git
+cd canary-alpha
 npm install
 npm run onboard
 ```
 
-If Ollama is unavailable, or if `nomic-embed-text` is not installed, `npm run onboard` explains the local model requirement and asks only for the hosted embedding API key/base URL/model instead of requiring manual YAML edits.
+`npm run onboard` verifies Screenpipe, configures an embedding provider, writes `~/.canary-alpha-mcp/config.yaml`, builds the server, starts the managed service, validates the MCP endpoint, and registers the server with Hermes.
 
-`npm run screenpipe:safe-record` is the repo-local safer terminal path: it enables PII removal, applies bounded retention, ignores a narrow default set of repeated low-value macOS system windows plus selected high-risk apps, and disables audio and vision capture unless you explicitly pass supported capture flags. Supported audio opt-in flags include `--audio-device`, `--use-system-default-audio`, and `--experimental-coreaudio-system-audio`; supported vision opt-in flags include `--monitor-id`, `--use-all-monitors`, and `--included-windows`. If you do opt into audio capture, the wrapper still defaults transcription off unless you explicitly set `--audio-transcription-engine`, and an explicit `--disable-audio` overrides the wrapper’s audio-intent defaults.
+The default MCP endpoint is:
 
-`npm run onboard` is the default-first repo onboarding step after local Screenpipe is healthy. It:
-
-- assumes Screenpipe is already healthy, whether you started it from the desktop app or with `npm run screenpipe:safe-record`
-- checks that local Screenpipe is reachable at `http://localhost:3030`
-- prefers local Ollama at `http://localhost:11434/v1` with `nomic-embed-text` when available
-- only asks for hosted-provider fields if Ollama is unavailable or the configured embedding model is missing
-- writes `~/.canary-alpha-mcp/config.yaml` for you
-- writes or updates `~/.hermes/config.yaml` with the `screenpipe-memory` MCP server after validation passes
-- backs up any existing config before overwriting it
-- builds the project, starts the managed local HTTP service, and runs a first real MCP validation against your own local Screenpipe data
-
-The MCP endpoint is:
-
-```
+```text
 http://127.0.0.1:18765/mcp
 ```
 
-## Configuration
+For the complete first-run walkthrough, Screenpipe permissions, safer terminal capture defaults, and troubleshooting steps, see the [Quickstart guide](docs/quickstart.md).
 
-Config file: `~/.canary-alpha-mcp/config.yaml`
+## MCP Tools
 
-You do not need to edit YAML for the normal first-run path. `npm run onboard` writes the config using the standard v1 defaults and only asks for irreducible hosted-provider inputs such as an API key. If you want to change embedding provider settings later, edit `~/.canary-alpha-mcp/config.yaml` and restart the managed service. See [docs/documentation/configuration.md](docs/documentation/configuration.md) for all fields and provider examples.
+The runtime registers nine MCP tools:
 
-## Service commands
+| Tool | Purpose |
+|------|---------|
+| `find` | Search captured work-activity evidence by keyword, semantic similarity, or hybrid mode |
+| `recall` | Recall sessions or aggregated time blocks for a bounded window |
+| `inspect` | Drill into a session or frame and return supporting evidence |
+| `memory-read` | Read persisted local long-term memory |
+| `memory-write` | Append or replace persisted local long-term memory |
+| `file-analyze` | Summarize or query a local text file |
+| `privacy-control` | Check or modify local privacy controls |
+| `screenpipe-control` | Check, start, or stop the local Screenpipe recording process |
+| `internal-status` | Inspect runtime health, capture state, and retrieval recovery status |
+
+See the [MCP tools reference](docs/documentation/mcp-tools.md) for schemas and result contracts.
+
+## Connect Your MCP Client
+
+Point any Streamable HTTP-compatible MCP client at:
+
+```text
+http://127.0.0.1:18765/mcp
+```
+
+For Hermes, onboarding writes the client configuration automatically. Verify it with:
+
+```bash
+hermes mcp list
+hermes mcp test screenpipe-memory
+```
+
+See [Generic MCP client setup](docs/clients/generic-mcp.md) and the [Hermes guide](docs/clients/hermes.md) for client-specific instructions.
+
+## Architecture
+
+`canary-alpha-mcp` is an independent MCP server with no frontend. It reads local Screenpipe data, builds a local derived index, and exposes a focused tool surface through stdio and Streamable HTTP.
+
+```mermaid
+flowchart LR
+  SP["Screenpipe<br/>local capture"] --> MCP["canary-alpha-mcp<br/>local MCP server"]
+  MCP --> DATA["Local derived data<br/>sessions, index, memory"]
+  CLIENT["MCP-compatible agent"] -->|"stdio or 127.0.0.1 HTTP"| MCP
+```
+
+Read the [architecture document](docs/architecture.md) for subsystem boundaries, storage paths, and runtime constraints.
+
+## Documentation
+
+| Document | What it covers |
+|----------|----------------|
+| [Quickstart](docs/quickstart.md) | First install, onboarding, and validation |
+| [Configuration](docs/documentation/configuration.md) | Configuration fields and embedding providers |
+| [MCP tools](docs/documentation/mcp-tools.md) | Tool schemas and result contracts |
+| [Generic MCP client](docs/clients/generic-mcp.md) | Streamable HTTP client setup |
+| [Hermes](docs/clients/hermes.md) | Hermes onboarding and verification |
+| [Troubleshooting](docs/troubleshooting.md) | Service, provider, capture, and index recovery |
+| [Architecture](docs/architecture.md) | Runtime layers, data flow, and local storage |
+
+## Community
+
+Contributions are welcome. Read the [contribution guide](CONTRIBUTING.md) before
+opening an issue or pull request, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Report suspected vulnerabilities privately through the
+[security policy](SECURITY.md). Do not open a public issue for a security
+report.
+
+## Development
+
+```bash
+npm install
+npm run typecheck
+npm run build
+npm test
+```
+
+Useful local commands:
 
 | Command | Purpose |
 |---------|---------|
-| `npm run onboard` | Run the default-first interactive setup, build, service start, and first-run validation |
-| `npm run setup` | Create the default config and log directory without starting the service |
-| `npm run service:start` | Start the managed launchd service |
-| `npm run service:stop` | Stop the service |
-| `npm run service:status` | Check health and endpoint reachability |
-| `npm run service:logs` | Tail recent service logs |
-| `npm run rebuild-index` | Rebuild retrieval index from Screenpipe data |
+| `npm run onboard` | Configure, build, start, and validate the managed local service |
+| `npm run service:status` | Check managed service and MCP endpoint health |
+| `npm run service:logs` | Tail managed service logs |
+| `npm run rebuild-index` | Rebuild retrieval artifacts from local Screenpipe data |
+| `npm run dev:stdio` | Run the MCP server over stdio |
+| `npm run dev:http` | Run the MCP server over HTTP |
 
-## MCP tools
+## License
 
-Eight tools are registered at the endpoint:
-
-| Tool | Category | Purpose |
-|------|----------|---------|
-| `find` | work-activity | Search captured work-activity content for evidence fragments by keyword, semantic similarity, or hybrid mode |
-| `recall` | work-activity | Recall sessions or aggregated time blocks for a window, with optional summaries |
-| `inspect` | work-activity | Drill down into a single session or frame, returning evidence rows or the raw AX tree |
-| `memory-read` | memory | Read persisted long-term memory |
-| `memory-write` | memory | Write or append long-term memory |
-| `file-analyze` | file-analysis | Summarize or query a local file |
-| `privacy-control` | privacy | Check or modify privacy collection controls |
-| `internal-status` | internal | Runtime health and retrieval state |
-
-See [docs/documentation/mcp-tools.md](docs/documentation/mcp-tools.md) for input schemas and output contracts.
-
-## Connecting a client
-
-Point any MCP-compatible client at `http://127.0.0.1:18765/mcp` using Streamable HTTP transport. For Hermes, `npm run onboard` writes the `screenpipe-memory` server into `~/.hermes/config.yaml` after the first-run validation passes, preserving other Hermes settings. See [docs/clients/generic-mcp.md](docs/clients/generic-mcp.md) for setup steps and verification.
-
-## Validation boundary
-
-The onboarding flow is intentionally different from the controlled-real Hermes evaluation layer:
-
-- the quickstart path in [docs/quickstart.md](docs/quickstart.md) plus `npm run onboard` is the real-user install path that uses your own local Screenpipe data and proves the local MCP service is working now.
-- `npm run test:evaluations:v1` is the controlled-real evaluation harness that runs Hermes against fixture-backed local stubs and writes repeatable evidence artifacts under `.planning/`.
-
-Use onboarding to get productive quickly; use the evaluation harness when you need repeatable validation evidence.
-
-## Troubleshooting
-
-See [docs/troubleshooting.md](docs/troubleshooting.md) for common issues: service unreachable, provider errors, and index recovery.
-
-For capture and ingestion health — ScreenPipe process state, Accessibility permission failures, idle capture, disk budget warnings, and AX/OCR ratio imbalance — see the [Capture & ingestion observability](docs/troubleshooting.md#capture--ingestion-observability) section. The `internal-status` tool surfaces all five failure modes as structured fields (`capture.state`, `diskBudget.warning`, `ingestionMix.ratio`).
-
-To run the end-to-end coverage evaluation against the fixture set:
-
-```bash
-npm run eval:coverage
-```
-
-This single command exercises the full AX-primary retrieval path with fixed fixtures and exits with code `0` when `effectiveCoverage >= 0.80`.
-
-## Documentation map
-
-| Document | Audience | Coverage |
-|----------|----------|---------|
-| [docs/quickstart.md](docs/quickstart.md) | New users | Normal macOS install/start path |
-| [docs/documentation/configuration.md](docs/documentation/configuration.md) | Users | Config fields, defaults, provider examples |
-| [docs/documentation/mcp-tools.md](docs/documentation/mcp-tools.md) | Client integrators | Tool contracts and schemas |
-| [docs/clients/generic-mcp.md](docs/clients/generic-mcp.md) | Client integrators | Generic HTTP client setup |
-| [docs/clients/hermes.md](docs/clients/hermes.md) | Hermes users | Hermes end-to-end quickstart |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Operators | Diagnosis and recovery |
-| [docs/delivery/http-service.md](docs/delivery/http-service.md) | Operators | Managed service lifecycle |
-| [docs/delivery/hermes.md](docs/delivery/hermes.md) | Operators | Hermes interoperability proof |
-| [docs/engineering/code-standards.md](docs/engineering/code-standards.md) | Maintainers | Engineering rules |
+Licensed under the [Apache License 2.0](LICENSE).

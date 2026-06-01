@@ -1,12 +1,12 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-01
 ---
 
 # MCP Tools
 
-The server currently registers eight MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
+The server currently registers nine MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
 
 ## Result shape
 
@@ -30,6 +30,7 @@ Work-activity retrieval tools (`find`, `recall`, `inspect`) always emit a `narra
 | `memory-write` | memory | Append or replace long-term memory content |
 | `file-analyze` | file-analysis | Analyze a supported local file and summarize or answer a targeted question |
 | `privacy-control` | privacy | Check or modify local privacy collection controls |
+| `screenpipe-control` | screenpipe | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | internal | Return bootstrap-safe runtime status |
 
 ## `find`
@@ -237,6 +238,29 @@ The CLI prints only paused state, excluded app names, and actionable validation 
 - `structuredContent.confirmationHint` explains when confirmation is required
 - For `delete-range`, `structuredContent.cascade` reports the derived-store cascade outcome: `upstreamDeleted` (count of upstream rows removed), `cascade` (`ok` | `partial` | `failed`), optional `failedFrameIds`, and optional `reason`. While a cascade-failure tombstone is active, `find` and `recall` filter out evidence/sessions that fall inside the affected window until the next `reconcileCascadeFailures()` pass clears it
 - Failure paths set `isError: true`
+
+## `screenpipe-control`
+
+Check, start, or stop the local Screenpipe recording process managed by this server.
+
+**Input**
+
+```json
+{
+  "action": "status"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `action` | `status` \| `start` \| `stop` | yes | Operation to perform |
+
+**Output expectations**
+
+- `content[0].text` always includes the requested `action` and resolved `running` state
+- `pid` is included when the server started the active Screenpipe process
+- `error` is included when the operation cannot be completed
+- `stop` only terminates a Screenpipe process started by this MCP server
 
 ## `internal-status`
 
