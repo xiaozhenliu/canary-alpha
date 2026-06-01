@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-05-28
+last_updated: 2026-06-01
 ---
 
 # Generic MCP Client Setup
@@ -60,6 +60,7 @@ Any client should support these steps:
    - `memory-write`
    - `file-analyze`
    - `privacy-control`
+   - `screenpipe-control`
    - `internal-status`
 5. Run `internal-status` with `{}` to confirm runtime health
 6. Run a simple retrieval call such as `recall` or `find`
