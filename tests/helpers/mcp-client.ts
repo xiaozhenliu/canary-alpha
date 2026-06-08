@@ -6,6 +6,7 @@ import { Client, StdioClientTransport, StreamableHTTPClientTransport } from '@mo
 import { getPackageVersion } from '../../src/lib/version.js';
 
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const TEST_HTTP_AUTH_TOKEN = 'test-http-token';
 
 export interface ConnectedClient {
   client: Client;
@@ -48,9 +49,15 @@ export async function connectStdioClient(env: NodeJS.ProcessEnv = {}): Promise<C
   };
 }
 
-export async function connectHttpClient(port: number): Promise<ConnectedClient> {
+export async function connectHttpClient(port: number, authToken = TEST_HTTP_AUTH_TOKEN): Promise<ConnectedClient> {
   const client = createClient();
-  const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`));
+  const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`), authToken
+    ? {
+        authProvider: {
+          token: async () => authToken
+        }
+      }
+    : undefined);
 
   await client.connect(transport);
 

@@ -7,6 +7,7 @@ export async function writeTestConfig(homeDir: string, config: {
   embeddingBaseUrl: string;
   screenpipeBaseUrl: string;
   screenpipeApiKey?: string;
+  authToken?: string;
   embeddingConcurrency?: number;
   mode?: 'stdio' | 'http';
   port?: number;
@@ -24,6 +25,7 @@ export async function writeTestConfig(homeDir: string, config: {
     `  mode: ${config.mode ?? 'http'}`,
     '  host: 127.0.0.1',
     `  port: ${config.port ?? 8765}`,
+    ...((config.mode ?? 'http') === 'http' ? [`  authToken: ${config.authToken ?? 'test-http-token'}`] : []),
     'logging:',
     '  level: info',
     'screenpipe:',

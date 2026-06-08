@@ -154,9 +154,20 @@ function resolveManagedServiceServer(server: AppContext['config']['server'], env
   };
 }
 
-async function probeManagedServiceEndpoint(host: string, port: number, expectedConfigFile: string): Promise<boolean> {
+async function probeManagedServiceEndpoint(
+  host: string,
+  port: number,
+  expectedConfigFile: string,
+  authToken?: string
+): Promise<boolean> {
   const client = createClient();
-  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`));
+  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), authToken
+    ? {
+        authProvider: {
+          token: async () => authToken
+        }
+      }
+    : undefined);
   let timeout: NodeJS.Timeout | undefined;
 
   try {
@@ -197,7 +208,12 @@ async function probeManagedServiceEndpoint(host: string, port: number, expectedC
 }
 
 async function detectActiveManagedService(config: AppContext['config']): Promise<boolean> {
-  if (await probeManagedServiceEndpoint(config.server.host, config.server.port, config.paths.configFile)) {
+  if (await probeManagedServiceEndpoint(
+    config.server.host,
+    config.server.port,
+    config.paths.configFile,
+    config.server.authToken
+  )) {
     return true;
   }
 
@@ -212,7 +228,12 @@ async function detectActiveManagedService(config: AppContext['config']): Promise
       return false;
     }
 
-    return probeManagedServiceEndpoint(managedServer.host, managedServer.port, config.paths.configFile);
+    return probeManagedServiceEndpoint(
+      managedServer.host,
+      managedServer.port,
+      config.paths.configFile,
+      managedEnvironment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN || config.server.authToken
+    );
   } catch {
     return false;
   }

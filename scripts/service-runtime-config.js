@@ -1,4 +1,4 @@
-const MANAGED_SERVICE_ENV_KEYS = ['MCP_PORT', 'MCP_LOG_LEVEL', 'SCREENPIPE_BASE_URL', 'SCREENPIPE_API_KEY'];
+const MANAGED_SERVICE_ENV_KEYS = ['MCP_PORT', 'MCP_LOG_LEVEL', 'SCREENPIPE_BASE_URL', 'SCREENPIPE_API_KEY', 'SCREENPIPE_MEMORY_MCP_AUTH_TOKEN'];
 const MANAGED_SERVICE_SERVER_HOST_KEY = 'SCREENPIPE_MEMORY_MCP_SERVER_HOST';
 const MANAGED_SERVICE_SERVER_PORT_KEY = 'SCREENPIPE_MEMORY_MCP_SERVER_PORT';
 
@@ -59,14 +59,25 @@ export function readServerConfig(parsed, configPath) {
     port = server.port;
   }
 
-  return { host, port };
+  let authToken;
+  if (server && 'authToken' in server) {
+    if (typeof server.authToken !== 'string' || server.authToken.length === 0) {
+      throw new Error(`Invalid config file at ${configPath}: server.authToken must be a non-empty string.`);
+    }
+    authToken = server.authToken;
+  }
+
+  return { host, port, authToken };
 }
 
 export function applyServerEnvironmentOverrides(server, environment = process.env) {
   const overriddenPort = parseOptionalPort(environment.MCP_PORT);
   return {
     host: server.host,
-    port: overriddenPort ?? server.port
+    port: overriddenPort ?? server.port,
+    authToken: typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+      ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+      : server.authToken
   };
 }
 
@@ -84,7 +95,10 @@ export function resolveManagedServiceServer(server, environment = process.env) {
 
   return {
     host: typeof managedHost === 'string' && managedHost.length > 0 ? managedHost : server.host,
-    port: managedPort ?? server.port
+    port: managedPort ?? server.port,
+    authToken: typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+      ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+      : server.authToken
   };
 }
 
@@ -102,12 +116,18 @@ export function resolveManagedServiceEnvironment(environment = process.env) {
 }
 
 export function renderManagedServiceEnvironmentXml(homeDirectory, environment = process.env, server) {
+  const authToken = typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+    ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+    : server?.authToken;
   const entries = [
     ['HOME', homeDirectory],
     ['SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE', '1'],
     [MANAGED_SERVICE_SERVER_HOST_KEY, server?.host ?? '127.0.0.1'],
     [MANAGED_SERVICE_SERVER_PORT_KEY, String(server?.port ?? 8765)],
-    ...Object.entries(resolveManagedServiceEnvironment(environment))
+    ...Object.entries(resolveManagedServiceEnvironment({
+      ...environment,
+      ...(authToken ? { SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: authToken } : {})
+    }))
   ];
 
   return entries

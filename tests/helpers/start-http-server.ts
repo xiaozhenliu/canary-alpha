@@ -3,6 +3,8 @@ import { once } from 'node:events';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { TEST_HTTP_AUTH_TOKEN } from './mcp-client.js';
+
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export interface StartedHttpServer {
@@ -44,6 +46,7 @@ export async function startHttpServer(port = 8765, env: NodeJS.ProcessEnv = {}):
     env: {
       ...process.env,
       MCP_PORT: String(port),
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN ?? TEST_HTTP_AUTH_TOKEN,
       ...env
     },
     stdio: ['pipe', 'pipe', 'pipe']

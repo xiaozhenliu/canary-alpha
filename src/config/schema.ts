@@ -8,7 +8,8 @@ export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 const serverConfigSchema = z.object({
   mode: serverModeSchema.default('http'),
   host: z.string().default('127.0.0.1'),
-  port: z.number().int().positive().default(8765)
+  port: z.number().int().positive().default(8765),
+  authToken: z.string().min(1).optional()
 });
 
 const loggingConfigSchema = z.object({

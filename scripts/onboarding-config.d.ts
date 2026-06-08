@@ -31,6 +31,7 @@ export interface OnboardingConfig {
     mode: 'http';
     host: '127.0.0.1';
     port: number;
+    authToken: string;
   };
   logging: {
     level: 'info';
@@ -72,6 +73,7 @@ export const DEFAULT_OLLAMA_MODEL: string;
 export const DEFAULT_HOSTED_BASE_URL: string;
 export const DEFAULT_HOSTED_MODEL: string;
 export const DEFAULT_EMBEDDING_CONCURRENCY: number;
+export function createDefaultHttpAuthToken(): string;
 
 export function parseNodeMajorVersion(version: string): number;
 export function ensureSupportedNodeVersion(version?: string): void;
@@ -79,6 +81,9 @@ export function resolveAppPaths(homeDirectory?: string): {
   appDirectory: string;
   configPath: string;
   logDirectory: string;
+  routinesDirectory: string;
+  routinesDefinitionsDirectory: string;
+  routinesHistoryDirectory: string;
 };
 export function resolveHermesPaths(homeDirectory?: string): {
   hermesDirectory: string;
@@ -108,6 +113,7 @@ export function createHostedEmbeddingsConfig(options: {
 }): EmbeddingsConfig;
 export function buildConfigObject(options?: {
   port?: number;
+  authToken?: string;
   screenpipeUrl?: string;
   screenpipeApiKey?: string;
   vectorStorePath?: string;
@@ -115,6 +121,7 @@ export function buildConfigObject(options?: {
 }): OnboardingConfig;
 export function buildConfigYaml(options?: {
   port?: number;
+  authToken?: string;
   screenpipeUrl?: string;
   screenpipeApiKey?: string;
   vectorStorePath?: string;
@@ -123,10 +130,13 @@ export function buildConfigYaml(options?: {
 export function ensureAppDirectories(paths: {
   appDirectory: string;
   logDirectory: string;
+  routinesDefinitionsDirectory: string;
+  routinesHistoryDirectory: string;
 }): Promise<void>;
 export function backupConfigIfPresent(configPath: string, backupDirectory: string, now?: Date): Promise<string | null>;
 export function writeConfigYamlFile(configPath: string, options?: {
   port?: number;
+  authToken?: string;
   screenpipeUrl?: string;
   screenpipeApiKey?: string;
   vectorStorePath?: string;

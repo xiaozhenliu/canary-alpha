@@ -114,8 +114,14 @@ export async function createApp(overrides?: {
   const config = await loadConfig(overrides);
   const isManagedHttpService = config.server.mode === 'http'
     && process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE === '1';
-  if (isManagedHttpService && config.server.host !== '127.0.0.1') {
-    throw new Error(`Managed HTTP service must bind to 127.0.0.1 (found ${config.server.host}).`);
+  if (config.server.mode === 'http' && config.server.host !== '127.0.0.1') {
+    if (isManagedHttpService) {
+      throw new Error(`Managed HTTP service must bind to 127.0.0.1 (found ${config.server.host}).`);
+    }
+    throw new Error(`HTTP transport must bind to 127.0.0.1 (found ${config.server.host}).`);
+  }
+  if (config.server.mode === 'http' && !config.server.authToken) {
+    throw new Error('HTTP transport requires server.authToken or SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.');
   }
   const logger = createLogger(config.logging.level, isManagedHttpService
     ? {

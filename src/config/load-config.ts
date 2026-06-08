@@ -63,6 +63,7 @@ export async function loadConfig(overrides?: {
   const envLogLevel = process.env.MCP_LOG_LEVEL;
   const envScreenpipeBaseUrl = process.env.SCREENPIPE_BASE_URL;
   const envScreenpipeApiKey = process.env.SCREENPIPE_API_KEY;
+  const envHttpAuthToken = process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN;
   const managedServicePort = isManagedService
     ? parseOptionalPort(process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT)
     : undefined;
@@ -93,7 +94,10 @@ export async function loadConfig(overrides?: {
     server: {
       mode,
       host: parsed.data.server.host,
-      port
+      port,
+      authToken: envHttpAuthToken && envHttpAuthToken.length > 0
+        ? envHttpAuthToken
+        : parsed.data.server.authToken
     },
     logging: {
       level: logLevel

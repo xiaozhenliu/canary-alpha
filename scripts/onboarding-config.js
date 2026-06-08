@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -31,6 +32,12 @@ export const DEFAULT_HOSTED_BASE_URL = 'https://api.deepseek.com';
 // not match `DEFAULT_HOSTED_BASE_URL`.
 export const DEFAULT_HOSTED_MODEL = 'text-embedding-3-large';
 export const DEFAULT_EMBEDDING_CONCURRENCY = 2;
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
+
+export function createDefaultHttpAuthToken() {
+  return randomBytes(24).toString('hex');
+}
 
 export function parseNodeMajorVersion(version) {
   return Number(version.split('.')[0]);
@@ -114,8 +121,8 @@ export async function writeHermesConfigFile(configPath, endpoint, options = {}) 
   const existingConfig = await readHermesConfigIfPresent(configPath);
   const merged = mergeHermesConfig(existingConfig, endpoint, options);
   const yaml = YAML.stringify(merged);
-  await mkdir(dirname(configPath), { recursive: true });
-  await writeFile(configPath, yaml, 'utf8');
+  await mkdir(dirname(configPath), { recursive: true, mode: PRIVATE_DIR_MODE });
+  await writeFile(configPath, yaml, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
 
   return {
     configPath,
@@ -149,7 +156,8 @@ export function buildConfigObject(options = {}) {
     server: {
       mode: 'http',
       host: '127.0.0.1',
-      port: options.port ?? DEFAULT_SERVER_PORT
+      port: options.port ?? DEFAULT_SERVER_PORT,
+      authToken: options.authToken ?? createDefaultHttpAuthToken()
     },
     logging: {
       level: 'info'
@@ -182,10 +190,10 @@ export function buildConfigYaml(options = {}) {
 }
 
 export async function ensureAppDirectories(paths) {
-  await mkdir(paths.appDirectory, { recursive: true });
-  await mkdir(paths.logDirectory, { recursive: true });
-  await mkdir(paths.routinesDefinitionsDirectory, { recursive: true });
-  await mkdir(paths.routinesHistoryDirectory, { recursive: true });
+  await mkdir(paths.appDirectory, { recursive: true, mode: PRIVATE_DIR_MODE });
+  await mkdir(paths.logDirectory, { recursive: true, mode: PRIVATE_DIR_MODE });
+  await mkdir(paths.routinesDefinitionsDirectory, { recursive: true, mode: PRIVATE_DIR_MODE });
+  await mkdir(paths.routinesHistoryDirectory, { recursive: true, mode: PRIVATE_DIR_MODE });
 }
 
 function formatBackupTimestamp(date) {
@@ -205,13 +213,14 @@ export async function backupConfigIfPresent(configPath, backupDirectory, now = n
 
   const backupPath = join(backupDirectory, `config.backup-${formatBackupTimestamp(now)}.yaml`);
   await copyFile(configPath, backupPath);
+  await chmod(backupPath, PRIVATE_FILE_MODE);
   return backupPath;
 }
 
 export async function writeConfigYamlFile(configPath, options = {}) {
   const yaml = buildConfigYaml(options);
-  await mkdir(dirname(configPath), { recursive: true });
-  await writeFile(configPath, yaml, 'utf8');
+  await mkdir(dirname(configPath), { recursive: true, mode: PRIVATE_DIR_MODE });
+  await writeFile(configPath, yaml, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
   return yaml;
 }
 

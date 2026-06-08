@@ -21,6 +21,16 @@ export async function startHttpTransport(app: AppContext): Promise<StartedHttpTr
       return;
     }
 
+    const expectedToken = app.config.server.authToken;
+    const authorization = request.headers.authorization;
+    if (!expectedToken || authorization !== `Bearer ${expectedToken}`) {
+      response.statusCode = 401;
+      response.setHeader('content-type', 'application/json');
+      response.setHeader('www-authenticate', 'Bearer');
+      response.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+
     try {
       const transport = new NodeStreamableHTTPServerTransport({
         sessionIdGenerator: undefined

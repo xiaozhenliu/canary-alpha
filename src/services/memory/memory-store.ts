@@ -3,6 +3,9 @@ import { dirname } from 'node:path';
 
 import type { MemoryScope, MemoryStore } from './types.js';
 
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
+
 export class FileMemoryStore implements MemoryStore {
   constructor(private readonly filePaths: Record<MemoryScope, string>) {}
 
@@ -21,9 +24,9 @@ export class FileMemoryStore implements MemoryStore {
 
   async write(scope: MemoryScope, content: string): Promise<void> {
     const filePath = this.filePaths[scope];
-    await mkdir(dirname(filePath), { recursive: true });
+    await mkdir(dirname(filePath), { recursive: true, mode: PRIVATE_DIR_MODE });
     const tempPath = `${filePath}.tmp`;
-    await writeFile(tempPath, content, 'utf8');
+    await writeFile(tempPath, content, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
     await rename(tempPath, filePath);
   }
 }

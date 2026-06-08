@@ -5,6 +5,8 @@ import type { RoutineDefinition, RoutineRunRecord, RoutineStore } from './types.
 
 const ROUTINE_NAME_PATTERN = /[^a-z0-9]+/g;
 const ROUTINE_TRIM_PATTERN = /^-+|-+$/g;
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -147,9 +149,9 @@ function parseHistoryFile(filePath: string, text: string): RoutineRunRecord[] {
 }
 
 async function writeJsonAtomic(filePath: string, content: unknown): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true });
+  await mkdir(dirname(filePath), { recursive: true, mode: PRIVATE_DIR_MODE });
   const tempPath = `${filePath}.tmp`;
-  await writeFile(tempPath, JSON.stringify(content, null, 2), 'utf8');
+  await writeFile(tempPath, JSON.stringify(content, null, 2), { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
   await rename(tempPath, filePath);
 }
 
@@ -169,7 +171,7 @@ export class FileRoutineStore implements RoutineStore {
   }
 
   async listDefinitions(): Promise<RoutineDefinition[]> {
-    await mkdir(this.paths.definitionsDirectory, { recursive: true });
+    await mkdir(this.paths.definitionsDirectory, { recursive: true, mode: PRIVATE_DIR_MODE });
     const entries = await readdir(this.paths.definitionsDirectory, { withFileTypes: true });
     const definitions = await Promise.all(
       entries

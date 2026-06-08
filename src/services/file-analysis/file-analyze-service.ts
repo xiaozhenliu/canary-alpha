@@ -1,5 +1,5 @@
-import { readFile, stat } from 'node:fs/promises';
-import { basename, extname, resolve } from 'node:path';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import { basename, extname, relative, resolve } from 'node:path';
 
 import type {
   FileAnalyzeEvidenceItem,
@@ -34,6 +34,17 @@ const CJK_TOKEN_PATTERN = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana
 const ASCII_SEGMENT_PATTERN = /[a-z0-9_]+/g;
 const CJK_CHARACTER_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 const CJK_SEGMENT_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu;
+const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
+
+function isPathWithinRoot(filePath: string, rootPath: string): boolean {
+  const relativePath = relative(rootPath, filePath);
+  return relativePath !== ''
+    && !relativePath.startsWith('..')
+    && !relativePath.startsWith('/')
+    && !relativePath.includes('/../')
+    ? true
+    : filePath === rootPath;
+}
 
 function splitLines(content: string): string[] {
   if (content === '') {
@@ -230,11 +241,22 @@ function buildEvidence(lines: string[], question: string): FileAnalyzeEvidenceIt
 }
 
 export class DefaultFileAnalyzeService implements FileAnalyzeService {
-  constructor(private readonly fileReader: FileAnalyzeFileReader = { stat, readFile }) {}
+  private readonly allowedRoots: string[];
+  private readonly maxFileBytes: number;
+
+  constructor(
+    private readonly fileReader: FileAnalyzeFileReader = { stat, readFile, realpath },
+    options?: {
+      allowedRoots?: string[];
+      maxFileBytes?: number;
+    }
+  ) {
+    this.allowedRoots = (options?.allowedRoots ?? [process.cwd()]).map((rootPath) => resolve(rootPath));
+    this.maxFileBytes = options?.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
+  }
 
   async analyze(request: FileAnalyzeRequest): Promise<FileAnalyzeResult> {
     const resolvedPath = resolve(request.path);
-    const extension = extname(resolvedPath).toLowerCase();
 
     let fileStats;
     try {
@@ -252,6 +274,38 @@ export class DefaultFileAnalyzeService implements FileAnalyzeService {
       return buildErrorResult(buildValidationError('PATH_IS_DIRECTORY', `Path is a directory, not a file: ${request.path}`));
     }
 
+    let realFilePath: string;
+    try {
+      realFilePath = await this.fileReader.realpath(resolvedPath);
+    } catch {
+      return buildErrorResult(buildValidationError('FILE_READ_FAILED', `Unable to resolve file path: ${request.path}`));
+    }
+
+    const allowedRootChecks = await Promise.all(
+      this.allowedRoots.map(async (rootPath) => {
+        try {
+          return await this.fileReader.realpath(rootPath);
+        } catch {
+          return resolve(rootPath);
+        }
+      })
+    );
+    if (!allowedRootChecks.some((rootPath) => isPathWithinRoot(realFilePath, rootPath))) {
+      return buildErrorResult(buildValidationError(
+        'PATH_NOT_ALLOWED',
+        `File path is outside the allowed file-analyze roots: ${request.path}`
+      ));
+    }
+
+    if (fileStats.size > this.maxFileBytes) {
+      return buildErrorResult(buildValidationError(
+        'FILE_TOO_LARGE',
+        `File too large: ${request.path} exceeds the ${this.maxFileBytes} byte limit.`
+      ));
+    }
+
+    const extension = extname(realFilePath).toLowerCase();
+
     if (!SUPPORTED_EXTENSIONS.includes(extension as (typeof SUPPORTED_EXTENSIONS)[number])) {
       return buildErrorResult(buildValidationError(
         'UNSUPPORTED_EXTENSION',
@@ -261,7 +315,7 @@ export class DefaultFileAnalyzeService implements FileAnalyzeService {
 
     let rawContent;
     try {
-      rawContent = await this.fileReader.readFile(resolvedPath);
+      rawContent = await this.fileReader.readFile(realFilePath);
     } catch {
       return buildErrorResult(buildValidationError('FILE_READ_FAILED', `Unable to read file: ${request.path}`));
     }
@@ -273,8 +327,8 @@ export class DefaultFileAnalyzeService implements FileAnalyzeService {
     const content = rawContent.toString('utf8');
     const lines = splitLines(content);
     const file: FileAnalyzeFileInfo = {
-      path: resolvedPath,
-      name: basename(resolvedPath),
+      path: realFilePath,
+      name: basename(realFilePath),
       extension,
       lineCount: lines.length
     };

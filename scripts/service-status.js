@@ -63,7 +63,16 @@ function createClient() {
 
 async function probeManagedService(host, port, expectedConfigFile, expectedPid) {
   const client = createClient();
-  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`));
+  const authToken = typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+    ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+    : undefined;
+  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), authToken
+    ? {
+        authProvider: {
+          token: async () => authToken
+        }
+      }
+    : undefined);
   let timeout;
 
   try {
