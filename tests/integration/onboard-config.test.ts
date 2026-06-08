@@ -52,7 +52,8 @@ describe('onboarding config helpers', () => {
     expect(config.server).toEqual({
       mode: 'http',
       host: '127.0.0.1',
-      port: 18765
+      port: 18765,
+      authToken: expect.any(String)
     });
     expect(config.screenpipe.url).toBe(DEFAULT_SCREENPIPE_URL);
     expect(config.screenpipe.apiKey).toBeUndefined();
@@ -111,6 +112,7 @@ describe('onboarding config helpers', () => {
     });
 
     expect(yaml).toContain('port: 18765');
+    expect(yaml).toContain('authToken:');
     expect(yaml).toContain('kind: ollama');
     expect(yaml).toContain('apiKey: sp-test-token');
     await expect(readFile(paths.configPath, 'utf8')).resolves.toContain('nomic-embed-text');

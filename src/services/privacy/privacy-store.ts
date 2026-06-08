@@ -6,6 +6,8 @@ import { DEFAULT_PRIVACY_STATE } from './types.js';
 
 const EARLIEST_PRIVACY_TIMESTAMP = '1970-01-01T00:00:00.000Z';
 const LATEST_PRIVACY_TIMESTAMP = '9999-12-31T23:59:59.999Z';
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
 
 function normalizeTimestamp(value: unknown): string | undefined {
   if (typeof value !== 'string') {
@@ -103,9 +105,9 @@ export class FilePrivacyStore implements PrivacyStore {
   }
 
   async write(state: PrivacyState): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
+    await mkdir(dirname(this.filePath), { recursive: true, mode: PRIVATE_DIR_MODE });
     const tempPath = `${this.filePath}.tmp`;
-    await writeFile(tempPath, JSON.stringify(state, null, 2), 'utf8');
+    await writeFile(tempPath, JSON.stringify(state, null, 2), { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
     await rename(tempPath, this.filePath);
   }
 }

@@ -1,4 +1,4 @@
-import { mkdir, stat, appendFile, rename } from 'node:fs/promises';
+import { chmod, mkdir, stat, appendFile, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { stderr } from 'node:process';
 
@@ -13,6 +13,8 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 
 const MAX_LOG_FILE_SIZE_BYTES = 1_000_000;
 const pendingLogWrites = new Map<string, Promise<void>>();
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
 
 function serializeMetadata(metadata?: Record<string, unknown>): string {
   if (!metadata || Object.keys(metadata).length === 0) {
@@ -47,9 +49,10 @@ async function writeToLogFile(filePath: string, line: string): Promise<void> {
   const nextWrite = previousWrite
     .catch(() => undefined)
     .then(async () => {
-      await mkdir(dirname(filePath), { recursive: true });
+      await mkdir(dirname(filePath), { recursive: true, mode: PRIVATE_DIR_MODE });
       await rotateLogFileIfNeeded(filePath);
-      await appendFile(filePath, `${line}\n`, 'utf8');
+      await appendFile(filePath, `${line}\n`, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
+      await chmod(filePath, PRIVATE_FILE_MODE);
     });
 
   pendingLogWrites.set(filePath, nextWrite);

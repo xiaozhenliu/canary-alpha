@@ -99,6 +99,7 @@ export interface AppConfig {
     mode: ServerMode;
     host: string;
     port: number;
+    authToken?: string;
   };
   logging: {
     level: LogLevel;

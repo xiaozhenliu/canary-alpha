@@ -19,7 +19,14 @@ export interface FileAnalyzeFileInfo {
 }
 
 export interface FileAnalyzeValidationError {
-  code: 'FILE_NOT_FOUND' | 'PATH_IS_DIRECTORY' | 'UNSUPPORTED_EXTENSION' | 'BINARY_CONTENT' | 'FILE_READ_FAILED';
+  code:
+    | 'FILE_NOT_FOUND'
+    | 'PATH_IS_DIRECTORY'
+    | 'UNSUPPORTED_EXTENSION'
+    | 'BINARY_CONTENT'
+    | 'FILE_READ_FAILED'
+    | 'PATH_NOT_ALLOWED'
+    | 'FILE_TOO_LARGE';
   message: string;
 }
 
@@ -39,4 +46,5 @@ export interface FileAnalyzeService {
 export interface FileAnalyzeFileReader {
   stat(filePath: string): Promise<Stats>;
   readFile(filePath: string): Promise<Buffer>;
+  realpath(filePath: string): Promise<string>;
 }

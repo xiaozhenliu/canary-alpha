@@ -54,12 +54,21 @@ async function loadServerConfig() {
     const server = raw?.server;
     return {
       host: typeof server?.host === 'string' && server.host.length > 0 ? server.host : DEFAULT_HOST,
-      port: Number.isInteger(server?.port) && server.port > 0 ? server.port : DEFAULT_PORT
+      port: Number.isInteger(server?.port) && server.port > 0 ? server.port : DEFAULT_PORT,
+      authToken: typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+        ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+        : (typeof server?.authToken === 'string' && server.authToken.length > 0 ? server.authToken : undefined)
     };
   } catch (error) {
     const nodeError = error;
     if (nodeError && typeof nodeError === 'object' && 'code' in nodeError && nodeError.code === 'ENOENT') {
-      return { host: DEFAULT_HOST, port: DEFAULT_PORT };
+      return {
+        host: DEFAULT_HOST,
+        port: DEFAULT_PORT,
+        authToken: typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+          ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+          : undefined
+      };
     }
 
     throw error;
@@ -353,7 +362,13 @@ export async function run(argv = process.argv.slice(2)) {
   const requestedPort = Number(process.env.MCP_PORT);
   const port = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : configuredServer.port;
   const client = createClient();
-  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`));
+  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), configuredServer.authToken
+    ? {
+        authProvider: {
+          token: async () => configuredServer.authToken
+        }
+      }
+    : undefined);
 
   try {
     await client.connect(transport);

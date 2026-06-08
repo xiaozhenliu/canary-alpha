@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -55,6 +55,67 @@ describe('file analyze validation', () => {
 
       expect(result.error).toMatchObject({ code: 'BINARY_CONTENT' });
       expect(result.summary).toContain('binary content');
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects paths outside the configured allowlist roots', async () => {
+    const allowedDir = await mkdtemp(join(testTempRoot(), 'file-analyze-allowed-'));
+    const outsideDir = await mkdtemp(join(testTempRoot(), 'file-analyze-outside-'));
+    const outsideFile = join(outsideDir, 'secret.md');
+
+    try {
+      await writeFile(outsideFile, '# secret\n', 'utf8');
+      const service = new DefaultFileAnalyzeService(undefined, {
+        allowedRoots: [allowedDir]
+      });
+      const result = await service.analyze({ path: outsideFile });
+
+      expect(result.error).toMatchObject({ code: 'PATH_NOT_ALLOWED' });
+      expect(result.summary).toContain('outside the allowed file-analyze roots');
+    } finally {
+      await rm(allowedDir, { recursive: true, force: true });
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects symlink escapes that resolve outside the configured allowlist roots', async () => {
+    const allowedDir = await mkdtemp(join(testTempRoot(), 'file-analyze-symlink-allowed-'));
+    const outsideDir = await mkdtemp(join(testTempRoot(), 'file-analyze-symlink-outside-'));
+    const outsideFile = join(outsideDir, 'secret.md');
+    const linkedFile = join(allowedDir, 'linked-secret.md');
+
+    try {
+      await writeFile(outsideFile, '# secret\n', 'utf8');
+      await symlink(outsideFile, linkedFile);
+      const service = new DefaultFileAnalyzeService(undefined, {
+        allowedRoots: [allowedDir]
+      });
+      const result = await service.analyze({ path: linkedFile });
+
+      expect(result.error).toMatchObject({ code: 'PATH_NOT_ALLOWED' });
+      expect(result.summary).toContain('outside the allowed file-analyze roots');
+    } finally {
+      await rm(allowedDir, { recursive: true, force: true });
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects files larger than the configured size cap', async () => {
+    const tempDir = await mkdtemp(join(testTempRoot(), 'file-analyze-too-large-'));
+    const filePath = join(tempDir, 'large.md');
+
+    try {
+      await writeFile(filePath, 'a'.repeat(2048), 'utf8');
+      const service = new DefaultFileAnalyzeService(undefined, {
+        allowedRoots: [tempDir],
+        maxFileBytes: 1024
+      });
+      const result = await service.analyze({ path: filePath });
+
+      expect(result.error).toMatchObject({ code: 'FILE_TOO_LARGE' });
+      expect(result.summary).toContain('File too large');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { connectHttpClient, connectStdioClient } from '../helpers/mcp-client.js';
+import { connectHttpClient, connectStdioClient, TEST_HTTP_AUTH_TOKEN } from '../helpers/mcp-client.js';
 import { startEmbeddingStub } from '../helpers/embedding-stub.js';
 import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
@@ -952,7 +952,8 @@ describe('rebuild-index acceptance', () => {
       env: {
         ...process.env,
         HOME: homeDir,
-        MCP_PORT: String(managedPort)
+        MCP_PORT: String(managedPort),
+        SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -1357,6 +1358,8 @@ describe('rebuild-index acceptance', () => {
       '      <string>127.0.0.1</string>',
       '      <key>SCREENPIPE_MEMORY_MCP_SERVER_PORT</key>',
       `      <string>${managedPort}</string>`,
+      '      <key>SCREENPIPE_MEMORY_MCP_AUTH_TOKEN</key>',
+      `      <string>${TEST_HTTP_AUTH_TOKEN}</string>`,
       '    </dict>',
       '  </dict>',
       '</plist>'
@@ -1367,7 +1370,8 @@ describe('rebuild-index acceptance', () => {
       env: {
         ...process.env,
         HOME: homeDir,
-        MCP_PORT: String(managedPort)
+        MCP_PORT: String(managedPort),
+        SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });

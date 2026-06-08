@@ -160,7 +160,16 @@ function createClient() {
 
 async function probeManagedService(host, port, expectedConfigFile, expectedPid) {
   const client = createClient();
-  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`));
+  const authToken = typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
+    ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+    : undefined;
+  const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), authToken
+    ? {
+        authProvider: {
+          token: async () => authToken
+        }
+      }
+    : undefined);
   let timeout;
 
   try {
@@ -247,9 +256,9 @@ async function installResolvedPlist() {
     .replaceAll('__LAUNCHD_STDOUT_PATH__', xmlEscape(launchdStdoutPath))
     .replaceAll('__LAUNCHD_STDERR_PATH__', xmlEscape(launchdStderrPath));
 
-  await mkdir(launchAgentsDirectory, { recursive: true });
-  await mkdir(logDirectory, { recursive: true });
-  await writeFile(installedPlistPath, rendered, 'utf8');
+  await mkdir(launchAgentsDirectory, { recursive: true, mode: 0o700 });
+  await mkdir(logDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(installedPlistPath, rendered, { encoding: 'utf8', mode: 0o600 });
 }
 
 async function main() {

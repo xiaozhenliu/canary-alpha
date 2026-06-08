@@ -9,6 +9,8 @@ import type { AppConfig, ServerMode } from '../types/app-config.js';
 
 const execFileAsync = promisify(execFile);
 const PROCESS_IDENTITY_TOLERANCE_MS = 2_000;
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
 
 interface RuntimeProcessRecord {
   pid: number;
@@ -244,8 +246,8 @@ export async function registerRuntimeProcess(config: AppConfig): Promise<Runtime
     processStartedAt: await readProcessStartedAt(process.pid) ?? undefined
   };
 
-  await mkdir(directoryPath, { recursive: true });
-  await writeFile(markerTempPath, JSON.stringify(record, null, 2), 'utf8');
+  await mkdir(directoryPath, { recursive: true, mode: PRIVATE_DIR_MODE });
+  await writeFile(markerTempPath, JSON.stringify(record, null, 2), { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
   await rename(markerTempPath, markerPath);
 
   let released = false;
@@ -318,8 +320,12 @@ export async function acquireRebuildLock(config: AppConfig): Promise<RebuildLock
   };
 
   await ensureRebuildLockNotHeld(config);
-  await mkdir(dirname(lockPath), { recursive: true });
-  await writeFile(lockTempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', flag: 'wx' });
+  await mkdir(dirname(lockPath), { recursive: true, mode: PRIVATE_DIR_MODE });
+  await writeFile(lockTempPath, JSON.stringify(payload, null, 2), {
+    encoding: 'utf8',
+    flag: 'wx',
+    mode: PRIVATE_FILE_MODE
+  });
 
   try {
     await link(lockTempPath, lockPath);

@@ -16,10 +16,12 @@ afterEach(async () => {
 
 describe('http MCP initialization', () => {
   it('connects a real MCP client over streamable HTTP', async () => {
-    const server = await startHttpServer(8765);
+    const server = await startHttpServer(8765, {
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+    });
     cleanup.push(() => server.stop());
 
-    const connection = await connectHttpClient(server.port);
+    const connection = await connectHttpClient(server.port, 'test-http-token');
     cleanup.push(() => connection.close());
 
     const tools = await connection.client.listTools();
@@ -28,10 +30,12 @@ describe('http MCP initialization', () => {
   });
 
   it('reports the serving process identity through internal-status', async () => {
-    const server = await startHttpServer(8766);
+    const server = await startHttpServer(8766, {
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+    });
     cleanup.push(() => server.stop());
 
-    const connection = await connectHttpClient(server.port);
+    const connection = await connectHttpClient(server.port, 'test-http-token');
     cleanup.push(() => connection.close());
 
     const result = await connection.client.callTool({
@@ -52,5 +56,22 @@ describe('http MCP initialization', () => {
     expect(structured.mode).toBe('http');
     expect(structured.port).toBe(server.port);
     expect(structured.pid).toBe(server.pid);
+  });
+
+  it('rejects unauthenticated HTTP requests', async () => {
+    const server = await startHttpServer(8767, {
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+    });
+    cleanup.push(() => server.stop());
+
+    const response = await fetch(`http://127.0.0.1:${server.port}/mcp`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 'unauth', method: 'ping' })
+    });
+
+    expect(response.status).toBe(401);
   });
 });

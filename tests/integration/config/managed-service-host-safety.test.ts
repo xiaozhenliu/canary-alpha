@@ -85,4 +85,103 @@ describe('managed service host safety', () => {
       'Managed HTTP service must bind to 127.0.0.1 (found 0.0.0.0).'
     );
   });
+
+  it('rejects non-managed HTTP startup when config host is not localhost', async () => {
+    const homeDir = await mkdtemp(join(testTempRoot(), 'http-host-check-'));
+    cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
+
+    const screenpipe = await startScreenpipeStub({ records: [] });
+    cleanup.push(() => screenpipe.stop());
+
+    const embedding = await startEmbeddingStub();
+    cleanup.push(() => embedding.stop());
+
+    await writeTestConfig(homeDir, {
+      embeddingBaseUrl: embedding.url,
+      screenpipeBaseUrl: screenpipe.url,
+      mode: 'http'
+    });
+
+    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
+    const unsafeConfig = [
+      'server:',
+      '  mode: http',
+      '  host: 0.0.0.0',
+      '  port: 8765',
+      'logging:',
+      '  level: info',
+      'screenpipe:',
+      `  url: ${screenpipe.url}`,
+      'providers:',
+      '  embeddings:',
+      '    kind: openai-compatible',
+      `    baseUrl: ${embedding.url}`,
+      '    model: acceptance-embedding-model',
+      'vectorStore:',
+      '  kind: chroma',
+      'retrieval:',
+      '  freshnessWindowMinutes: 15',
+      '  pollIntervalSeconds: 30',
+      '  maxCatchUpBatches: 3',
+      '  maxCatchUpRecords: 500'
+    ].join('\n');
+    await writeFile(configPath, `${unsafeConfig}\n`, 'utf8');
+
+    process.env.HOME = homeDir;
+    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+
+    await expect(createApp({ mode: 'http' })).rejects.toThrow(
+      'HTTP transport must bind to 127.0.0.1 (found 0.0.0.0).'
+    );
+  });
+
+  it('rejects HTTP startup when no auth token is configured', async () => {
+    const homeDir = await mkdtemp(join(testTempRoot(), 'http-auth-check-'));
+    cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
+
+    const screenpipe = await startScreenpipeStub({ records: [] });
+    cleanup.push(() => screenpipe.stop());
+
+    const embedding = await startEmbeddingStub();
+    cleanup.push(() => embedding.stop());
+
+    await writeTestConfig(homeDir, {
+      embeddingBaseUrl: embedding.url,
+      screenpipeBaseUrl: screenpipe.url,
+      mode: 'http'
+    });
+
+    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
+    const noAuthConfig = [
+      'server:',
+      '  mode: http',
+      '  host: 127.0.0.1',
+      '  port: 8765',
+      'logging:',
+      '  level: info',
+      'screenpipe:',
+      `  url: ${screenpipe.url}`,
+      'providers:',
+      '  embeddings:',
+      '    kind: openai-compatible',
+      `    baseUrl: ${embedding.url}`,
+      '    model: acceptance-embedding-model',
+      'vectorStore:',
+      '  kind: chroma',
+      'retrieval:',
+      '  freshnessWindowMinutes: 15',
+      '  pollIntervalSeconds: 30',
+      '  maxCatchUpBatches: 3',
+      '  maxCatchUpRecords: 500'
+    ].join('\n');
+    await writeFile(configPath, `${noAuthConfig}\n`, 'utf8');
+
+    process.env.HOME = homeDir;
+    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+    delete process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN;
+
+    await expect(createApp({ mode: 'http' })).rejects.toThrow(
+      'HTTP transport requires server.authToken or SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.'
+    );
+  });
 });

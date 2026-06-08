@@ -9,6 +9,9 @@ interface PersistedVectorStorePayload {
   records: VectorStoreRecord[];
 }
 
+const PRIVATE_DIR_MODE = 0o700;
+const PRIVATE_FILE_MODE = 0o600;
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -221,12 +224,12 @@ export class FileBackedVectorStore extends InMemoryVectorStore {
   }
 
   private async persist(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
+    await mkdir(dirname(this.filePath), { recursive: true, mode: PRIVATE_DIR_MODE });
     const tempPath = `${this.filePath}.tmp`;
     await writeFile(
       tempPath,
       JSON.stringify({ records: this.records } satisfies PersistedVectorStorePayload, null, 2),
-      'utf8'
+      { encoding: 'utf8', mode: PRIVATE_FILE_MODE }
     );
     await rename(tempPath, this.filePath);
   }

@@ -16,6 +16,7 @@ describe('managed service runtime config', () => {
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
       IGNORED_FLAG: 'nope'
     });
 
@@ -38,7 +39,8 @@ ${environmentXml}
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
-      SCREENPIPE_API_KEY: 'screenpipe-secret'
+      SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
     });
   });
 
@@ -48,6 +50,7 @@ ${environmentXml}
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
       SCREENPIPE_ENABLE_RECORDING: '1',
       SCREENPIPE_ENABLE_SCREEN_CAPTURE: '1',
       SCREENPIPE_RECORDER_MODE: 'continuous',
@@ -60,7 +63,8 @@ ${environmentXml}
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
-      SCREENPIPE_API_KEY: 'screenpipe-secret'
+      SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
     });
 
     const environmentXml = renderManagedServiceEnvironmentXml('/Users/tester', mixedEnvironment, {
@@ -87,7 +91,8 @@ ${environmentXml}
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
-      SCREENPIPE_API_KEY: 'screenpipe-secret'
+      SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
     });
     expect(parsedEnvironment.SCREENPIPE_ENABLE_RECORDING).toBeUndefined();
     expect(parsedEnvironment.SCREENPIPE_ENABLE_SCREEN_CAPTURE).toBeUndefined();
@@ -103,6 +108,7 @@ ${environmentXml}
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
       SCREENPIPE_MEMORY_MCP_SERVER_HOST: '0.0.0.0',
       SCREENPIPE_MEMORY_MCP_SERVER_PORT: '29999',
       DEBUG: 'screenpipe:*',
@@ -139,7 +145,8 @@ ${environmentXml}
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
-      SCREENPIPE_API_KEY: 'screenpipe-secret'
+      SCREENPIPE_API_KEY: 'screenpipe-secret',
+      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
     });
     expect(parsedEnvironment.DEBUG).toBeUndefined();
     expect(parsedEnvironment.NODE_OPTIONS).toBeUndefined();
@@ -151,25 +158,32 @@ ${environmentXml}
   });
 
   it('resolves the managed-service endpoint from frozen launchd values', () => {
-    const runningServer = resolveManagedServiceServer({
+    const configuredServer: { host: string; port: number; authToken?: string } = {
       host: '127.0.0.1',
-      port: 9999
-    }, {
+      port: 9999,
+      authToken: 'config-token'
+    };
+
+    const runningServer = resolveManagedServiceServer(configuredServer, {
       SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
       SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765'
     });
 
     expect(runningServer).toEqual({
       host: '127.0.0.1',
-      port: 18765
+      port: 18765,
+      authToken: 'config-token'
     });
   });
 
   it('prefers MCP_PORT over the frozen managed-service port when resolving the probed endpoint', () => {
-    const runningServer = resolveManagedServiceServer({
+    const configuredServer: { host: string; port: number; authToken?: string } = {
       host: '127.0.0.1',
-      port: 9999
-    }, {
+      port: 9999,
+      authToken: 'config-token'
+    };
+
+    const runningServer = resolveManagedServiceServer(configuredServer, {
       SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
       SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
       MCP_PORT: '19999'
@@ -177,15 +191,19 @@ ${environmentXml}
 
     expect(runningServer).toEqual({
       host: '127.0.0.1',
-      port: 19999
+      port: 19999,
+      authToken: 'config-token'
     });
   });
 
   it('falls back to the frozen managed-service port when MCP_PORT is invalid', () => {
-    const runningServer = resolveManagedServiceServer({
+    const configuredServer: { host: string; port: number; authToken?: string } = {
       host: '127.0.0.1',
-      port: 9999
-    }, {
+      port: 9999,
+      authToken: 'config-token'
+    };
+
+    const runningServer = resolveManagedServiceServer(configuredServer, {
       SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
       SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
       MCP_PORT: 'broken'
@@ -193,7 +211,8 @@ ${environmentXml}
 
     expect(runningServer).toEqual({
       host: '127.0.0.1',
-      port: 18765
+      port: 18765,
+      authToken: 'config-token'
     });
   });
 
@@ -201,7 +220,8 @@ ${environmentXml}
     const parsedConfig = readServerConfig({
       server: {
         host: '127.0.0.1',
-        port: 8765
+        port: 8765,
+        authToken: 'config-token'
       }
     }, '/tmp/config.yaml');
 
@@ -211,7 +231,8 @@ ${environmentXml}
 
     expect(runtimeConfig).toEqual({
       host: '127.0.0.1',
-      port: 18765
+      port: 18765,
+      authToken: 'config-token'
     });
   });
 });
