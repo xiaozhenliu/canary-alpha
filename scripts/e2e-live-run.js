@@ -386,20 +386,6 @@ async function main() {
   const windowFrameCount = await countFramesSince(recordStartIso, recordEndIso);
   log('phase3', `Recording window ended at ${recordEndIso}; frames in window: ${windowFrameCount ?? 'unknown'}.`);
 
-  if (windowFrameCount === 0) {
-    fail('no-frames-captured', {
-      hermesVersion,
-      mcpEndpoint: endpoint,
-      recordWindow: `${recordStartIso} .. ${recordEndIso}`
-    }, [
-      'Screenpipe captured zero frames during the recording window.',
-      'Most likely macOS Screen Recording permission is missing for the Screenpipe process.',
-      'See docs/quickstart.md Troubleshooting.'
-    ]);
-    await cleanup();
-    return;
-  }
-
   // Phase 4: conditional index readiness wait
   log('phase4', `Waiting for index readiness (poll ${INDEX_POLL_INTERVAL_MS / 1_000}s, timeout ${options.indexTimeoutMs / 1_000}s).`);
   const indexDeadline = Date.now() + options.indexTimeoutMs;
@@ -407,6 +393,7 @@ async function main() {
   let previousWindowCount = 0;
   let indexReady = false;
   let lastWatermark = null;
+  let lastWindowCount = windowFrameCount ?? 0;
   while (Date.now() < indexDeadline) {
     const [watermark, currentWindowCount] = await Promise.all([
       readExtractionWatermark(server),
@@ -426,19 +413,32 @@ async function main() {
       break;
     }
     previousWindowCount = currentWindowCount ?? previousWindowCount;
+    lastWindowCount = currentWindowCount ?? lastWindowCount;
     await sleep(INDEX_POLL_INTERVAL_MS);
   }
   if (!indexReady) {
-    fail('index-lag', {
-      hermesVersion,
-      mcpEndpoint: endpoint,
-      recordWindow: `${recordStartIso} .. ${recordEndIso}`,
-      lastWatermark: lastWatermark ?? 'null'
-    }, [
-      `Index did not catch up to recordEnd within ${options.indexTimeoutMs / 1_000}s.`,
-      'Check indexer and embedding provider health: npm run service:logs / npm run storage:diagnostics.',
-      'You can retry with a larger --index-timeout.'
-    ]);
+    if (lastWindowCount === 0) {
+      fail('no-frames-captured', {
+        hermesVersion,
+        mcpEndpoint: endpoint,
+        recordWindow: `${recordStartIso} .. ${recordEndIso}`
+      }, [
+        'No frames from the recording window became searchable before the index timeout.',
+        'Common causes: macOS Screen Recording permission missing, or the screen was locked during the window (Screenpipe pauses capture while locked).',
+        'See docs/quickstart.md Troubleshooting.'
+      ]);
+    } else {
+      fail('index-lag', {
+        hermesVersion,
+        mcpEndpoint: endpoint,
+        recordWindow: `${recordStartIso} .. ${recordEndIso}`,
+        lastWatermark: lastWatermark ?? 'null'
+      }, [
+        `Index did not catch up to recordEnd within ${options.indexTimeoutMs / 1_000}s.`,
+        'Check indexer and embedding provider health: npm run service:logs / npm run storage:diagnostics.',
+        'You can retry with a larger --index-timeout.'
+      ]);
+    }
     await cleanup();
     return;
   }
@@ -484,7 +484,7 @@ async function main() {
     hermesVersion,
     mcpEndpoint: endpoint,
     recordWindow: `${recordStartIso} .. ${recordEndIso}`,
-    framesInWindow: windowFrameCount,
+    framesInWindow: lastWindowCount,
     transcriptPath
   });
 
