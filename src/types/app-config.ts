@@ -152,9 +152,9 @@ export interface AppConfig {
 }
 
 export interface ScreenpipeTrimResult {
-  duplicatesRemoved: number;
-  elementsRemoved: number;
-  accessibilityJsonNulled: number;
+  framesDeleted: number;
+  elementsDeleted: number;
+  reachedFloor: boolean;
   durationMs: number;
 }
 

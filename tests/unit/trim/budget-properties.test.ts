@@ -25,9 +25,9 @@ import type { AppConfig, Logger } from '../../../src/types/app-config.js';
 
 vi.mock('../../../src/services/trim/screenpipe-trim-service.js', () => ({
   runTrimOnce: vi.fn().mockResolvedValue({
-    duplicatesRemoved: 0,
-    elementsRemoved: 0,
-    accessibilityJsonNulled: 0,
+    framesDeleted: 0,
+    elementsDeleted: 0,
+    reachedFloor: false,
     durationMs: 0
   })
 }));
@@ -87,9 +87,9 @@ describe('Property 6: Trim 调度时序恒不超过配置间隔', () => {
     vi.useFakeTimers();
     vi.mocked(mockRunTrimOnce).mockClear();
     vi.mocked(mockRunTrimOnce).mockResolvedValue({
-      duplicatesRemoved: 0,
-      elementsRemoved: 0,
-      accessibilityJsonNulled: 0,
+      framesDeleted: 0,
+      elementsDeleted: 0,
+      reachedFloor: false,
       durationMs: 0
     });
   });
@@ -129,7 +129,7 @@ describe('Property 6: Trim 调度时序恒不超过配置间隔', () => {
           const invocationTimes: number[] = [];
           vi.mocked(mockRunTrimOnce).mockImplementation(async () => {
             invocationTimes.push(Date.now());
-            return { duplicatesRemoved: 0, elementsRemoved: 0, accessibilityJsonNulled: 0, durationMs: 0 };
+            return { framesDeleted: 0, elementsDeleted: 0, reachedFloor: false, durationMs: 0 };
           });
 
           const config = makeConfig(intervalSeconds);
@@ -165,7 +165,7 @@ describe('Property 6: Trim 调度时序恒不超过配置间隔', () => {
     const invocationTimes: number[] = [];
     vi.mocked(mockRunTrimOnce).mockImplementation(async () => {
       invocationTimes.push(Date.now());
-      return { duplicatesRemoved: 0, elementsRemoved: 0, accessibilityJsonNulled: 0, durationMs: 0 };
+      return { framesDeleted: 0, elementsDeleted: 0, reachedFloor: false, durationMs: 0 };
     });
 
     const config = makeConfig(5);
@@ -199,12 +199,12 @@ describe('Property 6: Trim 调度时序恒不超过配置间隔', () => {
 
     vi.mocked(mockRunTrimOnce).mockImplementation(
       () =>
-        new Promise<{ duplicatesRemoved: number; elementsRemoved: number; accessibilityJsonNulled: number; durationMs: number }>((resolve) => {
+        new Promise<{ framesDeleted: number; elementsDeleted: number; reachedFloor: boolean; durationMs: number }>((resolve) => {
           concurrentCount++;
           maxConcurrent = Math.max(maxConcurrent, concurrentCount);
           resolveFirst = () => {
             concurrentCount--;
-            resolve({ duplicatesRemoved: 0, elementsRemoved: 0, accessibilityJsonNulled: 0, durationMs: 0 });
+            resolve({ framesDeleted: 0, elementsDeleted: 0, reachedFloor: false, durationMs: 0 });
           };
         })
     );
