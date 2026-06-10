@@ -65,10 +65,6 @@ function log(phase, message) {
 }
 
 // ── Pass_Fail_Summary ───────────────────────────────────────────────────────
-// Failure modes handled in this script (partition):
-//   'hermes-missing' | 'config-missing' | 'screenpipe-unhealthy' |
-//   'no-frames-captured' | 'mcp-service-down' | 'index-lag' |
-//   'llm-not-configured' | 'tool-call-failed' | 'empty-recall'
 
 function printPassFailSummary(summary) {
   console.log('');
@@ -458,7 +454,7 @@ async function main() {
       console.error('Configure a model/provider in ~/.hermes/config.yaml (credentials are user responsibility).');
     } else if (verdict.failureMode === 'empty-recall') {
       console.error('Tool ran but returned no content for the window — inspect the transcript and storage diagnostics.');
-    } else {
+    } else if (verdict.failureMode === 'tool-call-failed') {
       console.error('Hermes did not call recall successfully — inspect the transcript.');
     }
     process.exitCode = 1;
