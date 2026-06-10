@@ -1,14 +1,14 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-10
 ---
 
 # Configuration
 
 `canary-alpha-mcp` reads its runtime config from `~/.canary-alpha-mcp/config.yaml`.
 
-Use `npm run onboard` for the MCP-layer first-run path after your local Screenpipe API is already healthy. It creates or replaces the app config using the standard v1 defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `screenpipe-memory` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow.
+Use `npm run onboard` for the MCP-layer first-run path after your local Screenpipe API is already healthy. It creates or replaces the app config using the standard v1 defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `canary-alpha-mcp` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow.
 
 ## Config file location
 
@@ -66,7 +66,7 @@ After the local MCP service validates, `npm run onboard` merges this server into
 
 ```yaml
 mcp_servers:
-  screenpipe-memory:
+  canary-alpha-mcp:
     url: http://127.0.0.1:18765/mcp
     enabled: true
     tools:

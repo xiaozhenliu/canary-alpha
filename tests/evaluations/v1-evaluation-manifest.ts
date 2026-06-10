@@ -33,8 +33,8 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     ].join(' '),
     requiredTranscriptTokens: ['EVAL status-and-recent-activity PASS', 'http', '9101'],
     requiredToolMarkers: [
-      'preparing mcp_screenpipe_memory_v1_evals_internal_status',
-      'preparing mcp_screenpipe_memory_v1_evals_recall'
+      'preparing mcp_canary_alpha_mcp_v1_evals_internal_status',
+      'preparing mcp_canary_alpha_mcp_v1_evals_recall'
     ]
   },
   {
@@ -52,7 +52,7 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
       'End your final answer with exactly: EVAL retrieval-summary PASS'
     ].join(' '),
     requiredTranscriptTokens: ['EVAL retrieval-summary PASS', '9102', 'budget planning evaluation note'],
-    requiredToolMarkers: ['preparing mcp_screenpipe_memory_v1_evals_find']
+    requiredToolMarkers: ['preparing mcp_canary_alpha_mcp_v1_evals_find']
   },
   {
     id: 'find-then-refine',
@@ -71,8 +71,8 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
     ].join(' '),
     requiredTranscriptTokens: ['EVAL find-then-refine PASS', '9103'],
     requiredToolMarkers: [
-      'preparing mcp_screenpipe_memory_v1_evals_find',
-      'preparing mcp_screenpipe_memory_v1_evals_recall'
+      'preparing mcp_canary_alpha_mcp_v1_evals_find',
+      'preparing mcp_canary_alpha_mcp_v1_evals_recall'
     ]
   },
   {
@@ -96,8 +96,8 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
       'remember-eval-token'
     ],
     requiredToolMarkers: [
-      'preparing mcp_screenpipe_memory_v1_evals_memory_write',
-      'preparing mcp_screenpipe_memory_v1_evals_memory_read'
+      'preparing mcp_canary_alpha_mcp_v1_evals_memory_write',
+      'preparing mcp_canary_alpha_mcp_v1_evals_memory_read'
     ]
   },
   {
@@ -115,6 +115,6 @@ export const V1_EVALUATION_TASKS: V1EvaluationTask[] = [
       'End your final answer with exactly: EVAL failure-recovery PASS'
     ].join(' '),
     requiredTranscriptTokens: ['EVAL failure-recovery PASS', 'keyword', '9104'],
-    requiredToolMarkers: ['preparing mcp_screenpipe_memory_v1_evals_find']
+    requiredToolMarkers: ['preparing mcp_canary_alpha_mcp_v1_evals_find']
   }
 ];

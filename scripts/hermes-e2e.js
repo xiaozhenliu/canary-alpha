@@ -181,7 +181,7 @@ async function main() {
       'chat',
       '--quiet',
       '--max-turns', '3',
-      '--toolsets', 'screenpipe-memory',
+      '--toolsets', 'canary-alpha-mcp',
       '--query', 'Use only the configured MCP server. Call internal-status and report the server mode and retrieval status.'
     ], {
       cwd: repositoryRoot,
@@ -205,7 +205,7 @@ async function main() {
   const isLlmNotConfigured = LLM_NOT_CONFIGURED_SIGNALS.some(signal => transcriptLower.includes(signal));
 
   // Check for the tool marker
-  const TOOL_MARKER = 'preparing mcp_screenpipe_memory_internal_status';
+  const TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_internal_status';
   const toolMarkerFound = chatTranscript.includes(TOOL_MARKER);
 
   let outcome;

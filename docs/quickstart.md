@@ -1,7 +1,7 @@
 ---
-doc_version: 9
+doc_version: 10
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-10
 ---
 
 # Quickstart
@@ -83,7 +83,7 @@ npm run onboard
 - build the project
 - start the managed local HTTP service
 - run first-run MCP validation with `internal-status`, `recall`, and `find`
-- write or update `~/.hermes/config.yaml` with the `screenpipe-memory` MCP server
+- write or update `~/.hermes/config.yaml` with the `canary-alpha-mcp` MCP server
 
 ## 5. Confirm Hermes and the MCP endpoint
 
@@ -91,7 +91,7 @@ npm run onboard
 
 ```bash
 hermes mcp list
-hermes mcp test screenpipe-memory
+hermes mcp test canary-alpha-mcp
 ```
 
 The official local MCP endpoint is:
@@ -108,10 +108,10 @@ npm run service:status
 
 ## 6. Talk to the MCP server through Hermes
 
-Once `hermes mcp test screenpipe-memory` passes, try a bounded tool call through chat:
+Once `hermes mcp test canary-alpha-mcp` passes, try a bounded tool call through chat:
 
 ```bash
-hermes chat --toolsets screenpipe-memory --query "Call recall with the last hour as the from/to window and granularity=session, then summarize."
+hermes chat --toolsets canary-alpha-mcp --query "Call recall with the last hour as the from/to window and granularity=session, then summarize."
 ```
 
 If Hermes can list and test the MCP server but chat fails, the MCP setup is usually healthy and Hermes likely needs its own model/provider credentials configured.

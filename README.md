@@ -1,7 +1,7 @@
 ---
-doc_version: 17
+doc_version: 18
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-10
 ---
 
 # canary-alpha-mcp
@@ -101,7 +101,7 @@ For Hermes, onboarding writes the client configuration automatically. Verify it 
 
 ```bash
 hermes mcp list
-hermes mcp test screenpipe-memory
+hermes mcp test canary-alpha-mcp
 ```
 
 See [Generic MCP client setup](docs/clients/generic-mcp.md) and the [Hermes guide](docs/clients/hermes.md) for client-specific instructions.

@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-07-15
+last_updated: 2026-06-10
 ---
 
 # Hermes Quickstart
@@ -55,13 +55,13 @@ Onboarding:
 - builds the project
 - starts the managed local HTTP service
 - runs a first MCP validation against your local Screenpipe data
-- writes or updates `~/.hermes/config.yaml` with the `screenpipe-memory` MCP server entry
+- writes or updates `~/.hermes/config.yaml` with the `canary-alpha-mcp` MCP server entry
 - reports the detected Hermes version (or a warning if Hermes is not on `PATH`)
 
 Expected summary output includes:
 ```
 - Hermes MCP config: ~/.hermes/config.yaml
-- Hermes MCP server: screenpipe-memory
+- Hermes MCP server: canary-alpha-mcp
 - hermes version: <version>
 ```
 
@@ -115,7 +115,7 @@ hermes:verify passed.
 After onboarding, you can run Hermes chat directly:
 
 ```bash
-hermes chat --toolsets screenpipe-memory \
+hermes chat --toolsets canary-alpha-mcp \
   --query "Use only the configured MCP server. Call internal-status and report the server mode and retrieval status."
 ```
 
@@ -125,11 +125,11 @@ Other useful queries (all tools are members of the registered tool surface):
 
 ```bash
 # Recall recent activity
-hermes chat --toolsets screenpipe-memory \
+hermes chat --toolsets canary-alpha-mcp \
   --query "Call recall over the last 10 minutes with granularity session and summarize what you see."
 
 # Search for specific content
-hermes chat --toolsets screenpipe-memory \
+hermes chat --toolsets canary-alpha-mcp \
   --query "Use find with query 'meeting notes' in hybrid mode and report the top result."
 ```
 
@@ -172,8 +172,8 @@ npm run service:logs
 
 **Action**:
 1. Inspect the transcript at the path printed in the summary.
-2. Check that `screenpipe-memory` is listed in `hermes mcp list`.
-3. Run `hermes mcp test screenpipe-memory` to verify tool discovery.
+2. Check that `canary-alpha-mcp` is listed in `hermes mcp list`.
+3. Run `hermes mcp test canary-alpha-mcp` to verify tool discovery.
 4. See [docs/clients/generic-mcp.md](./generic-mcp.md) for the full tool surface.
 5. Re-run `npm run hermes:verify`.
 

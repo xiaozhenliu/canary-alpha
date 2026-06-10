@@ -36,7 +36,7 @@ tmp/
 # Local runtime state
 .worktrees/
 .canary-alpha-mcp/
-.canary-alpha-mcp/
+.screenpipe-memory-mcp/ # legacy local data dir (pre-rename)
 .codex-review/
 .claude/
 .mcp.json

@@ -163,7 +163,7 @@ describe('onboarding config helpers', () => {
     });
   });
 
-  it('updates an existing Hermes screenpipe-memory entry idempotently', () => {
+  it('updates an existing Hermes canary-alpha-mcp entry idempotently', () => {
     const merged = mergeHermesConfig({
       mcp_servers: {
         [DEFAULT_HERMES_SERVER_NAME]: {
@@ -197,7 +197,7 @@ describe('onboarding config helpers', () => {
       serverName: DEFAULT_HERMES_SERVER_NAME,
       endpoint: 'http://127.0.0.1:18765/mcp'
     });
-    await expect(readFile(paths.configPath, 'utf8')).resolves.toContain('screenpipe-memory');
+    await expect(readFile(paths.configPath, 'utf8')).resolves.toContain('canary-alpha-mcp');
   });
 
   it('fails invalid Hermes YAML without overwriting the original file', async () => {

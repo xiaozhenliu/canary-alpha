@@ -465,8 +465,8 @@ async function main() {
   console.log('\nNext commands:');
   console.log('1. npm run service:status');
   console.log('2. hermes mcp list');
-  console.log('3. hermes mcp test screenpipe-memory');
-  console.log('4. hermes chat --toolsets screenpipe-memory --query "Call recall over the last 10 minutes and summarize what you see."');
+  console.log('3. hermes mcp test canary-alpha-mcp');
+  console.log('4. hermes chat --toolsets canary-alpha-mcp --query "Call recall over the last 10 minutes and summarize what you see."');
   console.log('5. npm run hermes:verify   ← smoke gate: confirms real tool call round-trip');
 }
 

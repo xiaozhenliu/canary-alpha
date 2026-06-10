@@ -25,7 +25,7 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'evaluations', 'v1-hermes');
 const hermesCommand = 'hermes';
-const hermesServerName = 'screenpipe-memory-v1-evals';
+const hermesServerName = 'canary-alpha-mcp-v1-evals';
 
 function fail(message, code = 1) {
   console.error(message);
@@ -82,7 +82,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
@@ -94,7 +94,7 @@ function buildFixtureRecords() {
 }
 
 async function setupControlledEnvironment() {
-  const homeDir = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-'));
+  const homeDir = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-'));
   const port = 8791;
 
   const screenpipe = await startScreenpipeStub({

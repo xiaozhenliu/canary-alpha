@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-10
 ---
 
 # Generic MCP Client Setup
@@ -120,7 +120,7 @@ If you are validating Hermes specifically after onboarding, run:
 
 ```bash
 hermes mcp list
-hermes mcp test screenpipe-memory
+hermes mcp test canary-alpha-mcp
 ```
 
 For repeatable release evidence, also run:
