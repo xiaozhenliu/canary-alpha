@@ -138,4 +138,10 @@ describe('classifyHermesOutcome', () => {
     expect(classifyHermesOutcome({ transcript, chatFailed: false }))
       .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
   });
+
+  it('fails empty-recall on Chinese empty-result phrasing', () => {
+    const transcript = `${RECALL_TOOL_MARKER}\nrecall 在该时间窗内没有找到任何记录。`;
+    expect(classifyHermesOutcome({ transcript, chatFailed: false }))
+      .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+  });
 });

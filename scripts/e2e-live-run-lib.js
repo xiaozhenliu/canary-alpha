@@ -48,7 +48,7 @@ export function classifyHermesOutcome({ transcript, chatFailed }) {
   if (!transcript.includes(RECALL_TOOL_MARKER) || chatFailed) {
     return { outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' };
   }
-  if (EMPTY_RECALL_SIGNALS.some((signal) => lower.includes(signal.toLowerCase()))) {
+  if (EMPTY_RECALL_SIGNALS.some((signal) => lower.includes(signal))) {
     return { outcome: 'fail:empty-recall', failureMode: 'empty-recall' };
   }
   return { outcome: 'pass', failureMode: 'none' };
