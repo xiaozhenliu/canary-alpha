@@ -16,7 +16,7 @@ describe('managed service runtime config', () => {
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret',
       IGNORED_FLAG: 'nope'
     });
 
@@ -33,14 +33,14 @@ ${environmentXml}
 
     expect(parsedEnvironment).toEqual({
       HOME: '/Users/tester',
-      SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE: '1',
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '8765',
+      CANARY_ALPHA_MCP_MANAGED_SERVICE: '1',
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '8765',
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret'
     });
   });
 
@@ -50,7 +50,7 @@ ${environmentXml}
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret',
       SCREENPIPE_ENABLE_RECORDING: '1',
       SCREENPIPE_ENABLE_SCREEN_CAPTURE: '1',
       SCREENPIPE_RECORDER_MODE: 'continuous',
@@ -64,7 +64,7 @@ ${environmentXml}
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret'
     });
 
     const environmentXml = renderManagedServiceEnvironmentXml('/Users/tester', mixedEnvironment, {
@@ -85,14 +85,14 @@ ${environmentXml}
 
     expect(parsedEnvironment).toEqual({
       HOME: '/Users/tester',
-      SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE: '1',
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
+      CANARY_ALPHA_MCP_MANAGED_SERVICE: '1',
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '18765',
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret'
     });
     expect(parsedEnvironment.SCREENPIPE_ENABLE_RECORDING).toBeUndefined();
     expect(parsedEnvironment.SCREENPIPE_ENABLE_SCREEN_CAPTURE).toBeUndefined();
@@ -108,9 +108,9 @@ ${environmentXml}
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret',
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '0.0.0.0',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '29999',
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret',
+      CANARY_ALPHA_MCP_SERVER_HOST: '0.0.0.0',
+      CANARY_ALPHA_MCP_SERVER_PORT: '29999',
       DEBUG: 'screenpipe:*',
       NODE_OPTIONS: '--inspect',
       PATH: '/tmp/fake-bin',
@@ -139,14 +139,14 @@ ${environmentXml}
 
     expect(parsedEnvironment).toEqual({
       HOME: '/Users/tester',
-      SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE: '1',
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
+      CANARY_ALPHA_MCP_MANAGED_SERVICE: '1',
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '18765',
       MCP_PORT: '18765',
       MCP_LOG_LEVEL: 'debug',
       SCREENPIPE_BASE_URL: 'http://127.0.0.1:3031',
       SCREENPIPE_API_KEY: 'screenpipe-secret',
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'auth-secret'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'auth-secret'
     });
     expect(parsedEnvironment.DEBUG).toBeUndefined();
     expect(parsedEnvironment.NODE_OPTIONS).toBeUndefined();
@@ -165,8 +165,8 @@ ${environmentXml}
     };
 
     const runningServer = resolveManagedServiceServer(configuredServer, {
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765'
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '18765'
     });
 
     expect(runningServer).toEqual({
@@ -184,8 +184,8 @@ ${environmentXml}
     };
 
     const runningServer = resolveManagedServiceServer(configuredServer, {
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '18765',
       MCP_PORT: '19999'
     });
 
@@ -204,8 +204,8 @@ ${environmentXml}
     };
 
     const runningServer = resolveManagedServiceServer(configuredServer, {
-      SCREENPIPE_MEMORY_MCP_SERVER_HOST: '127.0.0.1',
-      SCREENPIPE_MEMORY_MCP_SERVER_PORT: '18765',
+      CANARY_ALPHA_MCP_SERVER_HOST: '127.0.0.1',
+      CANARY_ALPHA_MCP_SERVER_PORT: '18765',
       MCP_PORT: 'broken'
     });
 

@@ -379,8 +379,8 @@ async function runFirstValidation(configPath) {
   const parsed = YAML.parse(await readFile(configPath, 'utf8')) ?? {};
   const host = parsed?.server?.host ?? '127.0.0.1';
   const port = parsed?.server?.port ?? 18765;
-  const authToken = typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-    ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+  const authToken = typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+    ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
     : (typeof parsed?.server?.authToken === 'string' && parsed.server.authToken.length > 0 ? parsed.server.authToken : undefined);
   const endpoint = `http://${host}:${port}/mcp`;
   const client = createClient();

@@ -64,8 +64,8 @@ function clearRoutineNoiseEnv() {
 clearRoutineNoiseEnv();
 
 const originalHome = process.env.HOME;
-const originalManagedServiceFlag = process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
-const originalManagedServicePort = process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT;
+const originalManagedServiceFlag = process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
+const originalManagedServicePort = process.env.CANARY_ALPHA_MCP_SERVER_PORT;
 const originalMcpPort = process.env.MCP_PORT;
 const originalScreenpipeBaseUrl = process.env.SCREENPIPE_BASE_URL;
 const originalScreenpipeApiKey = process.env.SCREENPIPE_API_KEY;
@@ -78,15 +78,15 @@ afterEach(() => {
   }
 
   if (originalManagedServiceFlag === undefined) {
-    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+    delete process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
   } else {
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = originalManagedServiceFlag;
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = originalManagedServiceFlag;
   }
 
   if (originalManagedServicePort === undefined) {
-    delete process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT;
+    delete process.env.CANARY_ALPHA_MCP_SERVER_PORT;
   } else {
-    process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT = originalManagedServicePort;
+    process.env.CANARY_ALPHA_MCP_SERVER_PORT = originalManagedServicePort;
   }
 
   if (originalMcpPort === undefined) {
@@ -310,7 +310,7 @@ describe('loadConfig env overrides', () => {
     ].join('\n'), 'utf8');
 
     process.env.HOME = homeDir;
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = '1';
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = '1';
     process.env.SCREENPIPE_BASE_URL = 'http://127.0.0.1:3031';
 
     const config = await loadConfig();
@@ -350,7 +350,7 @@ describe('loadConfig env overrides', () => {
     ].join('\n'), 'utf8');
 
     process.env.HOME = homeDir;
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = '1';
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = '1';
     process.env.SCREENPIPE_API_KEY = 'env-token';
 
     const config = await loadConfig();
@@ -398,7 +398,7 @@ describe('loadConfig env overrides', () => {
     expect(config.screenpipe.apiKey).toBe('config-token');
   });
 
-  it('ignores stale SCREENPIPE_MEMORY_MCP_SERVER_PORT outside managed service runs', async () => {
+  it('ignores stale CANARY_ALPHA_MCP_SERVER_PORT outside managed service runs', async () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-stale-frozen-port-'));
     const appDir = join(homeDir, APP_DIRECTORY_NAME);
     const configPath = join(appDir, 'config.yaml');
@@ -429,7 +429,7 @@ describe('loadConfig env overrides', () => {
     ].join('\n'), 'utf8');
 
     process.env.HOME = homeDir;
-    process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT = 'not-a-port';
+    process.env.CANARY_ALPHA_MCP_SERVER_PORT = 'not-a-port';
 
     const config = await loadConfig();
 
@@ -467,8 +467,8 @@ describe('loadConfig env overrides', () => {
     ].join('\n'), 'utf8');
 
     process.env.HOME = homeDir;
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = '1';
-    process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT = '18765';
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = '1';
+    process.env.CANARY_ALPHA_MCP_SERVER_PORT = '18765';
     process.env.MCP_PORT = 'broken';
 
     const config = await loadConfig({ mode: 'http' });

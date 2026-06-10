@@ -1,14 +1,14 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-05-29
+last_updated: 2026-06-10
 ---
 
-# screenpipe-memory-mcp 架构文档
+# canary-alpha-mcp 架构文档
 
 ## 1. 概览与核心价值
 
-`screenpipe-memory-mcp`（包名 `canary-alpha-mcp`）是一个**本地优先的独立 MCP server**。它把 Screenpipe 的屏幕记忆能力——逐帧 accessibility（AX）/OCR 捕获、工作活动会话、长期记忆、文件分析、隐私控制——封装成一组标准 MCP 工具，供任意 MCP 兼容 agent（Claude Code、Claude Desktop、Hermes、Cursor、OpenClaw 等）直接调用。
+`canary-alpha-mcp`（包名 `canary-alpha-mcp`）是一个**本地优先的独立 MCP server**。它把 Screenpipe 的屏幕记忆能力——逐帧 accessibility（AX）/OCR 捕获、工作活动会话、长期记忆、文件分析、隐私控制——封装成一组标准 MCP 工具，供任意 MCP 兼容 agent（Claude Code、Claude Desktop、Hermes、Cursor、OpenClaw 等）直接调用。
 
 核心约束决定了它的形态：
 
@@ -76,7 +76,7 @@ last_updated: 2026-05-29
 
 `serve` 路径下，`createApp` 完成组合根装配后，`main` 安装运行时守卫与信号处理器（SIGINT→130、SIGTERM→143、exit，均幂等调用 `runtimeGuard.releaseSync()`），调用 `ensureRebuildLockNotHeld`、`registerRuntimeProcess`、`startIndexingPoller`，再按 `config.server.mode` 分派到 `startHttpTransport` 或 `startStdioTransport`。
 
-**Managed 服务与绑定守卫**：当 `SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE === '1'` 时，`create-app.ts` 的守卫强制 host 必须为 `127.0.0.1`，否则启动失败；logger 同时改为写文件并静默 stderr。launchd 集成解析 `~/Library/LaunchAgents/com.canary-alpha-mcp.plist`。
+**Managed 服务与绑定守卫**：当 `CANARY_ALPHA_MCP_MANAGED_SERVICE === '1'` 时，`create-app.ts` 的守卫强制 host 必须为 `127.0.0.1`，否则启动失败；logger 同时改为写文件并静默 stderr。launchd 集成解析 `~/Library/LaunchAgents/com.canary-alpha-mcp.plist`。
 
 **rebuild-index 离线恢复路径**：与传输层独立。它先 `acquireRebuildLock` 取文件锁，再 `ensureRecoveryTargetIsOffline`——通过 `@modelcontextprotocol/client` 探测 `http://host:port/mcp` 并调用 `internal-status`（匹配 `status==ok && mode==http && configFile`），同时用 `ps` 扫描 legacy 进程，确认没有 live/managed/legacy server 仍持有检索 artifacts；随后用临时 `vectorStorePath` 重放全量 backlog，最后把重建的 `vector-store.json` / `retrieval-checkpoint.json` 原子换入（带 `.bak` 回滚），打印 JSON 恢复报告。
 
@@ -146,7 +146,7 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 `src/config/load-config.ts` 的 `loadConfig(overrides?)` 是唯一加载入口：读取 `~/.canary-alpha-mcp/config.yaml`（`YAML.parse`，文件缺失即 ENOENT 时回退空对象），再用 `appConfigSchema.safeParse` 校验，校验失败抛出带文件路径的明确错误。生效优先级（高→低）：
 
 1. **代码 overrides**（`createApp` 传入的 `mode` / `port` / `logLevel` / `vectorStorePath`，主要供 CLI 与测试）
-2. **环境变量**：`MCP_MODE`、`MCP_PORT`（经 `parseOptionalPort` 校验）、`SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE`
+2. **环境变量**：`MCP_MODE`、`MCP_PORT`（经 `parseOptionalPort` 校验）、`CANARY_ALPHA_MCP_MANAGED_SERVICE`
 3. **`config.yaml` 文件值**
 4. **zod schema 默认值**
 

@@ -46,7 +46,7 @@ export async function startHttpServer(port = 8765, env: NodeJS.ProcessEnv = {}):
     env: {
       ...process.env,
       MCP_PORT: String(port),
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN ?? TEST_HTTP_AUTH_TOKEN,
+      CANARY_ALPHA_MCP_AUTH_TOKEN: env.CANARY_ALPHA_MCP_AUTH_TOKEN ?? TEST_HTTP_AUTH_TOKEN,
       ...env
     },
     stdio: ['pipe', 'pipe', 'pipe']

@@ -953,7 +953,7 @@ describe('rebuild-index acceptance', () => {
         ...process.env,
         HOME: homeDir,
         MCP_PORT: String(managedPort),
-        SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
+        CANARY_ALPHA_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -1354,11 +1354,11 @@ describe('rebuild-index acceptance', () => {
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
       '    <dict>',
-      '      <key>SCREENPIPE_MEMORY_MCP_SERVER_HOST</key>',
+      '      <key>CANARY_ALPHA_MCP_SERVER_HOST</key>',
       '      <string>127.0.0.1</string>',
-      '      <key>SCREENPIPE_MEMORY_MCP_SERVER_PORT</key>',
+      '      <key>CANARY_ALPHA_MCP_SERVER_PORT</key>',
       `      <string>${managedPort}</string>`,
-      '      <key>SCREENPIPE_MEMORY_MCP_AUTH_TOKEN</key>',
+      '      <key>CANARY_ALPHA_MCP_AUTH_TOKEN</key>',
       `      <string>${TEST_HTTP_AUTH_TOKEN}</string>`,
       '    </dict>',
       '  </dict>',
@@ -1371,7 +1371,7 @@ describe('rebuild-index acceptance', () => {
         ...process.env,
         HOME: homeDir,
         MCP_PORT: String(managedPort),
-        SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
+        CANARY_ALPHA_MCP_AUTH_TOKEN: TEST_HTTP_AUTH_TOKEN
       },
       stdio: ['ignore', 'pipe', 'pipe']
     });

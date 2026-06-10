@@ -11,7 +11,7 @@ import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 const originalHome = process.env.HOME;
-const originalManagedServiceFlag = process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+const originalManagedServiceFlag = process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
 
 afterEach(async () => {
   if (originalHome === undefined) {
@@ -21,9 +21,9 @@ afterEach(async () => {
   }
 
   if (originalManagedServiceFlag === undefined) {
-    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+    delete process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
   } else {
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = originalManagedServiceFlag;
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = originalManagedServiceFlag;
   }
 
   while (cleanup.length > 0) {
@@ -79,7 +79,7 @@ describe('managed service host safety', () => {
     await writeFile(configPath, `${unsafeConfig}\n`, 'utf8');
 
     process.env.HOME = homeDir;
-    process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE = '1';
+    process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE = '1';
 
     await expect(createApp({ mode: 'http' })).rejects.toThrow(
       'Managed HTTP service must bind to 127.0.0.1 (found 0.0.0.0).'
@@ -128,7 +128,7 @@ describe('managed service host safety', () => {
     await writeFile(configPath, `${unsafeConfig}\n`, 'utf8');
 
     process.env.HOME = homeDir;
-    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
+    delete process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
 
     await expect(createApp({ mode: 'http' })).rejects.toThrow(
       'HTTP transport must bind to 127.0.0.1 (found 0.0.0.0).'
@@ -177,11 +177,11 @@ describe('managed service host safety', () => {
     await writeFile(configPath, `${noAuthConfig}\n`, 'utf8');
 
     process.env.HOME = homeDir;
-    delete process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE;
-    delete process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN;
+    delete process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE;
+    delete process.env.CANARY_ALPHA_MCP_AUTH_TOKEN;
 
     await expect(createApp({ mode: 'http' })).rejects.toThrow(
-      'HTTP transport requires server.authToken or SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.'
+      'HTTP transport requires server.authToken or CANARY_ALPHA_MCP_AUTH_TOKEN.'
     );
   });
 });

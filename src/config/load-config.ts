@@ -56,16 +56,16 @@ export async function loadConfig(overrides?: {
   }
 
   const envMode = process.env.MCP_MODE;
-  const isManagedService = process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE === '1';
+  const isManagedService = process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE === '1';
   const envPort = isManagedService
     ? parseOptionalPortOrUndefined(process.env.MCP_PORT)
     : parseOptionalPort(process.env.MCP_PORT);
   const envLogLevel = process.env.MCP_LOG_LEVEL;
   const envScreenpipeBaseUrl = process.env.SCREENPIPE_BASE_URL;
   const envScreenpipeApiKey = process.env.SCREENPIPE_API_KEY;
-  const envHttpAuthToken = process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN;
+  const envHttpAuthToken = process.env.CANARY_ALPHA_MCP_AUTH_TOKEN;
   const managedServicePort = isManagedService
-    ? parseOptionalPort(process.env.SCREENPIPE_MEMORY_MCP_SERVER_PORT)
+    ? parseOptionalPort(process.env.CANARY_ALPHA_MCP_SERVER_PORT)
     : undefined;
   const screenpipeBaseUrl = isManagedService
     && envScreenpipeBaseUrl

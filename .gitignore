@@ -35,7 +35,7 @@ tmp/
 
 # Local runtime state
 .worktrees/
-.screenpipe-memory-mcp/
+.canary-alpha-mcp/
 .canary-alpha-mcp/
 .codex-review/
 .claude/
