@@ -148,3 +148,27 @@ from Git history and keep each entry scoped to:
 **Verification**
 
 - Validated the public release path and foundational MCP workflows.
+
+## 2026-06-10 — e2e:live first successful live smoke
+
+`npm run e2e:live -- --duration 1m` 真机冒烟首次通过（屏幕解锁、依赖复用模式）：
+
+```
+=== Pass_Fail_Summary ===
+outcome: pass
+failureMode: none
+hermesVersion: Hermes Agent v0.16.0 (2026.6.5) · upstream e2cc24e3
+mcpEndpoint: http://127.0.0.1:18765/mcp
+recordWindow: 2026-06-10T09:45:49.693Z .. 2026-06-10T09:46:49.698Z
+framesInWindow: 20
+=========================
+```
+
+人工确认：Hermes 回答准确描述了录制窗口内的真实屏幕内容（终端中的 canary-alpha-mcp 工作、Firefox/Chrome 浏览页面）。
+
+冒烟过程中发现并修复的集成问题：MCP probe 缺 Bearer/Accept 头、service:start 子进程缺 token env、Screenpipe API auth 未透传、零帧判定过早（落库延迟）、Hermes --quiet 吞掉工具 marker。
+
+遗留 follow-up（未修）：
+- recall 工具全天窗口查询时输出校验报错：`activeSeconds` schema 为 int 但实际值为小数（src/mcp/tools recall 输出 schema bug）
+- hermes chat 调 internal-status 报 `MCP call failed: RuntimeError: Invalid struct...`（Hermes 侧结构解析，待排查）
+- scripts/hermes-e2e.js 仍使用 --quiet + marker 检测，在 Hermes v0.16 下会与本次相同方式误判，需要同样的修复
