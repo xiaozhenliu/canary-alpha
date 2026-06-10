@@ -55,6 +55,8 @@ const state = {
   startedMcpService: false
 };
 
+let screenpipeSettings = { baseUrl: SCREENPIPE_BASE_URL, apiKey: undefined };
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -130,9 +132,15 @@ process.on('SIGTERM', () => {
 
 // ── Probes ─────────────────────────────────────────────────────────────────
 
+function buildScreenpipeHeaders() {
+  return screenpipeSettings.apiKey !== undefined
+    ? { authorization: `Bearer ${screenpipeSettings.apiKey}` }
+    : {};
+}
+
 async function isScreenpipeHealthy() {
   try {
-    const response = await fetch(`${SCREENPIPE_BASE_URL}/health`, { signal: AbortSignal.timeout(5_000) });
+    const response = await fetch(`${screenpipeSettings.baseUrl}/health`, { headers: buildScreenpipeHeaders(), signal: AbortSignal.timeout(5_000) });
     return response.ok;
   } catch {
     return false;
@@ -140,14 +148,14 @@ async function isScreenpipeHealthy() {
 }
 
 async function countFramesSince(startIso, endIso) {
-  const url = new URL(`${SCREENPIPE_BASE_URL}/search`);
+  const url = new URL(`${screenpipeSettings.baseUrl}/search`);
   url.searchParams.set('limit', '1');
   url.searchParams.set('start_time', startIso);
   if (endIso !== undefined) {
     url.searchParams.set('end_time', endIso);
   }
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const response = await fetch(url, { headers: buildScreenpipeHeaders(), signal: AbortSignal.timeout(10_000) });
     if (!response.ok) {
       return null;
     }
@@ -159,6 +167,17 @@ async function countFramesSince(startIso, endIso) {
   } catch {
     return null;
   }
+}
+
+async function loadScreenpipeSettings() {
+  const configPath = join(appDirectory, 'config.yaml');
+  const { default: YAML } = await import('yaml');
+  const raw = YAML.parse(await readFile(configPath, 'utf8')) ?? {};
+  const screenpipe = raw?.screenpipe ?? {};
+  return {
+    baseUrl: typeof screenpipe.url === 'string' && screenpipe.url.length > 0 ? screenpipe.url : SCREENPIPE_BASE_URL,
+    apiKey: typeof screenpipe.apiKey === 'string' && screenpipe.apiKey.length > 0 ? screenpipe.apiKey : undefined
+  };
 }
 
 async function loadConfiguredServer() {
@@ -246,6 +265,8 @@ async function main() {
   }
 
   log('phase0', `duration=${options.durationMs / 1_000}s indexTimeout=${options.indexTimeoutMs / 1_000}s hermes=${hermesVersion}`);
+
+  screenpipeSettings = await loadScreenpipeSettings();
 
   // Phase 1: Screenpipe (hybrid start)
   if (await isScreenpipeHealthy()) {
