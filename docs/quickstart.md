@@ -1,5 +1,5 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
 last_updated: 2026-06-10
 ---
@@ -124,6 +124,7 @@ It is intentionally different from the controlled-real evaluation harness:
 
 - Quickstart: proves the local dependency chain and MCP service are working on this machine now.
 - `npm run test:evaluations:v1`: runs the controlled-real Hermes evaluation layer for repeatable evidence and fixture-bounded validation.
+- `npm run e2e:live -- --duration 10m`: one-command live verification — starts any missing local dependencies, records for the given duration, waits for index readiness, then asks Hermes to summarize what was actually captured in that window.
 
 Use quickstart to get the system working locally. Use the evaluation harness when you need repeatable validation artifacts.
 

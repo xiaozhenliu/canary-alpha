@@ -25,6 +25,7 @@
     "service:logs": "node scripts/service-logs.js",
     "smoke:http": "vitest run tests/acceptance/http-smoke.test.ts",
     "hermes:verify": "node scripts/hermes-e2e.js",
+    "e2e:live": "node scripts/e2e-live-run.js",
     "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
     "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
     "linear": "node --import tsx scripts/linear.ts",
