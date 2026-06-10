@@ -1,7 +1,7 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-10
 ---
 
 # Governed Documents
@@ -44,6 +44,7 @@ Excluded from governance:
 | `docs/delivery/hermes.md` | Operators validating Hermes interoperability | Hermes-specific verification boundary | Hermes smoke flow, evidence files, failure modes | adequate | none |
 | `docs/documentation/governed-documents.md` | Maintainers and contributors | Canonical documentation governance inventory and scope definition | Governed set, metadata scope, state vocabulary, maintenance rule | adequate | none |
 | `docs/engineering/code-standards.md` | Maintainers and contributors | Engineering rules for the v1 codebase | Layering boundaries, testing standards, result-shaping rules | adequate | none |
+| `docs/engineering/tech-debt.md` | Maintainers | Structural technical debt register | Identified debt items with affected files, baseline commit, trigger conditions, and disposition guidance | adequate | none |
 | `docs/documentation/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, validation rules | adequate | none |
 | `docs/documentation/mcp-tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input shape, output expectations, usage notes | adequate | none |
 | `docs/clients/generic-mcp.md` | Client integrators | Generic MCP client setup | HTTP endpoint usage, transport expectations, onboarding and verification path | adequate | none |
