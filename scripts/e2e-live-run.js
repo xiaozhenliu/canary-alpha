@@ -270,7 +270,7 @@ async function main() {
 
   // Phase 1: Screenpipe (hybrid start)
   if (await isScreenpipeHealthy()) {
-    log('phase1', 'Reusing already-healthy Screenpipe at localhost:3030 (will NOT stop it on exit).');
+    log('phase1', `Reusing already-healthy Screenpipe at ${screenpipeSettings.baseUrl} (will NOT stop it on exit).`);
   } else {
     log('phase1', 'Screenpipe not healthy — starting CLI recorder via screenpipe-safe-record with --use-all-monitors.');
     state.screenpipeChild = spawn(
@@ -400,6 +400,7 @@ async function main() {
       countFramesSince(recordStartIso, recordEndIso)
     ]);
     lastWatermark = watermark;
+    lastWindowCount = currentWindowCount ?? lastWindowCount;
     const verdict = evaluateIndexReadiness({
       lastExtractedAt: watermark,
       recordEndIso,
@@ -413,7 +414,6 @@ async function main() {
       break;
     }
     previousWindowCount = currentWindowCount ?? previousWindowCount;
-    lastWindowCount = currentWindowCount ?? lastWindowCount;
     await sleep(INDEX_POLL_INTERVAL_MS);
   }
   if (!indexReady) {
@@ -493,7 +493,7 @@ async function main() {
     } else if (verdict.failureMode === 'empty-recall') {
       console.error('Tool ran but returned no content for the window — inspect the transcript and storage diagnostics.');
     } else if (verdict.failureMode === 'tool-call-failed') {
-      console.error('Hermes did not call recall successfully — inspect the transcript.');
+      console.error('Hermes did not call recall/find successfully — inspect the transcript.');
     }
     process.exitCode = 1;
     return;
