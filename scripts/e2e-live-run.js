@@ -52,8 +52,7 @@ const INDEX_POLL_INTERVAL_MS = 10_000;
 const state = {
   screenpipeChild: null,
   startedScreenpipe: false,
-  startedMcpService: false,
-  cleanedUp: false
+  startedMcpService: false
 };
 
 function sleep(ms) {
@@ -87,11 +86,14 @@ function fail(failureMode, summaryExtras, lines) {
 
 // ── Cleanup ────────────────────────────────────────────────────────────────
 
-async function cleanup() {
-  if (state.cleanedUp) {
-    return;
-  }
-  state.cleanedUp = true;
+let cleanupPromise = null;
+
+function cleanup() {
+  cleanupPromise = cleanupPromise ?? performCleanup();
+  return cleanupPromise;
+}
+
+async function performCleanup() {
   const plan = buildCleanupPlan({
     startedScreenpipe: state.startedScreenpipe,
     startedMcpService: state.startedMcpService
@@ -99,7 +101,11 @@ async function cleanup() {
   for (const action of plan) {
     if (action === 'stop-screenpipe' && state.screenpipeChild !== null) {
       log('cleanup', 'Stopping script-started Screenpipe recorder.');
-      state.screenpipeChild.kill('SIGTERM');
+      try {
+        process.kill(-state.screenpipeChild.pid, 'SIGTERM');
+      } catch {
+        state.screenpipeChild.kill('SIGTERM');
+      }
     }
     if (action === 'stop-mcp-service') {
       log('cleanup', 'Stopping script-started MCP service.');
@@ -116,10 +122,10 @@ async function cleanup() {
 }
 
 process.on('SIGINT', () => {
-  void cleanup().then(() => process.exit(130));
+  void cleanup().catch(() => {}).then(() => process.exit(130));
 });
 process.on('SIGTERM', () => {
-  void cleanup().then(() => process.exit(143));
+  void cleanup().catch(() => {}).then(() => process.exit(143));
 });
 
 // ── Probes ─────────────────────────────────────────────────────────────────
@@ -195,7 +201,8 @@ async function readExtractionWatermark(server) {
     const text = result?.content?.find((entry) => entry.type === 'text')?.text;
     const parsed = result?.structuredContent ?? (typeof text === 'string' ? JSON.parse(text) : null);
     return parsed?.extraction?.lastExtractedAt ?? null;
-  } catch {
+  } catch (error) {
+    console.warn(`[phase4] readExtractionWatermark failed: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   } finally {
     await client.close().catch(() => {});
@@ -244,7 +251,7 @@ async function main() {
     state.screenpipeChild = spawn(
       process.execPath,
       [join(scriptDirectory, 'screenpipe-safe-record.js'), '--use-all-monitors'],
-      { cwd: repositoryRoot, stdio: ['ignore', 'inherit', 'inherit'] }
+      { cwd: repositoryRoot, stdio: ['ignore', 'inherit', 'inherit'], detached: true }
     );
     state.startedScreenpipe = true;
     const deadline = Date.now() + SCREENPIPE_START_TIMEOUT_MS;
