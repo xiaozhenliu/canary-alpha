@@ -173,11 +173,14 @@ async function loadConfiguredServer() {
   return resolveManagedServiceServer(configuredServer, managedEnvironment);
 }
 
-async function isMcpReachable(host, port) {
+async function isMcpReachable(server) {
   try {
-    const response = await fetch(`http://${host}:${port}/mcp`, {
+    const response = await fetch(`http://${server.host}:${server.port}/mcp`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(server.authToken !== undefined ? { authorization: `Bearer ${server.authToken}` } : {})
+      },
       body: JSON.stringify({ jsonrpc: '2.0', id: 'e2e-live-health', method: 'ping' }),
       signal: AbortSignal.timeout(5_000)
     });
@@ -289,12 +292,19 @@ async function main() {
   }
   const endpoint = `http://${server.host}:${server.port}/mcp`;
 
-  if (await isMcpReachable(server.host, server.port)) {
+  if (await isMcpReachable(server)) {
     log('phase2', `Reusing reachable MCP service at ${endpoint}.`);
   } else {
     log('phase2', `MCP service not reachable — running npm run service:start.`);
     try {
-      await execFileAsync('npm', ['run', 'service:start'], { cwd: repositoryRoot, timeout: MCP_START_TIMEOUT_MS });
+      await execFileAsync('npm', ['run', 'service:start'], {
+        cwd: repositoryRoot,
+        timeout: MCP_START_TIMEOUT_MS,
+        env: {
+          ...process.env,
+          ...(server.authToken !== undefined ? { CANARY_ALPHA_MCP_AUTH_TOKEN: server.authToken } : {})
+        }
+      });
     } catch (error) {
       fail('mcp-service-down', { hermesVersion, mcpEndpoint: endpoint }, [
         `service:start failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -308,7 +318,7 @@ async function main() {
     let reachable = false;
     while (Date.now() < deadline) {
       await sleep(2_000);
-      if (await isMcpReachable(server.host, server.port)) {
+      if (await isMcpReachable(server)) {
         reachable = true;
         break;
       }
