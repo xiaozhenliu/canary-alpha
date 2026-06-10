@@ -33,6 +33,27 @@ export function parseLiveRunArgs(argv = []) {
   return options;
 }
 
+// Signal lists mirror hermes-e2e.js so the two verification scripts agree on
+// failure-mode vocabulary.
+const LLM_NOT_CONFIGURED_SIGNALS = ['no model', 'provider not configured', 'model not set', 'no provider'];
+const EMPTY_RECALL_SIGNALS = ['no results found', 'no records found', 'nothing was captured', '没有找到', '未找到任何'];
+
+export const RECALL_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_recall';
+
+export function classifyHermesOutcome({ transcript, chatFailed }) {
+  const lower = transcript.toLowerCase();
+  if (LLM_NOT_CONFIGURED_SIGNALS.some((signal) => lower.includes(signal))) {
+    return { outcome: 'fail:llm-not-configured', failureMode: 'llm-not-configured' };
+  }
+  if (!transcript.includes(RECALL_TOOL_MARKER) || chatFailed) {
+    return { outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' };
+  }
+  if (EMPTY_RECALL_SIGNALS.some((signal) => lower.includes(signal.toLowerCase()))) {
+    return { outcome: 'fail:empty-recall', failureMode: 'empty-recall' };
+  }
+  return { outcome: 'pass', failureMode: 'none' };
+}
+
 export function evaluateIndexReadiness({ lastExtractedAt, recordEndIso, previousWindowCount, currentWindowCount }) {
   const endMs = Date.parse(recordEndIso);
   if (Number.isNaN(endMs)) {

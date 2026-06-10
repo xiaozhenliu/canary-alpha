@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyHermesOutcome,
   evaluateIndexReadiness,
   parseDuration,
-  parseLiveRunArgs
+  parseLiveRunArgs,
+  RECALL_TOOL_MARKER
 } from '../../scripts/e2e-live-run-lib.js';
 
 describe('parseDuration', () => {
@@ -105,5 +107,35 @@ describe('evaluateIndexReadiness', () => {
       previousWindowCount: 0,
       currentWindowCount: 0
     })).toEqual({ ready: true, reason: 'watermark' });
+  });
+});
+
+describe('classifyHermesOutcome', () => {
+  const okTranscript = `${RECALL_TOOL_MARKER}\nDuring that window you mainly worked in VS Code on canary-alpha-mcp.`;
+
+  it('passes when tool marker present, chat succeeded, answer substantive', () => {
+    expect(classifyHermesOutcome({ transcript: okTranscript, chatFailed: false }))
+      .toEqual({ outcome: 'pass', failureMode: 'none' });
+  });
+
+  it('detects llm-not-configured before tool-call check', () => {
+    expect(classifyHermesOutcome({ transcript: 'error: no provider configured', chatFailed: true }))
+      .toEqual({ outcome: 'fail:llm-not-configured', failureMode: 'llm-not-configured' });
+  });
+
+  it('fails tool-call-failed when marker missing', () => {
+    expect(classifyHermesOutcome({ transcript: 'I cannot access your screen data.', chatFailed: false }))
+      .toEqual({ outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' });
+  });
+
+  it('fails tool-call-failed when chat process failed despite marker', () => {
+    expect(classifyHermesOutcome({ transcript: okTranscript, chatFailed: true }))
+      .toEqual({ outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' });
+  });
+
+  it('fails empty-recall when tool ran but returned no data', () => {
+    const transcript = `${RECALL_TOOL_MARKER}\nThe recall tool returned no results found for that window.`;
+    expect(classifyHermesOutcome({ transcript, chatFailed: false }))
+      .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
   });
 });
