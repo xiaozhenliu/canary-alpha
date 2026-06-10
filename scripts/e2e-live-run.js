@@ -179,6 +179,7 @@ async function isMcpReachable(server) {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
         ...(server.authToken !== undefined ? { authorization: `Bearer ${server.authToken}` } : {})
       },
       body: JSON.stringify({ jsonrpc: '2.0', id: 'e2e-live-health', method: 'ping' }),
