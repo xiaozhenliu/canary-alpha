@@ -79,4 +79,31 @@ describe('evaluateIndexReadiness', () => {
       currentWindowCount: 0
     })).toEqual({ ready: false, reason: 'waiting' });
   });
+
+  it('throws on invalid recordEndIso', () => {
+    expect(() => evaluateIndexReadiness({
+      lastExtractedAt: null,
+      recordEndIso: 'not-a-date',
+      previousWindowCount: 0,
+      currentWindowCount: 0
+    })).toThrow(/invalid recordEndIso/);
+  });
+
+  it('treats malformed lastExtractedAt as not-ready watermark', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: 'garbage',
+      recordEndIso,
+      previousWindowCount: 0,
+      currentWindowCount: 0
+    })).toEqual({ ready: false, reason: 'waiting' });
+  });
+
+  it('is ready when watermark equals recordEnd exactly', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: recordEndIso,
+      recordEndIso,
+      previousWindowCount: 0,
+      currentWindowCount: 0
+    })).toEqual({ ready: true, reason: 'watermark' });
+  });
 });

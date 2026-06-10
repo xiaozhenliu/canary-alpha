@@ -34,10 +34,14 @@ export function parseLiveRunArgs(argv = []) {
 }
 
 export function evaluateIndexReadiness({ lastExtractedAt, recordEndIso, previousWindowCount, currentWindowCount }) {
+  const endMs = Date.parse(recordEndIso);
+  if (Number.isNaN(endMs)) {
+    throw new Error(`evaluateIndexReadiness: invalid recordEndIso '${recordEndIso}'`);
+  }
   if (
     typeof lastExtractedAt === 'string'
     && lastExtractedAt.length > 0
-    && Date.parse(lastExtractedAt) >= Date.parse(recordEndIso)
+    && Date.parse(lastExtractedAt) >= endMs
   ) {
     return { ready: true, reason: 'watermark' };
   }
