@@ -6,6 +6,7 @@ import {
   evaluateIndexReadiness,
   parseDuration,
   parseLiveRunArgs,
+  FIND_TOOL_MARKER,
   RECALL_TOOL_MARKER
 } from '../../scripts/e2e-live-run-lib.js';
 
@@ -144,6 +145,12 @@ describe('classifyHermesOutcome', () => {
     const transcript = `${RECALL_TOOL_MARKER}\nrecall 在该时间窗内没有找到任何记录。`;
     expect(classifyHermesOutcome({ transcript, chatFailed: false }))
       .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+  });
+
+  it('passes when only the find tool marker is present', () => {
+    const transcript = `${FIND_TOOL_MARKER}\nYou were reading the canary-alpha-mcp repo in a terminal.`;
+    expect(classifyHermesOutcome({ transcript, chatFailed: false }))
+      .toEqual({ outcome: 'pass', failureMode: 'none' });
   });
 });
 

@@ -444,15 +444,14 @@ async function main() {
   }
 
   // Phase 5: hermes content verification
-  const query = `调用 recall，from=${recordStartIso}，to=${recordEndIso}，granularity 自选，总结这段时间屏幕上实际出现的内容，引用具体的应用或文本。`;
+  const query = `调用 recall（from=${recordStartIso}，to=${recordEndIso}，granularity 自选）查询这段时间的屏幕活动；如果 recall 没有返回会话，就改用 find 在同一时间窗内检索屏幕内容。最后总结这段时间屏幕上实际出现的内容，引用具体的应用或文本。`;
   log('phase5', 'Running hermes chat content verification.');
   let chatTranscript = '';
   let chatFailed = false;
   try {
     const chatResult = await execFileAsync('hermes', [
       'chat',
-      '--quiet',
-      '--max-turns', '3',
+      '--max-turns', '5',
       '--toolsets', 'canary-alpha-mcp',
       '--query', query
     ], {

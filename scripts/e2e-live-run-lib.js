@@ -39,13 +39,15 @@ const LLM_NOT_CONFIGURED_SIGNALS = ['no model', 'provider not configured', 'mode
 const EMPTY_RECALL_SIGNALS = ['no results found', 'no records found', 'nothing was captured', '没有找到', '未找到任何'];
 
 export const RECALL_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_recall';
+export const FIND_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_find';
 
 export function classifyHermesOutcome({ transcript, chatFailed }) {
   const lower = transcript.toLowerCase();
   if (LLM_NOT_CONFIGURED_SIGNALS.some((signal) => lower.includes(signal))) {
     return { outcome: 'fail:llm-not-configured', failureMode: 'llm-not-configured' };
   }
-  if (!transcript.includes(RECALL_TOOL_MARKER) || chatFailed) {
+  const toolCalled = transcript.includes(RECALL_TOOL_MARKER) || transcript.includes(FIND_TOOL_MARKER);
+  if (!toolCalled || chatFailed) {
     return { outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' };
   }
   if (EMPTY_RECALL_SIGNALS.some((signal) => lower.includes(signal))) {

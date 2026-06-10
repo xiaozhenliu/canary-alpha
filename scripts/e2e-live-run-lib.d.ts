@@ -1,4 +1,5 @@
 export const RECALL_TOOL_MARKER: string;
+export const FIND_TOOL_MARKER: string;
 
 export function classifyHermesOutcome(input: {
   transcript: string;
