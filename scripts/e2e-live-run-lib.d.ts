@@ -4,3 +4,10 @@ export function parseLiveRunArgs(argv?: string[]): {
   durationMs: number;
   indexTimeoutMs: number;
 };
+
+export function evaluateIndexReadiness(input: {
+  lastExtractedAt: string | null;
+  recordEndIso: string;
+  previousWindowCount: number;
+  currentWindowCount: number;
+}): { ready: boolean; reason: 'watermark' | 'stable-count' | 'waiting' };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  evaluateIndexReadiness,
   parseDuration,
   parseLiveRunArgs
 } from '../../scripts/e2e-live-run-lib.js';
@@ -37,5 +38,45 @@ describe('parseLiveRunArgs', () => {
 
   it('rejects missing option value', () => {
     expect(() => parseLiveRunArgs(['--duration'])).toThrow(/Invalid duration/);
+  });
+});
+
+describe('evaluateIndexReadiness', () => {
+  const recordEndIso = '2026-06-10T08:00:00.000Z';
+
+  it('is ready when extraction watermark passes recordEnd', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: '2026-06-10T08:00:05.000Z',
+      recordEndIso,
+      previousWindowCount: 0,
+      currentWindowCount: 0
+    })).toEqual({ ready: true, reason: 'watermark' });
+  });
+
+  it('is not ready when watermark is behind and counts still grow', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: '2026-06-10T07:59:00.000Z',
+      recordEndIso,
+      previousWindowCount: 10,
+      currentWindowCount: 14
+    })).toEqual({ ready: false, reason: 'waiting' });
+  });
+
+  it('falls back to stable non-zero window count', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: null,
+      recordEndIso,
+      previousWindowCount: 14,
+      currentWindowCount: 14
+    })).toEqual({ ready: true, reason: 'stable-count' });
+  });
+
+  it('zero stable count is NOT ready (nothing indexed yet)', () => {
+    expect(evaluateIndexReadiness({
+      lastExtractedAt: null,
+      recordEndIso,
+      previousWindowCount: 0,
+      currentWindowCount: 0
+    })).toEqual({ ready: false, reason: 'waiting' });
   });
 });

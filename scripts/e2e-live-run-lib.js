@@ -32,3 +32,21 @@ export function parseLiveRunArgs(argv = []) {
   }
   return options;
 }
+
+export function evaluateIndexReadiness({ lastExtractedAt, recordEndIso, previousWindowCount, currentWindowCount }) {
+  if (
+    typeof lastExtractedAt === 'string'
+    && lastExtractedAt.length > 0
+    && Date.parse(lastExtractedAt) >= Date.parse(recordEndIso)
+  ) {
+    return { ready: true, reason: 'watermark' };
+  }
+  if (
+    typeof currentWindowCount === 'number'
+    && currentWindowCount > 0
+    && currentWindowCount === previousWindowCount
+  ) {
+    return { ready: true, reason: 'stable-count' };
+  }
+  return { ready: false, reason: 'waiting' };
+}
