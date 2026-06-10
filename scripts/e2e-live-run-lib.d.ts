@@ -8,6 +8,11 @@ export function classifyHermesOutcome(input: {
   failureMode: 'none' | 'llm-not-configured' | 'tool-call-failed' | 'empty-recall';
 };
 
+export function buildCleanupPlan(input: {
+  startedScreenpipe: boolean;
+  startedMcpService: boolean;
+}): Array<'stop-screenpipe' | 'stop-mcp-service'>;
+
 export function parseDuration(text: string): number;
 
 export function parseLiveRunArgs(argv?: string[]): {

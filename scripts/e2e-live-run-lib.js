@@ -54,6 +54,17 @@ export function classifyHermesOutcome({ transcript, chatFailed }) {
   return { outcome: 'pass', failureMode: 'none' };
 }
 
+export function buildCleanupPlan({ startedScreenpipe, startedMcpService }) {
+  const actions = [];
+  if (startedScreenpipe) {
+    actions.push('stop-screenpipe');
+  }
+  if (startedMcpService) {
+    actions.push('stop-mcp-service');
+  }
+  return actions;
+}
+
 export function evaluateIndexReadiness({ lastExtractedAt, recordEndIso, previousWindowCount, currentWindowCount }) {
   const endMs = Date.parse(recordEndIso);
   if (Number.isNaN(endMs)) {

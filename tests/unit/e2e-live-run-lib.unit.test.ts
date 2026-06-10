@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCleanupPlan,
   classifyHermesOutcome,
   evaluateIndexReadiness,
   parseDuration,
@@ -143,5 +144,20 @@ describe('classifyHermesOutcome', () => {
     const transcript = `${RECALL_TOOL_MARKER}\nrecall 在该时间窗内没有找到任何记录。`;
     expect(classifyHermesOutcome({ transcript, chatFailed: false }))
       .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+  });
+});
+
+describe('buildCleanupPlan', () => {
+  it('stops only what the script started', () => {
+    expect(buildCleanupPlan({ startedScreenpipe: true, startedMcpService: false }))
+      .toEqual(['stop-screenpipe']);
+    expect(buildCleanupPlan({ startedScreenpipe: false, startedMcpService: true }))
+      .toEqual(['stop-mcp-service']);
+    expect(buildCleanupPlan({ startedScreenpipe: true, startedMcpService: true }))
+      .toEqual(['stop-screenpipe', 'stop-mcp-service']);
+  });
+
+  it('keeps reused instances running', () => {
+    expect(buildCleanupPlan({ startedScreenpipe: false, startedMcpService: false })).toEqual([]);
   });
 });
