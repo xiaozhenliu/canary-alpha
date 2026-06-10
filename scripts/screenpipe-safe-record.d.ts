@@ -1,5 +1,9 @@
 export function buildScreenpipeSafeRecordArgs(argv?: string[]): string[];
 export function killProcessGroup(pid: number, signal?: NodeJS.Signals): void;
+export function writeMaintenanceLogEntry(
+  entry: Record<string, unknown>,
+  options?: { logPath?: string; now?: Date }
+): Promise<void>;
 export function run(
   argv?: string[],
   options?: {
