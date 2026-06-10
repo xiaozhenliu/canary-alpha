@@ -41,9 +41,9 @@ describe('reclaim & status', () => {
 
   it('status reports residual JSON frames and dangling refs', () => {
     insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: '[]' });
-    insertFrame(db, { timestamp: isoMinutesAgo(60), elementsRefFrameId: 12_345 });
+    insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: '[]', elementsRefFrameId: 12_345 });
     const status = createAxTreeMaintenanceService({ databasePath: dbPath }).status();
-    expect(status.framesWithTreeJson).toBe(1);
+    expect(status.framesWithTreeJson).toBe(2);
     expect(status.danglingRefs).toBe(1);
     expect(status.pageCount).toBeGreaterThan(0);
   });
@@ -54,9 +54,22 @@ describe('reclaim & status', () => {
       `INSERT INTO elements (frame_id, source, role, text, depth, sort_order)
        VALUES (?, 'ocr', 'OCRText', 'ocr only', 0, 0)`
     ).run(target);
-    insertFrame(db, { timestamp: isoMinutesAgo(60), elementsRefFrameId: target });
+    insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: '[]', elementsRefFrameId: target });
     const status = createAxTreeMaintenanceService({ databasePath: dbPath }).status();
     expect(status.danglingRefs).toBe(1);
+  });
+
+  it('status ignores stale refs that no longer have tree JSON to repair', () => {
+    const target = insertFrame(db, { timestamp: isoMinutesAgo(60) });
+    db.prepare(
+      `INSERT INTO elements (frame_id, source, role, text, depth, sort_order)
+       VALUES (?, 'ocr', 'OCRText', 'ocr only', 0, 0)`
+    ).run(target);
+    insertFrame(db, { timestamp: isoMinutesAgo(60), elementsRefFrameId: target });
+    insertFrame(db, { timestamp: isoMinutesAgo(60), elementsRefFrameId: 99_999 });
+    const status = createAxTreeMaintenanceService({ databasePath: dbPath }).status();
+    expect(status.framesWithTreeJson).toBe(0);
+    expect(status.danglingRefs).toBe(0);
   });
 
   it('sweep and reclaim degrade to no-op when required schema is absent', () => {

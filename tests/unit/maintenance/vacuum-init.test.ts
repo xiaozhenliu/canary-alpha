@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mapVacuumError, runVacuumInit } from '../../../src/services/maintenance/vacuum-init.js';
 import { addSpeakerEmbeddingsTable, createFixtureDb } from '../../helpers/maintenance-fixture.js';
@@ -24,6 +24,7 @@ describe('runVacuumInit', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -41,6 +42,16 @@ describe('runVacuumInit', () => {
     runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => false });
     expect(existsSync(backupDir)).toBe(true);
     expect(readdirSync(backupDir).filter((file) => file.endsWith('.sqlite'))).toHaveLength(1);
+  });
+
+  it('keeps the backup when consecutive init calls share the same timestamp', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T15:12:00.123Z'));
+    runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => false });
+    runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => false });
+    expect(readdirSync(backupDir).filter((file) => file.endsWith('.sqlite'))).toEqual([
+      'db-backup-2026-06-10T15-12-00-123Z.sqlite'
+    ]);
   });
 
   it('does not delete non-maintenance sqlite files from the backup directory', () => {

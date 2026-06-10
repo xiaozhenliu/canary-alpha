@@ -42,9 +42,13 @@ function backupDatabase(databasePath: string, backupDir: string): void {
   mkdirSync(backupDir, { recursive: true });
   const oldBackups = readdirSync(backupDir).filter((entry) => BACKUP_FILE_RE.test(entry));
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupPath = join(backupDir, `db-backup-${stamp}.sqlite`);
+  const backupFile = `db-backup-${stamp}.sqlite`;
+  const backupPath = join(backupDir, backupFile);
   copyFileSync(databasePath, backupPath);
   for (const old of oldBackups) {
+    if (old === backupFile) {
+      continue;
+    }
     rmSync(join(backupDir, old), { force: true });
   }
 }

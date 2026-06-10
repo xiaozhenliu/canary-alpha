@@ -21,6 +21,7 @@ export interface ReclaimResult {
 
 export interface MaintenanceStatus {
   framesWithTreeJson: number;
+  /** Ref-linked AX backlog that still has tree JSON to repair, not a count of historical stale refs. */
   danglingRefs: number;
   pageCount: number;
   freelistCount: number;
@@ -290,6 +291,8 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
           db,
           `SELECT COUNT(*) FROM frames f
            WHERE f.elements_ref_frame_id IS NOT NULL
+             AND f.accessibility_tree_json IS NOT NULL
+             AND f.accessibility_tree_json != ''
              AND NOT EXISTS (
                SELECT 1 FROM elements e
                WHERE e.frame_id = f.elements_ref_frame_id
