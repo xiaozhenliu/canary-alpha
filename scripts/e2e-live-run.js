@@ -230,7 +230,7 @@ async function main() {
     ]);
     return;
   }
-  const hermesVersion = detection.version;
+  const hermesVersion = detection.version.split('\n')[0].trim();
 
   const configPath = join(appDirectory, 'config.yaml');
   if (!existsSync(configPath)) {
