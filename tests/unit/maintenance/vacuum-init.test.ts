@@ -43,6 +43,22 @@ describe('runVacuumInit', () => {
     expect(readdirSync(backupDir).filter((file) => file.endsWith('.sqlite'))).toHaveLength(1);
   });
 
+  it('does not delete non-maintenance sqlite files from the backup directory', () => {
+    runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => false });
+    const other = join(backupDir, 'manual.sqlite');
+    new DatabaseSync(other).close();
+    const prefixedOther = join(backupDir, 'db-backup-manual.sqlite');
+    new DatabaseSync(prefixedOther).close();
+    runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => false });
+    expect(existsSync(other)).toBe(true);
+    expect(existsSync(prefixedOther)).toBe(true);
+    expect(
+      readdirSync(backupDir).filter((file) =>
+        /^db-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.sqlite$/.test(file)
+      )
+    ).toHaveLength(1);
+  });
+
   it('refuses to run while screenpipe appears active', () => {
     const result = runVacuumInit({ databasePath: dbPath, backupDir, probeScreenpipeRunning: () => true });
     expect(result.ok).toBe(false);

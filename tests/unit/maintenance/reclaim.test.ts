@@ -48,10 +48,90 @@ describe('reclaim & status', () => {
     expect(status.pageCount).toBeGreaterThan(0);
   });
 
+  it('status treats OCR-only referenced elements as dangling for accessibility maintenance', () => {
+    const target = insertFrame(db, { timestamp: isoMinutesAgo(60) });
+    db.prepare(
+      `INSERT INTO elements (frame_id, source, role, text, depth, sort_order)
+       VALUES (?, 'ocr', 'OCRText', 'ocr only', 0, 0)`
+    ).run(target);
+    insertFrame(db, { timestamp: isoMinutesAgo(60), elementsRefFrameId: target });
+    const status = createAxTreeMaintenanceService({ databasePath: dbPath }).status();
+    expect(status.danglingRefs).toBe(1);
+  });
+
   it('sweep and reclaim degrade to no-op when required schema is absent', () => {
     db.exec('DROP TABLE elements');
     const svc = createAxTreeMaintenanceService({ databasePath: dbPath });
     expect(svc.sweepOnce().skippedSchemaGuard).toBe(true);
     expect(svc.reclaimOnce({ maxPages: 100 }).skippedSchemaGuard).toBe(true);
+    expect(svc.status().skippedSchemaGuard).toBe(true);
+  });
+
+  it('reclaim degrades to no-op when another writer holds the lock', () => {
+    db.exec('PRAGMA auto_vacuum = INCREMENTAL; VACUUM;');
+    const writer = new DatabaseSync(dbPath);
+    try {
+      writer.exec('BEGIN IMMEDIATE');
+      const result = createAxTreeMaintenanceService({ databasePath: dbPath, busyTimeoutMs: 25 }).reclaimOnce({
+        maxPages: 100
+      });
+      expect(result.skippedBusy).toBe(true);
+      expect(result.pagesAfter).toBe(result.pagesBefore);
+    } finally {
+      writer.exec('ROLLBACK');
+      writer.close();
+    }
+  });
+
+  it('reclaim reports busy instead of schema drift when schema reads are locked', () => {
+    db.exec('PRAGMA journal_mode = DELETE;');
+    const writer = new DatabaseSync(dbPath);
+    try {
+      writer.exec('BEGIN EXCLUSIVE');
+      const result = createAxTreeMaintenanceService({ databasePath: dbPath, busyTimeoutMs: 25 }).reclaimOnce({
+        maxPages: 100
+      });
+      expect(result.skippedBusy).toBe(true);
+      expect(result.skippedSchemaGuard).toBe(false);
+      expect(result.pagesAfter).toBe(result.pagesBefore);
+    } finally {
+      writer.exec('ROLLBACK');
+      writer.close();
+    }
+  });
+
+  it('degrades before converting when an actually written elements column is missing', () => {
+    db.exec('ALTER TABLE elements DROP COLUMN on_screen');
+    insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: '[]' });
+    const svc = createAxTreeMaintenanceService({ databasePath: dbPath });
+    expect(svc.sweepOnce().skippedSchemaGuard).toBe(true);
+    expect(svc.status().skippedSchemaGuard).toBe(true);
+  });
+
+  it('degrades before converting when elements.id is not an integer primary key', () => {
+    db.close();
+    db = new DatabaseSync(dbPath);
+    db.exec(`
+      DROP TABLE elements;
+      CREATE TABLE elements (
+        frame_id INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        role TEXT NOT NULL,
+        text TEXT,
+        parent_id INTEGER,
+        depth INTEGER NOT NULL DEFAULT 0,
+        left_bound REAL,
+        top_bound REAL,
+        width_bound REAL,
+        height_bound REAL,
+        confidence REAL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        properties TEXT,
+        on_screen INTEGER
+      );
+    `);
+    insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: '[]' });
+    const svc = createAxTreeMaintenanceService({ databasePath: dbPath });
+    expect(svc.sweepOnce().skippedSchemaGuard).toBe(true);
   });
 });

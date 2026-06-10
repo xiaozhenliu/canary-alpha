@@ -9,6 +9,8 @@ if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 13)) {
   );
 }
 
+const BACKUP_FILE_RE = /^db-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.sqlite$/;
+
 export interface VacuumInitOptions {
   databasePath: string;
   backupDir: string;
@@ -38,13 +40,13 @@ export function mapVacuumError(error: unknown): string {
 
 function backupDatabase(databasePath: string, backupDir: string): void {
   mkdirSync(backupDir, { recursive: true });
-  for (const old of readdirSync(backupDir)) {
-    if (old.endsWith('.sqlite')) {
-      rmSync(join(backupDir, old), { force: true });
-    }
-  }
+  const oldBackups = readdirSync(backupDir).filter((entry) => BACKUP_FILE_RE.test(entry));
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  copyFileSync(databasePath, join(backupDir, `db-backup-${stamp}.sqlite`));
+  const backupPath = join(backupDir, `db-backup-${stamp}.sqlite`);
+  copyFileSync(databasePath, backupPath);
+  for (const old of oldBackups) {
+    rmSync(join(backupDir, old), { force: true });
+  }
 }
 
 export function runVacuumInit(options: VacuumInitOptions): VacuumInitResult {

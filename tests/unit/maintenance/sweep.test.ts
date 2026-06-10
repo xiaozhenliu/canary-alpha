@@ -32,15 +32,24 @@ describe('sweep', () => {
   const treeJson = JSON.stringify(syntheticTree());
   const svc = () => createAxTreeMaintenanceService({ databasePath: dbPath });
 
+  function treeText(json: string): string {
+    return (JSON.parse(json) as Array<{ text?: string }>)
+      .map((node) => node.text)
+      .filter((text): text is string => typeof text === 'string')
+      .join('\n');
+  }
+
   it('case A nulls JSON when the same frame already has elements', () => {
     const id = insertFrame(db, { timestamp: isoMinutesAgo(30), treeJson });
     insertWorkerElement(db, id, 'hello');
+    const beforeText = treeText(treeJson);
     const result = svc().sweepOnce();
     expect(result.jsonNulledViaExisting).toBe(1);
     expect((db.prepare('SELECT accessibility_tree_json AS t FROM frames WHERE id = ?').get(id) as { t: string | null }).t)
       .toBeNull();
     expect(Number((db.prepare('SELECT COUNT(*) AS n FROM elements WHERE frame_id = ?').get(id) as { n: number }).n))
       .toBe(1);
+    expect(treeText(treeJson)).toBe(beforeText);
   });
 
   it('case A follows elements_ref_frame_id before nulling JSON', () => {
@@ -52,6 +61,47 @@ describe('sweep', () => {
     expect(result.converted).toBe(0);
     expect((db.prepare('SELECT accessibility_tree_json AS t FROM frames WHERE id = ?').get(id) as { t: string | null }).t)
       .toBeNull();
+  });
+
+  it('does not treat OCR-only elements as normalized accessibility rows', () => {
+    const id = insertFrame(db, { timestamp: isoMinutesAgo(30), treeJson });
+    db.prepare(
+      `INSERT INTO elements (frame_id, source, role, text, depth, sort_order)
+       VALUES (?, 'ocr', 'OCRText', 'ocr only', 0, 0)`
+    ).run(id);
+
+    const result = svc().sweepOnce();
+    expect(result.converted).toBe(1);
+    expect(result.jsonNulledViaExisting).toBe(0);
+    expect(
+      Number(
+        (
+          db
+            .prepare("SELECT COUNT(*) AS n FROM elements WHERE frame_id = ? AND source = 'accessibility'")
+            .get(id) as { n: number }
+        ).n
+      )
+    ).toBe(5);
+    expect(
+      Number((db.prepare("SELECT COUNT(*) AS n FROM elements WHERE frame_id = ? AND source = 'ocr'").get(id) as { n: number }).n)
+    ).toBe(1);
+  });
+
+  it('does not treat referenced OCR-only elements as normalized accessibility rows', () => {
+    const target = insertFrame(db, { timestamp: isoMinutesAgo(40) });
+    db.prepare(
+      `INSERT INTO elements (frame_id, source, role, text, depth, sort_order)
+       VALUES (?, 'ocr', 'OCRText', 'ocr only', 0, 0)`
+    ).run(target);
+    const id = insertFrame(db, { timestamp: isoMinutesAgo(30), treeJson, elementsRefFrameId: target });
+
+    const result = svc().sweepOnce();
+    expect(result.converted).toBe(1);
+    expect(result.jsonNulledViaExisting).toBe(0);
+    const frame = db.prepare('SELECT elements_ref_frame_id AS ref FROM frames WHERE id = ?').get(id) as {
+      ref: number;
+    };
+    expect(Number(frame.ref)).toBe(id);
   });
 
   it('converts dangling refs instead of losing content', () => {
@@ -100,6 +150,82 @@ describe('sweep', () => {
     expect(result.convertFailures).toBe(1);
     expect((db.prepare('SELECT accessibility_tree_json AS t FROM frames WHERE id = ?').get(id) as { t: string | null }).t)
       .toBe('corrupted{{{');
+  });
+
+  it('keeps converted tree payload under five percent for wrapper-heavy synthetic trees', () => {
+    function wrappedTree(nodeCount: number) {
+      return Array.from({ length: nodeCount }, (_, index) => ({
+        role: index === 0 ? 'AXWindow' : 'AXStaticText',
+        text: index === 0 ? 'Demo Window' : 'x',
+        depth: index === 0 ? 0 : 1,
+        bounds: {
+          left: 0.12345678901234567,
+          top: 0.22345678901234567,
+          width: 0.32345678901234567,
+          height: 0.42345678901234567,
+          layout_cache: 'wrapper-only metadata '.repeat(120)
+        },
+        on_screen: true
+      }));
+    }
+
+    let originalBytes = 0;
+    for (let i = 0; i < 30; i += 1) {
+      const json = JSON.stringify(wrappedTree(500));
+      originalBytes += Buffer.byteLength(json);
+      insertFrame(db, { timestamp: isoMinutesAgo(60), treeJson: json });
+    }
+
+    const result = createAxTreeMaintenanceService({ databasePath: dbPath, batchSize: 100 }).sweepOnce();
+    expect(result.converted).toBe(30);
+    const convertedPayload = Number(
+      (
+        db
+          .prepare(
+            `SELECT COALESCE(
+               SUM(
+                 LENGTH(role) +
+                 COALESCE(LENGTH(text), 0) +
+                 COALESCE(LENGTH(properties), 0) +
+                 64
+               ),
+               0
+             ) AS bytes
+             FROM elements
+             WHERE source = 'accessibility'`
+          )
+          .get() as { bytes: number }
+      ).bytes
+    );
+    const residualJson = Number(
+      (
+        db
+          .prepare(
+            `SELECT COALESCE(SUM(LENGTH(accessibility_tree_json)), 0) AS bytes
+             FROM frames`
+          )
+          .get() as { bytes: number }
+      ).bytes
+    );
+    expect((convertedPayload + residualJson) / originalBytes).toBeLessThanOrEqual(0.05);
+  });
+
+  it('does not leak SQLITE_BUSY when another writer holds the database lock', () => {
+    const id = insertFrame(db, { timestamp: isoMinutesAgo(30), treeJson });
+    const writer = new DatabaseSync(dbPath);
+    try {
+      writer.exec('BEGIN IMMEDIATE');
+      expect(() =>
+        createAxTreeMaintenanceService({ databasePath: dbPath, busyTimeoutMs: 25 }).sweepOnce()
+      ).not.toThrow();
+      const row = db.prepare('SELECT accessibility_tree_json AS t FROM frames WHERE id = ?').get(id) as {
+        t: string | null;
+      };
+      expect(row.t).toBe(treeJson);
+    } finally {
+      writer.exec('ROLLBACK');
+      writer.close();
+    }
   });
 
   it('rechecks inside the transaction to avoid duplicate rows after a worker race', () => {

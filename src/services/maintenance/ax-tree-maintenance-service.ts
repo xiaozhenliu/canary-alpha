@@ -16,6 +16,7 @@ export interface ReclaimResult {
   pagesBefore: number;
   pagesAfter: number;
   skippedSchemaGuard: boolean;
+  skippedBusy: boolean;
 }
 
 export interface MaintenanceStatus {
@@ -24,6 +25,7 @@ export interface MaintenanceStatus {
   pageCount: number;
   freelistCount: number;
   autoVacuumMode: number;
+  skippedSchemaGuard: boolean;
 }
 
 export interface MaintenanceServiceOptions {
@@ -33,6 +35,7 @@ export interface MaintenanceServiceOptions {
   now?: () => Date;
   logger?: { warn?: (msg: string, meta?: Record<string, unknown>) => void };
   beforeConvertTxn?: () => void;
+  busyTimeoutMs?: number;
 }
 
 interface CandidateRow {
@@ -41,28 +44,54 @@ interface CandidateRow {
   ref: number | null;
 }
 
-function schemaIsCompatible(db: DatabaseSync): boolean {
+interface TableColumn {
+  name: string;
+  type: string;
+  pk: number;
+}
+
+type SchemaCompatibility = 'compatible' | 'drift' | 'busy';
+
+function checkSchemaCompatibility(db: DatabaseSync): SchemaCompatibility {
   try {
-    const frameCols = new Set(
-      (db.prepare('PRAGMA table_info(frames)').all() as Array<{ name: string }>).map((col) => col.name)
-    );
-    const elementCols = new Set(
-      (db.prepare('PRAGMA table_info(elements)').all() as Array<{ name: string }>).map((col) => col.name)
-    );
-    return (
-      ['accessibility_tree_json', 'elements_ref_frame_id', 'timestamp'].every((col) => frameCols.has(col)) &&
-      ['frame_id', 'source', 'role', 'depth', 'sort_order', 'properties', 'parent_id'].every((col) =>
-        elementCols.has(col)
-      )
-    );
-  } catch {
-    return false;
+    const frameInfo = db.prepare('PRAGMA table_info(frames)').all() as unknown as TableColumn[];
+    const elementInfo = db.prepare('PRAGMA table_info(elements)').all() as unknown as TableColumn[];
+    const frameCols = new Set(frameInfo.map((col) => col.name));
+    const elementCols = new Set(elementInfo.map((col) => col.name));
+    const elementId = elementInfo.find((col) => col.name === 'id');
+    const compatible =
+      ['id', 'accessibility_tree_json', 'elements_ref_frame_id', 'timestamp'].every((col) => frameCols.has(col)) &&
+      elementId !== undefined &&
+      elementId.pk > 0 &&
+      /\bINTEGER\b/i.test(elementId.type) &&
+      [
+        'frame_id',
+        'source',
+        'role',
+        'text',
+        'parent_id',
+        'depth',
+        'left_bound',
+        'top_bound',
+        'width_bound',
+        'height_bound',
+        'sort_order',
+        'properties',
+        'on_screen'
+      ].every((col) => elementCols.has(col));
+    return compatible ? 'compatible' : 'drift';
+  } catch (error) {
+    return isSqliteBusy(error) ? 'busy' : 'drift';
   }
 }
 
 function hasElementsForFrame(db: DatabaseSync, frameId: number, ref: number | null): boolean {
   const targetFrameId = ref ?? frameId;
-  return db.prepare('SELECT 1 AS one FROM elements WHERE frame_id = ? LIMIT 1').get(targetFrameId) !== undefined;
+  return (
+    db
+      .prepare("SELECT 1 AS one FROM elements WHERE frame_id = ? AND source = 'accessibility' LIMIT 1")
+      .get(targetFrameId) !== undefined
+  );
 }
 
 function readFirstNumber(db: DatabaseSync, sql: string): number {
@@ -70,9 +99,23 @@ function readFirstNumber(db: DatabaseSync, sql: string): number {
   return Number(Object.values(row ?? { value: 0 })[0]);
 }
 
+function isSqliteBusy(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /SQLITE_BUSY|database is locked/i.test(message);
+}
+
+function safeReadFirstNumber(db: DatabaseSync, sql: string): number {
+  try {
+    return readFirstNumber(db, sql);
+  } catch {
+    return 0;
+  }
+}
+
 export function createAxTreeMaintenanceService(options: MaintenanceServiceOptions) {
   const minAge = options.minFrameAgeMs ?? DEFAULT_MIN_FRAME_AGE_MS;
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+  const busyTimeoutMs = options.busyTimeoutMs ?? 5_000;
   const now = options.now ?? (() => new Date());
 
   function sweepOnce(): SweepResult {
@@ -84,10 +127,15 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
     };
     const db = new DatabaseSync(options.databasePath);
     try {
-      db.exec('PRAGMA busy_timeout = 5000;');
-      if (!schemaIsCompatible(db)) {
+      db.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.floor(busyTimeoutMs))};`);
+      const schemaStatus = checkSchemaCompatibility(db);
+      if (schemaStatus !== 'compatible') {
         result.skippedSchemaGuard = true;
-        options.logger?.warn?.('maintenance sweep skipped: schema drift detected');
+        options.logger?.warn?.(
+          schemaStatus === 'busy'
+            ? 'maintenance sweep skipped: database is busy'
+            : 'maintenance sweep skipped: schema drift detected'
+        );
         return result;
       }
 
@@ -124,8 +172,10 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
 
         options.beforeConvertTxn?.();
 
-        db.exec('BEGIN IMMEDIATE');
+        let transactionStarted = false;
         try {
+          db.exec('BEGIN IMMEDIATE');
+          transactionStarted = true;
           if (hasElementsForFrame(db, frameId, ref)) {
             db.prepare('UPDATE frames SET accessibility_tree_json = NULL WHERE id = ?').run(frameId);
             result.jsonNulledViaExisting += 1;
@@ -166,7 +216,9 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
           db.exec('COMMIT');
           result.converted += 1;
         } catch (error) {
-          db.exec('ROLLBACK');
+          if (transactionStarted) {
+            db.exec('ROLLBACK');
+          }
           result.convertFailures += 1;
           options.logger?.warn?.('maintenance convert txn failed', {
             frameId,
@@ -184,15 +236,31 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
   function reclaimOnce(opts: { maxPages?: number } = {}): ReclaimResult {
     const maxPages = opts.maxPages ?? 2_000;
     const db = new DatabaseSync(options.databasePath);
+    let before = 0;
     try {
-      db.exec('PRAGMA busy_timeout = 5000;');
-      if (!schemaIsCompatible(db)) {
-        return { pagesBefore: 0, pagesAfter: 0, skippedSchemaGuard: true };
+      db.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.floor(busyTimeoutMs))};`);
+      const schemaStatus = checkSchemaCompatibility(db);
+      if (schemaStatus === 'busy') {
+        options.logger?.warn?.('maintenance reclaim skipped: database is busy');
+        return { pagesBefore: 0, pagesAfter: 0, skippedSchemaGuard: false, skippedBusy: true };
       }
-      const before = readFirstNumber(db, 'PRAGMA page_count');
-      db.exec(`PRAGMA incremental_vacuum(${Math.max(1, Math.floor(maxPages))});`);
-      const after = readFirstNumber(db, 'PRAGMA page_count');
-      return { pagesBefore: before, pagesAfter: after, skippedSchemaGuard: false };
+      if (schemaStatus === 'drift') {
+        return { pagesBefore: 0, pagesAfter: 0, skippedSchemaGuard: true, skippedBusy: false };
+      }
+      try {
+        before = readFirstNumber(db, 'PRAGMA page_count');
+        db.exec(`PRAGMA incremental_vacuum(${Math.max(1, Math.floor(maxPages))});`);
+        const after = readFirstNumber(db, 'PRAGMA page_count');
+        return { pagesBefore: before, pagesAfter: after, skippedSchemaGuard: false, skippedBusy: false };
+      } catch (error) {
+        if (!isSqliteBusy(error)) {
+          throw error;
+        }
+        options.logger?.warn?.('maintenance reclaim skipped: database is busy', {
+          message: error instanceof Error ? error.message : String(error)
+        });
+        return { pagesBefore: before, pagesAfter: before, skippedSchemaGuard: false, skippedBusy: true };
+      }
     } finally {
       db.close();
     }
@@ -201,6 +269,16 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
   function status(): MaintenanceStatus {
     const db = new DatabaseSync(options.databasePath, { readOnly: true });
     try {
+      if (checkSchemaCompatibility(db) !== 'compatible') {
+        return {
+          framesWithTreeJson: 0,
+          danglingRefs: 0,
+          pageCount: safeReadFirstNumber(db, 'PRAGMA page_count'),
+          freelistCount: safeReadFirstNumber(db, 'PRAGMA freelist_count'),
+          autoVacuumMode: safeReadFirstNumber(db, 'PRAGMA auto_vacuum'),
+          skippedSchemaGuard: true
+        };
+      }
       return {
         framesWithTreeJson: readFirstNumber(
           db,
@@ -213,12 +291,15 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
           `SELECT COUNT(*) FROM frames f
            WHERE f.elements_ref_frame_id IS NOT NULL
              AND NOT EXISTS (
-               SELECT 1 FROM elements e WHERE e.frame_id = f.elements_ref_frame_id
+               SELECT 1 FROM elements e
+               WHERE e.frame_id = f.elements_ref_frame_id
+                 AND e.source = 'accessibility'
              )`
         ),
         pageCount: readFirstNumber(db, 'PRAGMA page_count'),
         freelistCount: readFirstNumber(db, 'PRAGMA freelist_count'),
-        autoVacuumMode: readFirstNumber(db, 'PRAGMA auto_vacuum')
+        autoVacuumMode: readFirstNumber(db, 'PRAGMA auto_vacuum'),
+        skippedSchemaGuard: false
       };
     } finally {
       db.close();

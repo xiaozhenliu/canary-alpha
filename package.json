@@ -6,7 +6,7 @@
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
