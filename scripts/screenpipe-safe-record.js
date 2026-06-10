@@ -1,16 +1,10 @@
 #!/usr/bin/env node
 
-import { spawn, execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
-import { promisify } from 'node:util';
 
-const execFileAsync = promisify(execFile);
-const SCREENPIPE_DB_PATH = join(homedir(), '.screenpipe', 'db.sqlite');
-const TRIM_INTERVAL_MS = 10 * 60 * 1000;
-const TRIM_BATCH_SIZE = 100;
-const TRIM_BATCH_TIMEOUT_MS = 10_000;
+const MAINTAIN_INTERVAL_MS = 10 * 60 * 1000;
 
 const DEFAULT_RETENTION_DAYS = '7';
 const DEFAULT_IGNORED_WINDOWS = [
@@ -34,18 +28,32 @@ const SCREENPIPE_PACKAGE = 'screenpipe@latest';
 const SCREENPIPE_RECORD_COMMAND = 'record';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
+const MAINTAIN_SCRIPT = join(scriptDirectory, 'screenpipe-db-maintain.ts');
 
-async function runTrimBatch() {
-  const sql = [
-    `CREATE INDEX IF NOT EXISTS idx_frames_content_hash ON frames(content_hash) WHERE content_hash IS NOT NULL;`,
-    `DELETE FROM frames WHERE id IN (SELECT id FROM frames WHERE content_hash IS NOT NULL AND id NOT IN (SELECT MIN(id) FROM frames WHERE content_hash IS NOT NULL GROUP BY content_hash) LIMIT ${TRIM_BATCH_SIZE});`,
-    `UPDATE frames SET accessibility_tree_json = NULL WHERE accessibility_tree_json IS NOT NULL AND EXISTS (SELECT 1 FROM elements WHERE elements.frame_id = frames.id);`
-  ].join('\n');
+export function killProcessGroup(pid, signal = 'SIGTERM') {
   try {
-    await execFileAsync('sqlite3', [SCREENPIPE_DB_PATH, sql], { timeout: TRIM_BATCH_TIMEOUT_MS });
+    process.kill(-pid, signal);
   } catch {
-    // degrade silently
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // process already exited
+    }
   }
+}
+
+function spawnMaintainRun({ unref = true } = {}) {
+  const child = spawn(process.execPath, ['--import', 'tsx', MAINTAIN_SCRIPT, 'run'], {
+    cwd: repositoryRoot,
+    stdio: 'ignore'
+  });
+  child.on('error', () => {
+    // maintenance degrades silently; recorder lifecycle remains primary
+  });
+  if (unref) {
+    child.unref();
+  }
+  return child;
 }
 
 function hasFlag(argv, flag) {
@@ -113,28 +121,63 @@ export async function run(argv = process.argv.slice(2), options = {}) {
   const args = buildScreenpipeSafeRecordArgs(argv);
 
   await new Promise((resolve, reject) => {
+    let settling = false;
     const child = spawn(command, args, {
       cwd,
       env,
-      stdio: 'inherit'
+      stdio: 'inherit',
+      detached: true
     });
 
-    const trimTimer = setInterval(() => { void runTrimBatch(); }, TRIM_INTERVAL_MS);
+    const maintainTimer = setInterval(() => {
+      spawnMaintainRun();
+    }, MAINTAIN_INTERVAL_MS);
+    maintainTimer.unref?.();
 
-    child.on('error', (err) => { clearInterval(trimTimer); reject(err); });
+    const cleanup = () => {
+      clearInterval(maintainTimer);
+      process.off('SIGTERM', onSigterm);
+      process.off('SIGINT', onSigint);
+    };
+
+    const forward = (signal) => {
+      if (child.pid !== undefined) {
+        killProcessGroup(child.pid, signal);
+      }
+    };
+    const onSigterm = () => forward('SIGTERM');
+    const onSigint = () => forward('SIGINT');
+    process.on('SIGTERM', onSigterm);
+    process.on('SIGINT', onSigint);
+
+    const runFinalMaintenance = (done) => {
+      const last = spawnMaintainRun({ unref: false });
+      last.on('exit', () => done());
+      last.on('error', () => done());
+    };
+
+    child.on('error', (err) => {
+      cleanup();
+      reject(err);
+    });
     child.on('exit', (code, signal) => {
-      clearInterval(trimTimer);
-      if (signal) {
-        reject(new Error(`screenpipe record exited via signal ${signal}.`));
-        return;
-      }
+      if (settling) return;
+      settling = true;
+      cleanup();
+      const finish = () => {
+        if (signal) {
+          resolve(undefined);
+          return;
+        }
 
-      if ((code ?? 1) !== 0) {
-        reject(new Error(`screenpipe record exited with code ${code ?? 1}.`));
-        return;
-      }
+        if ((code ?? 1) !== 0) {
+          reject(new Error(`screenpipe record exited with code ${code ?? 1}.`));
+          return;
+        }
 
-      resolve(undefined);
+        resolve(undefined);
+      };
+      runFinalMaintenance(finish);
     });
   });
 }
