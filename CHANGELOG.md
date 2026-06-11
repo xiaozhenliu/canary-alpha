@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-11
 ---
 
 # Changelog
@@ -13,12 +13,17 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-06-11
+
 ### Added
 
 - English-first and Simplified Chinese project README files.
 - Apache License 2.0.
 - Community contribution guidelines, Contributor Covenant 2.1, a security
   policy, structured GitHub issue forms, and a pull-request template.
+- Screenpipe safe-record maintenance run logging under
+  `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`, with 7-day pruning
+  and 1 MB rotation.
 
 ### Changed
 
