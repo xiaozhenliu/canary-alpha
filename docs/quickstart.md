@@ -1,7 +1,7 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-11
 ---
 
 # Quickstart
@@ -34,6 +34,8 @@ npm run screenpipe:safe-record
 ```
 
 This wrapper launches `screenpipe record` with repo-recommended safer defaults for local development: PII removal enabled, bounded local retention, a narrow default ignored-window set for repeated low-value macOS system UI, a small repo-managed ignored-app set for high-risk local apps, and audio and vision capture disabled unless you explicitly pass supported capture flags. Supported audio opt-in flags include `--audio-device`, `--use-system-default-audio`, and `--experimental-coreaudio-system-audio`; supported vision opt-in flags include `--monitor-id`, `--use-all-monitors`, and `--included-windows`. If you do opt into audio capture, the wrapper still defaults transcription off unless you explicitly choose `--audio-transcription-engine`, and an explicit `--disable-audio` overrides the wrapper’s audio-intent defaults.
+
+The wrapper also runs Screenpipe database maintenance every 10 minutes and once more when the recorder exits. Maintenance run records are written to `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`; the file is pruned to the last 7 days and rotated to `screenpipe-maintenance.jsonl.1` when it exceeds 1 MB.
 
 If you prefer the raw upstream CLI, the equivalent starting point is:
 

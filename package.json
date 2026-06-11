@@ -1,12 +1,12 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -31,6 +31,9 @@
     "linear": "node --import tsx scripts/linear.ts",
     "screenpipe:safe-record": "node scripts/screenpipe-safe-record.js",
     "storage:diagnostics": "node --import tsx scripts/storage-diagnostics.js",
+    "maintain:init": "node --import tsx scripts/screenpipe-db-maintain.ts init",
+    "maintain:run": "node --import tsx scripts/screenpipe-db-maintain.ts run",
+    "maintain:status": "node --import tsx scripts/screenpipe-db-maintain.ts status",
     "rebuild-index": "tsx src/index.ts rebuild-index",
     "dev:stdio": "tsx src/index.ts --mode stdio",
     "dev:http": "tsx src/index.ts --mode http",

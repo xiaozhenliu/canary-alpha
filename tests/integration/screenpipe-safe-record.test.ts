@@ -1,4 +1,10 @@
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
+
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 describe('screenpipe safe record wrapper', () => {
   it('adds pii removal, bounded retention, default ignored windows, default ignored apps, and disables audio and vision by default', async () => {
@@ -359,5 +365,92 @@ describe('screenpipe safe record wrapper', () => {
       '--ignored-apps=Signal',
       '--disable-vision'
     ]);
+  });
+
+  it('writes maintenance JSONL and prunes entries older than seven days', async () => {
+    const root = await mkdtemp(join(testTempRoot(), 'safe-record-maintenance-log-'));
+    try {
+      const logPath = join(root, 'logs', 'screenpipe-maintenance.jsonl');
+      await mkdir(join(root, 'logs'), { recursive: true });
+      await writeFile(logPath, [
+        JSON.stringify({ at: '2026-06-01T00:00:00.000Z', event: 'old' }),
+        'not-json',
+        JSON.stringify({ at: '2026-06-09T00:00:00.000Z', event: 'kept' }),
+        ''
+      ].join('\n'));
+
+      const { writeMaintenanceLogEntry } = await import('../../scripts/screenpipe-safe-record.js') as {
+        writeMaintenanceLogEntry: (entry: Record<string, unknown>, options?: { logPath?: string; now?: Date }) => Promise<void>;
+      };
+
+      await writeMaintenanceLogEntry(
+        { at: '2026-06-10T00:00:00.000Z', event: 'maintenance-run-exit', trigger: 'periodic' },
+        { logPath, now: new Date('2026-06-10T00:00:00.000Z') }
+      );
+
+      const events = (await readFile(logPath, 'utf8'))
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => JSON.parse(line).event);
+      expect(events).toEqual(['kept', 'maintenance-run-exit']);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rotates the maintenance log when the size cap is exceeded', async () => {
+    const root = await mkdtemp(join(testTempRoot(), 'safe-record-maintenance-log-size-'));
+    try {
+      const logPath = join(root, 'logs', 'screenpipe-maintenance.jsonl');
+      await mkdir(join(root, 'logs'), { recursive: true });
+      await writeFile(logPath, 'x'.repeat(1_000_001));
+
+      const { writeMaintenanceLogEntry } = await import('../../scripts/screenpipe-safe-record.js') as {
+        writeMaintenanceLogEntry: (entry: Record<string, unknown>, options?: { logPath?: string; now?: Date }) => Promise<void>;
+      };
+
+      await writeMaintenanceLogEntry(
+        { at: '2026-06-10T00:00:00.000Z', event: 'maintenance-run-start', trigger: 'final' },
+        { logPath, now: new Date('2026-06-10T00:00:00.000Z') }
+      );
+
+      expect(existsSync(`${logPath}.1`)).toBe(true);
+      expect(JSON.parse((await readFile(logPath, 'utf8')).trim())).toMatchObject({
+        event: 'maintenance-run-start',
+        trigger: 'final'
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('serializes concurrent maintenance log writes for the same file', async () => {
+    const root = await mkdtemp(join(testTempRoot(), 'safe-record-maintenance-log-concurrent-'));
+    try {
+      const logPath = join(root, 'logs', 'screenpipe-maintenance.jsonl');
+      const { writeMaintenanceLogEntry } = await import('../../scripts/screenpipe-safe-record.js') as {
+        writeMaintenanceLogEntry: (entry: Record<string, unknown>, options?: { logPath?: string; now?: Date }) => Promise<void>;
+      };
+
+      await Promise.all([
+        writeMaintenanceLogEntry(
+          { at: '2026-06-10T00:00:00.000Z', event: 'maintenance-run-start', trigger: 'periodic' },
+          { logPath, now: new Date('2026-06-10T00:00:00.000Z') }
+        ),
+        writeMaintenanceLogEntry(
+          { at: '2026-06-10T00:00:01.000Z', event: 'maintenance-run-exit', trigger: 'periodic' },
+          { logPath, now: new Date('2026-06-10T00:00:01.000Z') }
+        )
+      ]);
+
+      const events = (await readFile(logPath, 'utf8'))
+        .trim()
+        .split(/\r?\n/)
+        .map((line) => JSON.parse(line).event)
+        .sort();
+      expect(events).toEqual(['maintenance-run-exit', 'maintenance-run-start']);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

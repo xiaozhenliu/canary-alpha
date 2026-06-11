@@ -1,7 +1,7 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-11
 ---
 
 # Configuration
@@ -15,6 +15,7 @@ Use `npm run onboard` for the MCP-layer first-run path after your local Screenpi
 - Config file: `~/.canary-alpha-mcp/config.yaml`
 - App home: `~/.canary-alpha-mcp/`
 - Logs: `~/.canary-alpha-mcp/logs/`
+- Screenpipe safe-record maintenance log: `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` with 7-day pruning and 1 MB rotation to `screenpipe-maintenance.jsonl.1`
 - Automatic app-config backups created by `npm run onboard`: `~/.canary-alpha-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
 - Hermes config updated by `npm run onboard`: `~/.hermes/config.yaml`
 

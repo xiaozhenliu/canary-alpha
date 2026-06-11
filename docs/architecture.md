@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-11
 ---
 
 # canary-alpha-mcp 架构文档
@@ -65,6 +65,7 @@ last_updated: 2026-06-10
 
 - 索引轮询：`startIndexingPoller` → `DefaultIndexingService.runOnce()`。
 - Trim/retention 轮询：`startTrimPoller` → `src/services/trim/screenpipe-trim-service.ts`。
+- CLI safe-record 维护：`scripts/screenpipe-safe-record.js` 在 `screenpipe@latest record` 旁路启动 `scripts/screenpipe-db-maintain.ts run`，默认每 10 分钟执行一次，并在 recorder 退出后执行一次 final pass。维护运行结果写入 `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`，该 JSONL 日志保留 7 天且超过 1 MB 时轮转到 `.1`。周期性维护不阻塞 recorder 生命周期；final pass 会等待维护日志落盘后再结束 wrapper。
 - 会话聚合 / 摘要 / cascade-delete：均在 work-activity 子系统内，由索引循环与工具调用驱动。
 
 ## 3. 运行模式与传输
@@ -171,6 +172,7 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 | `~/.canary-alpha-mcp/privacy-state.json` | 隐私状态 / suppressed-range tombstone |
 | `~/.canary-alpha-mcp/memory/{memory,user}.md` | 长期记忆（每 scope 一文件） |
 | `~/.canary-alpha-mcp/logs/service.log` | 结构化日志（大小轮转） |
+| `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` | safe-record 维护任务 JSONL 日志（7 天保留，1 MB 轮转） |
 | `~/.canary-alpha-mcp/routines/{definitions,history}/` | 已定义但**未接线**（见第 7 节） |
 | `~/.canary-alpha-mcp/runtime-processes/<pid>.json` + `rebuild-index.lock` | 跨进程注册与 rebuild 单持有者锁 |
 | `~/.screenpipe/db.sqlite` | **Screenpipe 源数据库**（只读检索 + 受 privacy/trim 删除） |
@@ -250,6 +252,5 @@ graph TD
   TRIM --> SPDB & DDB
   MEM --> FILES
 ```
-
 
 
