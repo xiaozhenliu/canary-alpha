@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-11
 ---
 
 # canary-alpha-mcp
@@ -101,7 +101,7 @@ http://127.0.0.1:18765/mcp
 
 ```bash
 hermes mcp list
-hermes mcp test screenpipe-memory
+hermes mcp test canary-alpha-mcp
 ```
 
 其他客户端请参考[通用 MCP 客户端配置](docs/clients/generic-mcp.md)；Hermes 用户请参考 [Hermes 指南](docs/clients/hermes.md)。

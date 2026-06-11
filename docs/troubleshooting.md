@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-11
 ---
 
 # Troubleshooting
@@ -146,6 +146,29 @@ The service may not have started yet, or it exited before producing output.
 - run `npm run service:start`
 - re-run `npm run service:status`
 - check whether `~/.canary-alpha-mcp/logs/` exists
+
+## Screenpipe maintenance status is unclear
+
+### Symptom
+
+`npm run screenpipe:safe-record` is running or recently stopped, but you need to confirm whether the Screenpipe database maintenance pass ran, failed, or rotated its diagnostic output.
+
+### Checks
+
+1. Read the maintenance JSONL log:
+
+```bash
+tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
+```
+
+2. Look for `maintenance-run-start`, `maintenance-run-exit`, or `maintenance-run-error`.
+3. Check the `trigger` field:
+   - `periodic` means the 10-minute background maintenance interval fired while recording continued.
+   - `final` means the wrapper ran one last maintenance pass after the recorder exited.
+4. If `screenpipe-maintenance.jsonl` is missing but `npm run screenpipe:safe-record` has not exited or run for at least 10 minutes, wait for the next interval or stop the wrapper cleanly to trigger the final pass.
+5. If the log rotated, inspect `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl.1`.
+
+The active log keeps 7 days of valid JSONL entries and rotates at 1 MB. Malformed or older entries are discarded during the next write.
 
 ## File analysis rejects a file
 

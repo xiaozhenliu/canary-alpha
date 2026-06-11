@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-11
 ---
 
 # Development Log
@@ -21,6 +21,24 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-11: Screenpipe Maintenance Observability
+
+**Result**
+
+- Added operator-visible JSONL logging for Screenpipe database maintenance runs started by `npm run screenpipe:safe-record`.
+- Documented the maintenance log path, retention policy, rotation cap, and troubleshooting flow.
+- Bumped the package version to `2.0.2`.
+
+**Decisions**
+
+- Keep maintenance logs under `~/.canary-alpha-mcp/logs/` with private directory and file permissions.
+- Retain maintenance log entries for 7 days to match the safe-record default data-retention window, with 1 MB rotation as a disk-safety cap.
+- Keep periodic maintenance non-blocking for the recorder, but wait for final maintenance logging before the wrapper exits.
+
+**Verification**
+
+- Ran focused safe-record maintenance tests, TypeScript checks, the production build, whitespace diff checks, and the full Vitest suite.
 
 ## 2026-06-01: Public Project Maintenance Surface
 
