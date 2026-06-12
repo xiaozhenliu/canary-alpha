@@ -8,7 +8,7 @@ import YAML from 'yaml';
 
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 
-import { createApp, resolveCheckpointPath, startIndexingPoller } from './bootstrap/create-app.js';
+import { createApp, startIndexingPoller } from './bootstrap/create-app.js';
 import { getPackageVersion } from './lib/version.js';
 import {
   acquireRebuildLock,
