@@ -89,7 +89,7 @@ describe('rebuild-index acceptance', () => {
       vectorStorePath: retrievalStateDir
     });
 
-    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.json');
+    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
     const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
 
     const checkpointBefore = JSON.stringify({
@@ -164,7 +164,7 @@ describe('rebuild-index acceptance', () => {
     };
 
     expect(summary.command).toBe('rebuild-index');
-    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.json']);
+    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.screenpipe.json']);
     expect(summary.fetched).toBe(0);
     expect(summary.indexed).toBe(0);
     expect(summary.checkpointBefore).toBe('none');
@@ -262,7 +262,7 @@ describe('rebuild-index acceptance', () => {
     const memoryPath = join(memoryDir, 'memory.md');
     const userMemoryPath = join(memoryDir, 'user.md');
     const sentinelPath = join(appDir, 'sentinel.json');
-    const checkpointPath = join(appDir, 'retrieval-checkpoint.json');
+    const checkpointPath = join(appDir, 'retrieval-checkpoint.screenpipe.json');
     const vectorStorePath = join(appDir, 'vector-store.json');
 
     await writeFile(privacyStatePath, JSON.stringify({ paused: false, excludedApps: ['Mail'] }, null, 2), 'utf8');
@@ -438,7 +438,7 @@ describe('rebuild-index acceptance', () => {
       maxCatchUpRecords: 2
     });
 
-    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.json');
+    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
     const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
     const checkpointBefore = JSON.stringify({
       cursor: 'existing-record',
@@ -1258,7 +1258,7 @@ describe('rebuild-index acceptance', () => {
     });
 
     const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
-    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.json');
+    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
     const vectorStoreBefore = JSON.stringify({
       records: [
         {
@@ -1485,7 +1485,7 @@ describe('rebuild-index acceptance', () => {
     const memoryPath = join(memoryDir, 'memory.md');
     const userMemoryPath = join(memoryDir, 'user.md');
     const sentinelPath = join(appDir, 'sentinel.json');
-    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.json');
+    const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
     const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
 
     await writeFile(privacyStatePath, JSON.stringify({ paused: false, excludedApps: ['Mail'] }, null, 2), 'utf8');
@@ -1548,7 +1548,7 @@ describe('rebuild-index acceptance', () => {
     };
 
     expect(summary.command).toBe('rebuild-index');
-    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.json']);
+    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.screenpipe.json']);
     expect(summary.fetched).toBe(1);
     expect(summary.indexed).toBe(1);
     expect(summary.checkpointBefore).toBe('none');

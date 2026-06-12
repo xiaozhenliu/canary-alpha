@@ -213,7 +213,7 @@ function buildIndexingHarness(
   sessionStore: SqliteSessionStore;
 } {
   const embeddingProvider = new StubEmbeddingProvider();
-  const screenpipeClient = new StubScreenpipeClient(records);
+  const captureClient = new StubScreenpipeClient(records);
   const vectorStore = new InMemoryVectorStore({
     kind: 'in-memory'
   } as never);
@@ -242,12 +242,13 @@ function buildIndexingHarness(
     embeddingProvider,
     vectorStore,
     hashIndex,
-    now: () => currentNow
+    now: () => currentNow,
+    captureProviderName: 'screenpipe'
   });
 
   const indexing = createIndexingService({
     embeddingProvider,
-    screenpipeClient,
+    captureClient,
     vectorStore,
     checkpointStore,
     // Wide enough to cover every fixture frame in a single backlog

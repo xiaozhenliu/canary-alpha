@@ -53,7 +53,7 @@ describe('app bootstrap indexing catch-up', () => {
 
     await createApp({ mode: 'stdio' });
 
-    const checkpointPath = join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json');
+    const checkpointPath = join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.screenpipe.json');
     await expect(access(checkpointPath)).rejects.toBeDefined();
 
     await waitFor(async () => {
@@ -107,7 +107,7 @@ describe('app bootstrap indexing catch-up', () => {
 
     await waitFor(async () => {
       const checkpoint = JSON.parse(
-        await readCheckpoint(join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.json'))
+        await readCheckpoint(join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.screenpipe.json'))
       ) as { cursor: string };
       expect(checkpoint.cursor).toBe('bootstrap-2');
     });

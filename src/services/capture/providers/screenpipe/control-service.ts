@@ -3,6 +3,8 @@ import type { ChildProcess } from 'node:child_process';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { CaptureLifecyclePort } from '../../types.js';
+
 export type ScreenpipeControlAction = 'status' | 'start' | 'stop';
 
 export interface ScreenpipeControlRequest {
@@ -21,9 +23,11 @@ export interface ScreenpipeControlService {
 }
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = dirname(dirname(dirname(scriptDirectory)));
+// File is at src/services/capture/providers/screenpipe/control-service.ts
+// so we need 5 dirname calls to reach the repository root.
+const repositoryRoot = dirname(dirname(dirname(dirname(dirname(scriptDirectory)))));
 
-export class DefaultScreenpipeControlService implements ScreenpipeControlService {
+export class DefaultScreenpipeControlService implements ScreenpipeControlService, CaptureLifecyclePort {
   private child: ChildProcess | null = null;
 
   async execute(request: ScreenpipeControlRequest): Promise<ScreenpipeControlResult> {

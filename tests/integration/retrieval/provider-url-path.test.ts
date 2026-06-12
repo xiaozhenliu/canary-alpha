@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createEmbeddingProvider } from '../../../src/services/retrieval/provider-factory.js';
-import { createScreenpipeClient } from '../../../src/services/retrieval/screenpipe-client.js';
+import { createScreenpipeClient } from '../../../src/services/capture/providers/screenpipe/http-client.js';
 import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -99,7 +99,7 @@ describe('provider and retrieval URL handling', () => {
         historyPath: join(testTempRoot(), 'provider-url-routines', 'history')
       },
       trim: { enabled: true, intervalSeconds: 600 },
-      capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+      capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
       storage: { diskBudgetBytes: null, retentionDays: 7 },
       privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
       analysis: {
@@ -195,7 +195,7 @@ describe('provider and retrieval URL handling', () => {
         historyPath: join(testTempRoot(), 'provider-auth-routines', 'history')
       },
       trim: { enabled: true, intervalSeconds: 600 },
-      capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+      capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
       storage: { diskBudgetBytes: null, retentionDays: 7 },
       privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
       analysis: {

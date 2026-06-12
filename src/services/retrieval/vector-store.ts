@@ -1,6 +1,8 @@
 import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
+import { parseCaptureId } from '../capture/types.js';
+
 import { resolveRetrievalArtifactsDirectory } from '../../config/paths.js';
 import type { AppConfig } from '../../types/app-config.js';
 import type { RetrievalEvidenceItem, VectorStore, VectorStoreInspection, VectorStoreRecord, VectorSearchRequest } from './types.js';
@@ -156,11 +158,19 @@ export class InMemoryVectorStore implements VectorStore {
 
     const before = this.records.length;
     const remaining = this.records.filter((record) => {
-      const frameId = record.metadata?.frameId;
-      if (frameId === undefined || frameId === null) {
-        return true;
-      }
-      return !targets.has(String(frameId));
+      // Match on legacy metadata.frameId key (records written before the
+      // captureId migration) OR on the neutral metadata.captureId key
+      // (records written after Task 5 dual-write). A record is deleted
+      // when EITHER key resolves to a target frame id.
+      const legacyFrameId = record.metadata?.frameId;
+      const matchesLegacy = legacyFrameId !== undefined && legacyFrameId !== null
+        && targets.has(String(legacyFrameId));
+
+      const captureId = record.metadata?.captureId;
+      const captureParts = typeof captureId === 'string' ? parseCaptureId(captureId) : null;
+      const matchesCapture = captureParts?.kind === 'frame' && targets.has(captureParts.value);
+
+      return !matchesLegacy && !matchesCapture;
     });
 
     this.records.splice(0, this.records.length, ...remaining);

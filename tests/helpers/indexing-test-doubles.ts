@@ -4,7 +4,7 @@
  * ("DefaultIndexingService.runOnce 接入抽取与会话化").
  *
  * The pre-task-6.1 indexing-service tests construct their own
- * `embeddingProvider` / `vectorStore` / `screenpipeClient` stubs and
+ * `embeddingProvider` / `vectorStore` / `captureClient` stubs and
  * assert against the legacy "per-record vector-store upsert" shape.
  * Task 6.1 inserts a four-collaborator pipeline (extraction →
  * extracted_content store → session aggregator → embedding service)
@@ -27,7 +27,7 @@
  *      vector-store record keyed by the **original**
  *      `ScreenpipeRecord.id` — preserving the legacy
  *      `vectorStore.upserts[0]?.map(r => r.id)` assertion shape.
- *   4. Wraps the `screenpipeClient` with a tap that captures records
+ *   4. Wraps the `captureClient` with a tap that captures records
  *      into a shared `frameId → record` map (so the embedding shim
  *      can look up the original `id` / `text` / `metadata` from the
  *      synthetic `frameId` the indexing service derives via FNV-1a).
@@ -407,7 +407,7 @@ export function createLegacyIndexingService(
   deps: LegacyIndexingDependencies
 ): IndexingService {
   const records = new Map<number, ScreenpipeRecord>();
-  const wrappedClient = createCapturingClient(deps.screenpipeClient, records);
+  const wrappedClient = createCapturingClient(deps.captureClient, records);
   // Track the first provider error the shim observes so the
   // late-filter throw path can re-raise it. The production indexing
   // service surfaces `hadEmbeddingFailures: true` on the result for
@@ -435,7 +435,7 @@ export function createLegacyIndexingService(
   const inner = createIndexingService({
     ...deps,
     embeddingProvider: trackingProvider,
-    screenpipeClient: wrappedClient,
+    captureClient: wrappedClient,
     extractionRegistry: new PassthroughExtractionRegistry(records),
     extractedContentStore: new NoopExtractedContentStore(),
     sessionAggregator: new NoopSessionAggregator(),

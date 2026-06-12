@@ -45,59 +45,25 @@
 import { existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
+import type { CaptureFrameDetailPort, CaptureFrameRow } from '../../types.js';
+
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
 /**
- * The five-column projection of a ScreenPipe `frames` row that
- * `inspect({frameId})` exposes through its outputSchema. Mirrors the
- * column names verbatim so the adapter does no field renaming —
- * callers shape the public payload (camelCase) themselves.
- *
- *   - `id` is surfaced as `number` even though the source column is
- *     SQLite `INTEGER` (which `node:sqlite` returns as `number |
- *     bigint`). The adapter coerces with `Number(...)`; ScreenPipe
- *     frame IDs are 31-bit auto-increment so the coercion is exact.
- *   - `timestamp` is the ISO-8601 string column ScreenPipe stores
- *     verbatim. The adapter does no parsing — `inspect` re-emits it
- *     as-is.
- *   - `appName` / `windowName` are `string | undefined` (rather than
- *     `string | null`) so the JS shape mirrors the rest of the
- *     extraction pipeline (where missing fields are `undefined`).
- *   - `accessibilityTreeJson` is `string | null`; `null` represents
- *     ScreenPipe's "AX tree was nulled by retention" state.
+ * Re-export the neutral CaptureFrameRow under the legacy name so existing
+ * callers that import ScreenpipeFrameRow keep compiling without changes.
+ * @deprecated Use CaptureFrameRow from services/capture/types.js instead.
  */
-export interface ScreenpipeFrameRow {
-  id: number;
-  timestamp: string;
-  appName?: string;
-  windowName?: string;
-  accessibilityTreeJson: string | null;
-}
+export type { CaptureFrameRow as ScreenpipeFrameRow } from '../../types.js';
 
 /**
- * Read-only port the `InspectService` depends on. Kept narrow on
- * purpose: the only field `inspect({frameId})` needs is the
- * five-column projection above. Future readers (e.g. a "search
- * frames by app" tool) can extend this interface or define a sibling
- * port without touching the inspect path.
+ * Deprecated alias for the neutral CaptureFrameDetailPort. New code should
+ * depend on CaptureFrameDetailPort directly.
+ * @deprecated Use CaptureFrameDetailPort from services/capture/types.js instead.
  */
-export interface ScreenpipeFramesReader {
-  /**
-   * Returns the row for the supplied `frameId`, or `null` when:
-   *
-   *   - ScreenPipe `db.sqlite` is missing / unreadable;
-   *   - the `frames` table is missing (incompatible upstream schema);
-   *   - no row with `id = frameId` exists.
-   *
-   * MUST NOT throw — design §"Failure modes" requires the inspect
-   * tool to collapse all three cases to a uniform "原始 AX 树不可访问"
-   * narrative, which is easier to express when the adapter never
-   * surfaces exceptions. Implementations log internally instead.
-   */
-  getFrame(frameId: number | string): Promise<ScreenpipeFrameRow | null>;
-}
+export type ScreenpipeFramesReader = CaptureFrameDetailPort;
 
 // ---------------------------------------------------------------------------
 // Implementation
@@ -109,7 +75,7 @@ export interface ScreenpipeFramesReader {
  * the life of the process; tests that need a fresh handle should
  * construct a new instance per case.
  */
-export class SqliteScreenpipeFramesReader implements ScreenpipeFramesReader {
+export class SqliteScreenpipeFramesReader implements CaptureFrameDetailPort {
   /**
    * Cached connection. `null` means "not yet opened or known to be
    * unavailable"; a non-null value means the connection is live and
@@ -137,7 +103,7 @@ export class SqliteScreenpipeFramesReader implements ScreenpipeFramesReader {
 
   constructor(private readonly screenpipeDbPath: string) {}
 
-  async getFrame(frameId: number | string): Promise<ScreenpipeFrameRow | null> {
+  async getFrame(frameId: number | string): Promise<CaptureFrameRow | null> {
     const numericId = coerceFrameId(frameId);
     if (numericId === null) return null;
 

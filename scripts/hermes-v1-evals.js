@@ -115,7 +115,7 @@ async function setupControlledEnvironment() {
   const checkpointDir = join(homeDir, '.canary-alpha-mcp');
   await ensureDirectory(checkpointDir);
   await writeFile(
-    join(checkpointDir, 'retrieval-checkpoint.json'),
+    join(checkpointDir, 'retrieval-checkpoint.screenpipe.json'),
     JSON.stringify({
       cursor: 'v1-evals-checkpoint',
       timestamp: minusFixtureMinutesIso(1)

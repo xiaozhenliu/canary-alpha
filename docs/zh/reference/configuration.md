@@ -1,5 +1,5 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -140,7 +140,24 @@ node dist/src/index.js config <命令> ...
 |------|------|--------|------|
 | `level` | `debug` \| `info` \| `warn` \| `error` | `info` | 控制服务日志详细程度。 |
 
+### `capture`
+
+| 字段 | 类型 | 默认值 | 备注 |
+|------|------|--------|------|
+| `provider` | `screenpipe` | `screenpipe` | 屏幕记忆采集、inspect、trim 与录制进程控制由哪个 capture provider 支撑。当前仅支持 `screenpipe`；新增 provider 需要在 `src/services/capture/providers/` 下新建目录并增加 enum 成员。 |
+| `livenessThresholdSeconds` | 正整数 | `120` | 最新帧在该阈值内视为采集存活（`ok`），超过则采集状态判定为 `idle`。 |
+| `permissionsGracePeriodSeconds` | 非负整数 | `60` | 录制进程启动后的宽限期，超过该时间仍无帧才报告 `permissions-missing`。 |
+
+```yaml
+capture:
+  # Which capture provider backs screen-memory ingestion.
+  # Currently supported: screenpipe (default).
+  provider: screenpipe
+```
+
 ### `screenpipe`
+
+`screenpipe` capture provider 的专属配置块（类比 `providers.embeddings` 之于 embedding provider），仅在 `capture.provider` 为 `screenpipe` 时生效。
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|

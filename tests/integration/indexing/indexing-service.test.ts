@@ -168,7 +168,7 @@ describe('indexing core service', () => {
   it('supports forced backlog rebuilds from a full-history window after checkpoint reset', async () => {
     const vectorStore = new RecordingVectorStore();
     const checkpointStore = new StubCheckpointStore(null);
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-oldest',
         text: 'Oldest retained note',
@@ -191,7 +191,7 @@ describe('indexing core service', () => {
           ['Newest retained note', [0, 1, 0]]
         ])
       ),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -210,7 +210,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(2);
-    expect(screenpipeClient.searchCalls).toEqual([
+    expect(captureClient.searchCalls).toEqual([
       {
         from: '1970-01-01T00:00:00.000Z',
         to: '2026-04-13T12:00:00.000Z',
@@ -228,7 +228,7 @@ describe('indexing core service', () => {
   it('bounds first-run catch-up to the configured backlog window', async () => {
     const vectorStore = new RecordingVectorStore();
     const checkpointStore = new StubCheckpointStore(null);
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-old',
         text: 'Outside catch-up window',
@@ -258,7 +258,7 @@ describe('indexing core service', () => {
           ['Second indexed note', [0, 1, 0]]
         ])
       ),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -270,7 +270,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(2);
-    expect(screenpipeClient.searchCalls).toEqual([
+    expect(captureClient.searchCalls).toEqual([
       {
         from: '2026-04-13T11:15:00.000Z',
         to: '2026-04-13T12:00:00.000Z',
@@ -293,7 +293,7 @@ describe('indexing core service', () => {
       cursor: 'record-1',
       timestamp: '2026-04-13T11:55:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Already indexed note',
@@ -311,7 +311,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -323,7 +323,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(1);
-    expect(screenpipeClient.recentCalls).toEqual([15]);
+    expect(captureClient.recentCalls).toEqual([15]);
     expect(vectorStore.upserts[0]?.map((record) => record.id)).toEqual(['record-2']);
     await expect(checkpointStore.readLatest()).resolves.toEqual({
       cursor: 'record-2',
@@ -337,7 +337,7 @@ describe('indexing core service', () => {
       cursor: 'record-1',
       timestamp: '2026-04-13T11:44:30.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Already indexed note',
@@ -355,7 +355,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -367,8 +367,8 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(1);
-    expect(screenpipeClient.recentCalls).toEqual([16]);
-    expect(screenpipeClient.searchCalls).toEqual([]);
+    expect(captureClient.recentCalls).toEqual([16]);
+    expect(captureClient.searchCalls).toEqual([]);
     expect(vectorStore.upserts[0]?.map((record) => record.id)).toEqual(['record-2']);
     await expect(checkpointStore.readLatest()).resolves.toEqual({
       cursor: 'record-2',
@@ -382,7 +382,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T10:00:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-3',
         text: 'Three',
@@ -407,7 +407,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -419,7 +419,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(2);
-    expect(screenpipeClient.searchCalls).toEqual([
+    expect(captureClient.searchCalls).toEqual([
       {
         from: '2026-04-13T11:45:00.000Z',
         to: '2026-04-13T12:00:00.000Z',
@@ -450,7 +450,7 @@ describe('indexing core service', () => {
         nextOffset: 2
       }
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-3',
         text: 'Three',
@@ -475,7 +475,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -487,7 +487,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(1);
     expect(result.indexed).toBe(1);
-    expect(screenpipeClient.searchCalls).toEqual([
+    expect(captureClient.searchCalls).toEqual([
       {
         from: '2026-04-13T11:45:00.000Z',
         to: '2026-04-13T12:00:00.000Z',
@@ -508,7 +508,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T10:00:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Captured while paused one',
@@ -533,7 +533,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -550,7 +550,7 @@ describe('indexing core service', () => {
 
     expect(result.fetched).toBe(2);
     expect(result.indexed).toBe(0);
-    expect(screenpipeClient.searchCalls).toEqual([
+    expect(captureClient.searchCalls).toEqual([
       {
         from: '2026-04-13T11:45:00.000Z',
         to: '2026-04-13T12:00:00.000Z',
@@ -576,7 +576,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T10:00:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Visible legacy paused record one',
@@ -594,7 +594,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -624,7 +624,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Skip Claude record',
@@ -649,7 +649,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -678,7 +678,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-iina',
         text: 'Skip IINA record',
@@ -689,7 +689,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -718,7 +718,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Suppressed paused record',
@@ -736,7 +736,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -771,7 +771,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Suppressed paused record with offset timestamp',
@@ -789,7 +789,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -824,7 +824,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Visible before pause',
@@ -863,7 +863,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -889,7 +889,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Earlier Claude record',
@@ -933,7 +933,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -960,7 +960,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Visible terminal record',
@@ -996,7 +996,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1022,7 +1022,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Visible before offset pause',
@@ -1061,7 +1061,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1087,7 +1087,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Hidden after embed',
@@ -1107,7 +1107,7 @@ describe('indexing core service', () => {
         paused: false,
         excludedApps: ['Claude']
       }),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1134,7 +1134,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Temporarily hidden note',
@@ -1163,7 +1163,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1189,7 +1189,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Readable without privacy state',
@@ -1200,7 +1200,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new StubEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1226,7 +1226,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Good one',
@@ -1244,7 +1244,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new PartiallyFailingEmbeddingProvider(new Set(['Bad one'])),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1269,7 +1269,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Good one',
@@ -1294,7 +1294,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new PartiallyFailingEmbeddingProvider(new Set(['Bad one'])),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1319,7 +1319,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:49:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Good one',
@@ -1351,7 +1351,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new PartiallyFailingEmbeddingProvider(new Set(['Bad one'])),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1382,7 +1382,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Bad one',
@@ -1419,7 +1419,7 @@ describe('indexing core service', () => {
           return [input.length, 3, 0];
         }
       },
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,
@@ -1442,7 +1442,7 @@ describe('indexing core service', () => {
       cursor: 'record-0',
       timestamp: '2026-04-13T11:10:00.000Z'
     });
-    const screenpipeClient = new StubScreenpipeClient([
+    const captureClient = new StubScreenpipeClient([
       {
         id: 'record-1',
         text: 'Always broken',
@@ -1453,7 +1453,7 @@ describe('indexing core service', () => {
     ]);
     const service = createIndexingService({
       embeddingProvider: new AlwaysFailingEmbeddingProvider(),
-      screenpipeClient,
+      captureClient,
       vectorStore,
       checkpointStore,
       freshnessWindowMinutes: 15,

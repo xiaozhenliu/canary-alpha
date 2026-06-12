@@ -1,23 +1,15 @@
-import type { ScreenpipeClient, ScreenpipeRecord, ScreenpipeSearchRequest } from './types.js';
+import type { ScreenpipeClient, ScreenpipeRecord, ScreenpipeSearchRequest } from '../../../retrieval/types.js';
 
-/**
- * Symbol used to attach a degraded reason to a ScreenpipeRecord[] array when
- * one of the dual-query paths (AX or OCR) fails but the other succeeds.
- * Upper-layer services (formerly `search-screen-service`; now reserved for
- * the work-activity-analysis tools introduced in tasks 8.2 - 8.5) can read
- * this symbol to surface the degradation to callers.
- */
-export const DEGRADED_REASON_SYMBOL: unique symbol = Symbol('screenpipeDegradedReason');
+import {
+  CAPTURE_DEGRADED_REASON,
+  type CaptureRecordPage
+} from '../../types.js';
 
-/**
- * A ScreenpipeRecord[] that may carry an optional degraded reason attached via
- * DEGRADED_REASON_SYMBOL.  The symbol property is invisible to normal iteration
- * and JSON serialisation, so it does not affect downstream consumers that do
- * not know about it.
- */
-export type ScreenpipeRecordPage = ScreenpipeRecord[] & {
-  [DEGRADED_REASON_SYMBOL]?: string;
-};
+/** @deprecated Use CAPTURE_DEGRADED_REASON from services/capture/types.js. */
+export const DEGRADED_REASON_SYMBOL = CAPTURE_DEGRADED_REASON;
+
+/** @deprecated Use CaptureRecordPage from services/capture/types.js. */
+export type ScreenpipeRecordPage = CaptureRecordPage;
 
 interface ScreenpipeClientOptions {
   baseUrl?: string;
@@ -228,10 +220,13 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
     }
 
     if (axError !== null && ocrError !== null) {
-      // Both paths failed — surface as SCREENPIPE_UNAVAILABLE so upper-layer
-      // services can set error.code = 'SCREENPIPE_UNAVAILABLE'.
-      const combined = new Error('Screenpipe search failed on both AX and OCR paths.');
-      (combined as NodeJS.ErrnoException & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
+      // Both paths failed — attach the neutral captureCode (primary) and the
+      // legacy screenpipeCode (compatibility window) so upper-layer consumers
+      // that check either property keep working during the migration.
+      const combined = new Error('Capture source search failed on both AX and OCR paths (provider: screenpipe).');
+      (combined as Error & { captureCode?: string; screenpipeCode?: string }).captureCode = 'CAPTURE_SOURCE_UNAVAILABLE';
+      // Legacy property kept for the compatibility window.
+      (combined as Error & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
       throw combined;
     }
 
@@ -239,7 +234,7 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
 
     if (axError !== null) {
       // AX path failed, fell back to OCR only
-      merged[DEGRADED_REASON_SYMBOL] = 'AX path unavailable, falling back to OCR';
+      merged[CAPTURE_DEGRADED_REASON] = 'capture provider screenpipe: AX path unavailable, falling back to OCR';
     } else if (ocrError !== null) {
       // OCR path failed, AX-only result (still valid, no degradation message needed
       // per spec — OCR is the fallback, not the primary)
@@ -269,7 +264,7 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
 
       // Capture degraded reason from the first page that has one
       if (degradedReason === undefined) {
-        degradedReason = page[DEGRADED_REASON_SYMBOL];
+        degradedReason = page[CAPTURE_DEGRADED_REASON];
       }
 
       records.push(...page);
@@ -282,7 +277,7 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
 
     const result: ScreenpipeRecordPage = records;
     if (degradedReason !== undefined) {
-      result[DEGRADED_REASON_SYMBOL] = degradedReason;
+      result[CAPTURE_DEGRADED_REASON] = degradedReason;
     }
 
     return result;
@@ -307,15 +302,20 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
     }
 
     if (axError !== null && ocrError !== null) {
-      const combined = new Error('Screenpipe search failed on both AX and OCR paths.');
-      (combined as NodeJS.ErrnoException & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
+      // Both paths failed — attach the neutral captureCode (primary) and the
+      // legacy screenpipeCode (compatibility window) so upper-layer consumers
+      // that check either property keep working during the migration.
+      const combined = new Error('Capture source search failed on both AX and OCR paths (provider: screenpipe).');
+      (combined as Error & { captureCode?: string; screenpipeCode?: string }).captureCode = 'CAPTURE_SOURCE_UNAVAILABLE';
+      // Legacy property kept for the compatibility window.
+      (combined as Error & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
       throw combined;
     }
 
     const merged: ScreenpipeRecordPage = mergeByFrameId(axRecords, ocrRecords);
 
     if (axError !== null) {
-      merged[DEGRADED_REASON_SYMBOL] = 'AX path unavailable, falling back to OCR';
+      merged[CAPTURE_DEGRADED_REASON] = 'capture provider screenpipe: AX path unavailable, falling back to OCR';
     }
 
     return merged;

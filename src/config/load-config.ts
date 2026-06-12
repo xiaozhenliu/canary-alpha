@@ -141,6 +141,7 @@ export async function loadConfig(overrides?: {
       intervalSeconds: parsed.data.trim.intervalSeconds
     },
     capture: {
+      provider: parsed.data.capture.provider,
       livenessThresholdSeconds: parsed.data.capture.livenessThresholdSeconds,
       permissionsGracePeriodSeconds: parsed.data.capture.permissionsGracePeriodSeconds
     },

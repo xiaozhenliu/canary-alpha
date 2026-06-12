@@ -46,7 +46,7 @@ import {
   createCascadeDeleteCoordinator
 } from '../../../src/services/work-activity/cascade-delete-coordinator.js';
 import { DefaultPrivacyControlService } from '../../../src/services/privacy/privacy-control-service.js';
-import { runRetentionIfOverBudget } from '../../../src/services/trim/screenpipe-trim-service.js';
+import { runRetentionIfOverBudget } from '../../../src/services/capture/providers/screenpipe/trim-service.js';
 import type { ExtractionResult } from '../../../src/services/work-activity/extraction/types.js';
 import type { PrivacyStore, PrivacyState } from '../../../src/services/privacy/types.js';
 import type { VectorStoreRecord } from '../../../src/services/retrieval/types.js';

@@ -2,9 +2,9 @@ import { stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { ScreenpipeTrimResult, Logger } from '../../types/app-config.js';
-import type { CascadeDeleteCoordinator } from '../work-activity/cascade-delete-coordinator.js';
-import type { PrivacyStore } from '../privacy/types.js';
+import type { ScreenpipeTrimResult, Logger } from '../../../../types/app-config.js';
+import type { CascadeDeleteCoordinator } from '../../../work-activity/cascade-delete-coordinator.js';
+import type { PrivacyStore } from '../../../privacy/types.js';
 
 const RETENTION_BATCH_SIZE = 100;
 /**

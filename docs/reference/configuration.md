@@ -1,5 +1,5 @@
 ---
-doc_version: 9
+doc_version: 10
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -140,7 +140,24 @@ After a `set`, `unset`, `add`, or `remove`, restart the managed service for chan
 |-------|------|---------|-------|
 | `level` | `debug` \| `info` \| `warn` \| `error` | `info` | Controls service log verbosity. |
 
+### `capture`
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `provider` | `screenpipe` | `screenpipe` | Which capture provider backs screen-memory ingestion, inspect, trim, and recorder control. Currently `screenpipe` is the only supported value; adding a new provider means a new directory under `src/services/capture/providers/` plus a new enum member. |
+| `livenessThresholdSeconds` | positive integer | `120` | Frames newer than this count as live capture (`ok`); older frames classify the capture state as `idle`. |
+| `permissionsGracePeriodSeconds` | non-negative integer | `60` | Grace period after the recorder process starts before a frameless state is reported as `permissions-missing`. |
+
+```yaml
+capture:
+  # Which capture provider backs screen-memory ingestion.
+  # Currently supported: screenpipe (default).
+  provider: screenpipe
+```
+
 ### `screenpipe`
+
+Provider-specific configuration block for the `screenpipe` capture provider (the same way `providers.embeddings` configures the embedding provider). It is only consulted when `capture.provider` is `screenpipe`.
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
