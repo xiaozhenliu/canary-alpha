@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { appConfigSchema } from './schema.js';
 
 export type SchemaResolveResult =
-  | { ok: true; schema: z.ZodTypeAny; isArray: boolean }
+  | { ok: true; schema: z.ZodTypeAny; isArray: boolean; nullable: boolean }
   | { ok: false; error: 'not-found'; availableKeys: string[] }
   | { ok: false; error: 'unsupported' };
 
@@ -50,7 +50,7 @@ export function resolveSchemaAtPath(path: string[]): SchemaResolveResult {
   if (!isSupportedLeaf(leaf)) {
     return { ok: false, error: 'unsupported' };
   }
-  return { ok: true, schema: leaf, isArray: leaf instanceof z.ZodArray };
+  return { ok: true, schema: leaf, isArray: leaf instanceof z.ZodArray, nullable: isNullable(current) };
 }
 
 export type CoerceResult =
