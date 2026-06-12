@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -18,10 +18,12 @@ MCP client 可以创建、列出、巡检本地 routines；启用的 routines �
 
 需求编号沿用项目需求池原始命名（PRD / `.planning/REQUIREMENTS.md` 历史归档）。
 
-### A. 持久化（原 GSD Phase 7 范围）
+### A. 持久化（原 GSD Phase 7 范围）—— ✅ 已实现
 
 - **ROUT-04**: Routine names are normalized to filesystem-safe slugs and persisted as local definition records.
 - **ROUT-05**: Routine execution history is persisted locally newest-first and remains available across server restarts.
+
+> 状态说明：本组已由原 GSD plan `07-01` 交付（`src/services/routines/routine-store.ts`、`src/services/routines/types.ts`，集成测试 `tests/integration/routines/routine-store.test.ts`），执行记录见 `.planning/phases/07-file-backed-routine-persistence/07-01-SUMMARY.md`。验收标准 1–3 已有自动化覆盖；归档的需求文档（`.planning/REQUIREMENTS.md`）标注的 Pending 状态已过期。
 
 ### B. 调度执行（原 GSD Phase 8 范围）
 
@@ -82,5 +84,12 @@ MCP client 可以创建、列出、巡检本地 routines；启用的 routines �
 
 ## 实现参考（非规范性）
 
-- `docs/plan/v1.1-routines-mvp-implementation-plan.md` — 既有的完整实现计划（任务分解、代码草案、文件清单）。**注意**：该计划基于 capture 解耦前的 bootstrap 结构编写，执行时若 capture-provider-decoupling 已落地，bootstrap 接线部分需按新结构调整。
-- `.planning/phases/06-*/` — 已完成的配置与 setup 地基的历史执行记录。
+**未完成的计划文档**（覆盖本 spec 剩余范围，执行时以本 spec 的需求与验收标准为准）：
+
+- `docs/plan/v1.1-routines-mvp-implementation-plan.md` — 覆盖 MVP 全范围的实现计划（任务分解、代码草案、文件清单），其中持久化部分已交付、其余任务未执行。**注意**：该计划基于 capture 解耦前的 bootstrap 结构编写，执行时若 capture-provider-decoupling 已落地，bootstrap 接线部分需按新结构调整。
+- `.planning/phases/08-scheduled-daily-summary-execution/08-01-PLAN.md` — 调度执行（B 组：cron 调度、no-overlap、`daily_summary`）的 GSD 时期详细计划，未执行；配套研究 `08-RESEARCH.md`、上下文 `08-CONTEXT.md`。
+
+**已完成工作的历史记录**：
+
+- `.planning/phases/07-file-backed-routine-persistence/07-01-PLAN.md` 与 `07-01-SUMMARY.md` — A 组（持久化）的计划与执行总结。
+- `.planning/phases/06-*/` — 配置与 setup 地基（原 ROUT-09/10）的执行记录。

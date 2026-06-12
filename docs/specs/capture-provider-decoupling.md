@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -51,5 +51,7 @@ Screenpipe 收敛为 `src/services/capture/providers/screenpipe/` 目录下的�
 
 ## 实现参考（非规范性）
 
-- `docs/superpowers/plans/2026-06-12-capture-provider-migration.md` — 完整实施计划：六个 Stage、11 个任务、含逐文件代码草案与验证命令。
+**未完成的计划文档**（执行时以本 spec 的需求与验收标准为准）：
+
+- `docs/superpowers/plans/2026-06-12-capture-provider-migration.md` — 完整实施计划：六个 Stage、11 个任务、含逐文件代码草案与验证命令，全部任务未执行。**注意**：`docs/superpowers/**` 在 .gitignore 中，该文件仅存在于本地工作区、不入库；若文件缺失，以本 spec 为唯一规范来源重新生成实施计划。
 - `.kiro/specs/accessibility-capture-ingestion/` — AX 主路径修复的历史 spec（解释了现有 dual-query AX/OCR 结构的由来）。
