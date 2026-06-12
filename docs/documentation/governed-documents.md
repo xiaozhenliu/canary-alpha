@@ -1,5 +1,5 @@
 ---
-doc_version: 14
+doc_version: 15
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -56,7 +56,7 @@ Excluded from governance:
 | `docs/guide/operations.md` | Operators | Day-to-day management | Service management, diagnostics, index maintenance, e2e check, disk layout | adequate | none |
 | `docs/guide/troubleshooting.md` | Operators and maintainers | Operational diagnosis and recovery | Service unreachable, provider errors, rebuild path, log inspection, capture observability | adequate | none |
 | `docs/reference/tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input schema, output expectations | adequate | none |
-| `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, validation rules | adequate | none |
+| `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, config CLI commands, validation rules | adequate | none |
 | `docs/reference/privacy.md` | All users | Privacy and data locality | Data storage, capture defaults, runtime controls, log rotation | adequate | none |
 
 ### Documentation site — Simplified Chinese (docs/zh/)
