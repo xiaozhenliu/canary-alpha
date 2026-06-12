@@ -20,6 +20,7 @@ import { resolveVectorStoreDirectory, resolveVectorStoreFilePath } from './servi
 import { startHttpTransport } from './transports/http.js';
 import { startStdioTransport } from './transports/stdio.js';
 import type { AppContext, ServerMode } from './types/app-config.js';
+import { runConfigCommand } from './config-cli.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -711,6 +712,16 @@ async function runRebuildIndex(): Promise<void> {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+
+  // config 子命令：在任何重型 bootstrap（createApp）之前短路处理（spec I6）。
+  const firstPositional = argv.find((v) => !v.startsWith('--'));
+  if (firstPositional === 'config') {
+    // 从 config token 起切片，干净丢弃其前的任何 flag（避免 `--mode http` 之类值泄漏成多余 positional）。
+    const configIndex = argv.indexOf('config');
+    const code = await runConfigCommand(argv.slice(configIndex));
+    process.exit(code);
+  }
+
   const command = readCliCommand(argv);
 
   if (command === 'rebuild-index') {
