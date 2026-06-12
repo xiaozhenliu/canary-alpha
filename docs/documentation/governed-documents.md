@@ -1,5 +1,5 @@
 ---
-doc_version: 15
+doc_version: 16
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -88,6 +88,10 @@ Excluded from governance:
 | `docs/delivery/hermes.md` | Operators validating Hermes interoperability | Hermes-specific verification boundary | adequate | none |
 | `docs/architecture.md` | Maintainers and advanced integrators | Runtime architecture and implementation boundaries | adequate | none |
 | `docs/develop_log.md` | Maintainers | Milestone-oriented development history | adequate | none |
+| `docs/specs/README.md` | Maintainers and contributors | Tool-agnostic backlog index and spec format convention | adequate | none |
+| `docs/specs/routines-mvp.md` | Maintainers and contributors | Remaining Routines MVP requirements and acceptance criteria | adequate | none |
+| `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria | adequate | none |
+| `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 
 ## State Vocabulary
 
