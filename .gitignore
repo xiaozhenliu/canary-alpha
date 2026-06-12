@@ -8,6 +8,10 @@ build/
 coverage/
 *.tsbuildinfo
 
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Environment files
 .env
 .env.*

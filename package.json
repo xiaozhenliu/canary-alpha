@@ -39,7 +39,10 @@
     "dev:http": "tsx src/index.ts --mode http",
     "eval:coverage": "tsx tests/evaluations/coverage-scenario/run.ts",
     "eval:work-activity": "tsx tests/evaluations/work-activity/run-eval.ts",
-    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts"
+    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
@@ -54,6 +57,7 @@
     "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.8"
   },
   "overrides": {
