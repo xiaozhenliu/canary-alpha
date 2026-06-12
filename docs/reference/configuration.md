@@ -1,7 +1,7 @@
 ---
-doc_version: 7
+doc_version: 8
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 ---
 
 # Configuration
@@ -224,7 +224,6 @@ vectorStore:
 
 ## Related docs
 
-- [../../README.md](../../README.md)
-- [mcp-tools.md](./mcp-tools.md)
-- [../troubleshooting.md](../troubleshooting.md)
-- [../delivery/http-service.md](../delivery/http-service.md)
+- [MCP Tools](/reference/tools) — Tool surface reference
+- [Troubleshooting](/guide/troubleshooting) — Symptom-based diagnosis
+- [Privacy & Data](/reference/privacy) — Data locality and privacy controls

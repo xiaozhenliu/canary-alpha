@@ -1,10 +1,18 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 ---
 
 # Troubleshooting
+
+Start here when something doesn't work:
+
+```bash
+npm run service:status
+```
+
+This command validates the real MCP `internal-status` contract and reports the endpoint URL and retrieval recovery status. Use its output to narrow down which section below applies.
 
 This guide covers the common operator failures in the current v1 delivery path.
 
@@ -244,7 +252,6 @@ Once you have resolved the underlying issue with the derived database (disk spac
 
 ## Related docs
 
-- [../README.md](../README.md)
-- [documentation/configuration.md](./documentation/configuration.md)
-- [documentation/mcp-tools.md](./documentation/mcp-tools.md)
-- [delivery/http-service.md](./delivery/http-service.md)
+- [Operations](/guide/operations) — Service management and diagnostic commands
+- [Configuration](/reference/configuration) — Configuration options
+- [MCP Tools Reference](/reference/tools) — Tool surface reference
