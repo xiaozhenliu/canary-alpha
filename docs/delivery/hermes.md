@@ -1,5 +1,5 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -13,6 +13,18 @@ Hermes is the official main client example for Phase 4. Its job is not to replac
 Deterministic Vitest acceptance remains the fast debugging backbone. Hermes adds a bounded outer proof that a real MCP-capable agent can discover and use the delivered local resident HTTP service bound to `127.0.0.1`.
 
 Stdio remains available only for compatibility and deterministic testing, and neither stdio nor Claude Desktop is the official v1 delivery path.
+
+## Verification entry points
+
+Three commands exercise the delivered service from a real Hermes agent, each with a distinct boundary. This document is the single home for all three; the end-user connection walkthrough lives in [docs/guide/clients/hermes.md](../guide/clients/hermes.md).
+
+| Command | Script | Tools exercised | Outcome vocabulary | Purpose |
+|---------|--------|-----------------|--------------------|---------|
+| `npm run hermes:verify` | `scripts/hermes-e2e.js` | `internal-status` | bracketed failure-mode labels (see [Failure modes](#failure-modes)) | Canonical post-onboarding connectivity check |
+| `npm run test:hermes:phase4` | `scripts/hermes-phase4-smoke.js` | `internal-status` + `recall` | chat outcome `passed` / `blocked` / `skipped` (uses `fail()`, not bracketed labels) | Bounded Phase 4 delivery gate — detailed below |
+| `npm run e2e:live` | `scripts/e2e-live-run.js` | `recall` + `find` | shares the bracketed labels below, plus `config-missing`, `screenpipe-unhealthy`, `empty-recall` | Full live retrieval run over a freshly recorded window (records, polls index readiness, then recalls) |
+
+The detailed sections below describe the Phase 4 gate. `hermes:verify` and `e2e:live` deliberately share the failure-mode vocabulary documented under [Failure modes](#failure-modes) (`scripts/e2e-live-run-lib.js` mirrors `scripts/hermes-e2e.js`'s signal lists).
 
 ## Canonical release command set
 
@@ -92,7 +104,9 @@ This bounded outer proof is not intended to prove open-ended agent quality, repl
 
 ## Failure modes
 
-The script uses distinct failure-mode labels in its error output to make triage unambiguous. Each label is shown in brackets alongside a human-readable message.
+These bracketed labels are the shared failure-mode vocabulary of `npm run hermes:verify` (`scripts/hermes-e2e.js`) and `npm run e2e:live` (`scripts/e2e-live-run.js`); each label is shown in brackets alongside a human-readable message. `npm run test:hermes:phase4` instead reports a chat outcome of `passed` / `blocked` / `skipped` and does not emit these labels.
+
+The four labels below are emitted by `hermes:verify`. `e2e:live` reuses `llm-not-configured` and `tool-call-failed`, and adds `config-missing` (config file absent), `screenpipe-unhealthy` (recorder not healthy), and `empty-recall` (recall ran but returned no data).
 
 ### `hermes-missing`
 
