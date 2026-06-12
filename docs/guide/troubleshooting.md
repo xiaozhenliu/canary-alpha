@@ -1,10 +1,18 @@
 ---
-doc_version: 2
+doc_version: 4
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-12
 ---
 
 # Troubleshooting
+
+Start here when something doesn't work:
+
+```bash
+npm run service:status
+```
+
+This command validates the real MCP `internal-status` contract and reports the endpoint URL and retrieval recovery status. Use its output to narrow down which section below applies.
 
 This guide covers the common operator failures in the current v1 delivery path.
 
@@ -147,6 +155,29 @@ The service may not have started yet, or it exited before producing output.
 - re-run `npm run service:status`
 - check whether `~/.canary-alpha-mcp/logs/` exists
 
+## Screenpipe maintenance status is unclear
+
+### Symptom
+
+`npm run screenpipe:safe-record` is running or recently stopped, but you need to confirm whether the Screenpipe database maintenance pass ran, failed, or rotated its diagnostic output.
+
+### Checks
+
+1. Read the maintenance JSONL log:
+
+```bash
+tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
+```
+
+2. Look for `maintenance-run-start`, `maintenance-run-exit`, or `maintenance-run-error`.
+3. Check the `trigger` field:
+   - `periodic` means the 10-minute background maintenance interval fired while recording continued.
+   - `final` means the wrapper ran one last maintenance pass after the recorder exited.
+4. If `screenpipe-maintenance.jsonl` is missing but `npm run screenpipe:safe-record` has not exited or run for at least 10 minutes, wait for the next interval or stop the wrapper cleanly to trigger the final pass.
+5. If the log rotated, inspect `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl.1`.
+
+The active log keeps 7 days of valid JSONL entries and rotates at 1 MB. Malformed or older entries are discarded during the next write.
+
 ## File analysis rejects a file
 
 ### Symptom
@@ -221,7 +252,6 @@ Once you have resolved the underlying issue with the derived database (disk spac
 
 ## Related docs
 
-- [../README.md](../README.md)
-- [documentation/configuration.md](./documentation/configuration.md)
-- [documentation/mcp-tools.md](./documentation/mcp-tools.md)
-- [delivery/http-service.md](./delivery/http-service.md)
+- [Operations](/guide/operations) — Service management and diagnostic commands
+- [Configuration](/reference/configuration) — Configuration options
+- [MCP Tools Reference](/reference/tools) — Tool surface reference

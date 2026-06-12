@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-01
+last_updated: 2026-06-12
 ---
 
 # MCP Tools
@@ -297,7 +297,7 @@ Return bootstrap-safe runtime status.
 - `needs-rebuild`
 - `degraded`
 
-The response also carries the capture/ingestion observability blocks (`capture`, `ingestionMix`, `diskBudget`) and a `workActivity` block summarising the derived-store health (session counts, summary worker state, embedding hash index size). See [../troubleshooting.md#capture--ingestion-observability](../troubleshooting.md#capture--ingestion-observability) for the failure-mode reference.
+The response also carries the capture/ingestion observability blocks (`capture`, `ingestionMix`, `diskBudget`) and a `workActivity` block summarising the derived-store health (session counts, summary worker state, embedding hash index size). See [Troubleshooting: Capture & ingestion observability](/guide/troubleshooting#capture--ingestion-observability) for the failure-mode reference.
 
 This tool is the primary health probe used by `npm run service:status`.
 
@@ -310,7 +310,6 @@ This tool is the primary health probe used by `npm run service:status`.
 
 ## Related docs
 
-- [../../README.md](../../README.md)
-- [configuration.md](./configuration.md)
-- [../clients/generic-mcp.md](../clients/generic-mcp.md)
-- [../troubleshooting.md](../troubleshooting.md)
+- [Configuration](/reference/configuration) — Configuration reference
+- [Generic MCP Client](/guide/clients/generic-mcp) — Transport and first-call guide
+- [Troubleshooting](/guide/troubleshooting) — Symptom-based diagnosis

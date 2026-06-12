@@ -1,12 +1,12 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -25,17 +25,24 @@
     "service:logs": "node scripts/service-logs.js",
     "smoke:http": "vitest run tests/acceptance/http-smoke.test.ts",
     "hermes:verify": "node scripts/hermes-e2e.js",
+    "e2e:live": "node scripts/e2e-live-run.js",
     "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
     "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
     "linear": "node --import tsx scripts/linear.ts",
     "screenpipe:safe-record": "node scripts/screenpipe-safe-record.js",
     "storage:diagnostics": "node --import tsx scripts/storage-diagnostics.js",
+    "maintain:init": "node --import tsx scripts/screenpipe-db-maintain.ts init",
+    "maintain:run": "node --import tsx scripts/screenpipe-db-maintain.ts run",
+    "maintain:status": "node --import tsx scripts/screenpipe-db-maintain.ts status",
     "rebuild-index": "tsx src/index.ts rebuild-index",
     "dev:stdio": "tsx src/index.ts --mode stdio",
     "dev:http": "tsx src/index.ts --mode http",
     "eval:coverage": "tsx tests/evaluations/coverage-scenario/run.ts",
     "eval:work-activity": "tsx tests/evaluations/work-activity/run-eval.ts",
-    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts"
+    "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
@@ -50,6 +57,7 @@
     "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.8"
   },
   "overrides": {

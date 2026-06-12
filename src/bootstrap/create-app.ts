@@ -113,7 +113,7 @@ export async function createApp(overrides?: {
 }): Promise<AppContext> {
   const config = await loadConfig(overrides);
   const isManagedHttpService = config.server.mode === 'http'
-    && process.env.SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE === '1';
+    && process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE === '1';
   if (config.server.mode === 'http' && config.server.host !== '127.0.0.1') {
     if (isManagedHttpService) {
       throw new Error(`Managed HTTP service must bind to 127.0.0.1 (found ${config.server.host}).`);
@@ -121,7 +121,7 @@ export async function createApp(overrides?: {
     throw new Error(`HTTP transport must bind to 127.0.0.1 (found ${config.server.host}).`);
   }
   if (config.server.mode === 'http' && !config.server.authToken) {
-    throw new Error('HTTP transport requires server.authToken or SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.');
+    throw new Error('HTTP transport requires server.authToken or CANARY_ALPHA_MCP_AUTH_TOKEN.');
   }
   const logger = createLogger(config.logging.level, isManagedHttpService
     ? {

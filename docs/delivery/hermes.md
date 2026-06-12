@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-06-10
 ---
 
 # Hermes delivery proof
@@ -31,13 +31,13 @@ Use `README.md` for the concise release path and `docs/delivery/http-service.md`
 
 ## User onboarding config
 
-For the normal user path, `npm run onboard` writes or updates `~/.hermes/config.yaml` with the `screenpipe-memory` MCP server after the local MCP service validates. It preserves existing Hermes settings and other MCP servers, and it does not call interactive `hermes mcp add`.
+For the normal user path, `npm run onboard` writes or updates `~/.hermes/config.yaml` with the `canary-alpha-mcp` MCP server after the local MCP service validates. It preserves existing Hermes settings and other MCP servers, and it does not call interactive `hermes mcp add`.
 
 Verify the real user config with:
 
 ```bash
 hermes mcp list
-hermes mcp test screenpipe-memory
+hermes mcp test canary-alpha-mcp
 ```
 
 ## Endpoint

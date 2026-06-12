@@ -145,10 +145,10 @@ function resolveManagedServiceServer(server: AppContext['config']['server'], env
     managedPort = undefined;
   }
 
-  managedPort ??= parseOptionalPort(environment.SCREENPIPE_MEMORY_MCP_SERVER_PORT);
+  managedPort ??= parseOptionalPort(environment.CANARY_ALPHA_MCP_SERVER_PORT);
 
   return {
-    host: environment.SCREENPIPE_MEMORY_MCP_SERVER_HOST || server.host,
+    host: environment.CANARY_ALPHA_MCP_SERVER_HOST || server.host,
     port: managedPort ?? server.port,
     mode: 'http'
   };
@@ -232,7 +232,7 @@ async function detectActiveManagedService(config: AppContext['config']): Promise
       managedServer.host,
       managedServer.port,
       config.paths.configFile,
-      managedEnvironment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN || config.server.authToken
+      managedEnvironment.CANARY_ALPHA_MCP_AUTH_TOKEN || config.server.authToken
     );
   } catch {
     return false;

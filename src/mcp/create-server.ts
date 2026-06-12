@@ -12,7 +12,7 @@ export function createMcpServer(): McpServer {
       capabilities: {
         logging: {}
       },
-      instructions: 'Use the focused v1 tool registry for local screen memory operations. Some tools are placeholders in Phase 1 and return explicit unavailable responses.'
+      instructions: 'Use the Crimson tool registry for local screen memory operations. Some tools are placeholders in Phase 1 and return explicit unavailable responses.'
     }
   );
 }

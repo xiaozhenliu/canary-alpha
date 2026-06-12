@@ -11,7 +11,7 @@ import { V1_EVALS_FIXTURE_RECORDS } from '../../scripts/hermes-v1-fixture-record
 import { V1_EVALUATION_TASKS } from '../evaluations/v1-evaluation-manifest.js';
 
 const REGISTERED_TOOL_NAMES = new Set<string>(TOOL_MANIFEST.map((tool) => tool.name));
-const V1_EVALS_MARKER_PREFIX = 'preparing mcp_screenpipe_memory_v1_evals_';
+const V1_EVALS_MARKER_PREFIX = 'preparing mcp_canary_alpha_mcp_v1_evals_';
 
 function recoverToolNameFromMarker(marker: string): string | null {
   if (!marker.startsWith(V1_EVALS_MARKER_PREFIX)) {
@@ -135,11 +135,11 @@ describe('hermes-side tools.include drift contract', () => {
   });
 
   it('E2E script tool marker references a registered tool (internal-status)', () => {
-    // The E2E script checks for the marker 'preparing mcp_screenpipe_memory_internal_status'.
+    // The E2E script checks for the marker 'preparing mcp_canary_alpha_mcp_internal_status'.
     // Recover the tool name from the marker suffix (strip prefix, convert _ to -) and assert
     // it is registered in TOOL_MANIFEST. This catches typos in the marker string.
-    const E2E_TOOL_MARKER = 'preparing mcp_screenpipe_memory_internal_status';
-    const E2E_MARKER_PREFIX = 'preparing mcp_screenpipe_memory_';
+    const E2E_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_internal_status';
+    const E2E_MARKER_PREFIX = 'preparing mcp_canary_alpha_mcp_';
     expect(
       E2E_TOOL_MARKER.startsWith(E2E_MARKER_PREFIX),
       `E2E tool marker must start with '${E2E_MARKER_PREFIX}'`

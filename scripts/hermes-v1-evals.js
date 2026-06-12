@@ -25,7 +25,7 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'evaluations', 'v1-hermes');
 const hermesCommand = 'hermes';
-const hermesServerName = 'screenpipe-memory-v1-evals';
+const hermesServerName = 'canary-alpha-mcp-v1-evals';
 
 function fail(message, code = 1) {
   console.error(message);
@@ -82,7 +82,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
@@ -94,7 +94,7 @@ function buildFixtureRecords() {
 }
 
 async function setupControlledEnvironment() {
-  const homeDir = await mkdtemp(join(testTempRoot(), 'screenpipe-memory-v1-evals-'));
+  const homeDir = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-'));
   const port = 8791;
 
   const screenpipe = await startScreenpipeStub({
@@ -154,7 +154,7 @@ async function main() {
 
   const detectionResult = await detectHermes();
   if (!detectionResult.present) {
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. See ${detectionResult.installGuidanceUrl}`);
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the Crimson evaluation layer. See ${detectionResult.installGuidanceUrl}`);
   }
   const hermesVersion = detectionResult.version;
   await writeEvidenceFile('hermes-version.txt', `${hermesVersion}\n`);
@@ -256,7 +256,7 @@ async function main() {
 
     const failedTasks = summary.filter((task) => task.outcome !== 'passed');
     if (failedTasks.length > 0) {
-      fail(`Focused v1 real-agent evaluations failed. See ${join(evidenceDirectory, 'SUMMARY.json')} for details.`);
+      fail(`Crimson real-agent evaluations failed. See ${join(evidenceDirectory, 'SUMMARY.json')} for details.`);
     }
   } finally {
     await Promise.allSettled([
@@ -265,7 +265,7 @@ async function main() {
     ]);
   }
 
-  console.log('Focused v1 real-agent evaluations passed.');
+  console.log('Crimson real-agent evaluations passed.');
   console.log(`- evidence: ${evidenceDirectory}`);
 }
 

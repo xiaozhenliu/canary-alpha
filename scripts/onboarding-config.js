@@ -17,7 +17,7 @@ export const ROUTINE_DEFINITIONS_DIRECTORY_NAME = 'definitions';
 export const ROUTINE_HISTORY_DIRECTORY_NAME = 'history';
 export const HERMES_DIRECTORY_NAME = '.hermes';
 export const HERMES_CONFIG_FILE_NAME = 'config.yaml';
-export const DEFAULT_HERMES_SERVER_NAME = 'screenpipe-memory';
+export const DEFAULT_HERMES_SERVER_NAME = 'canary-alpha-mcp';
 export const DEFAULT_HERMES_TOOL_INCLUDE = ONBOARDING_TOOL_INCLUDES;
 export const MINIMUM_NODE_MAJOR = 22;
 

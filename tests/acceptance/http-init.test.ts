@@ -17,7 +17,7 @@ afterEach(async () => {
 describe('http MCP initialization', () => {
   it('connects a real MCP client over streamable HTTP', async () => {
     const server = await startHttpServer(8765, {
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'test-http-token'
     });
     cleanup.push(() => server.stop());
 
@@ -31,7 +31,7 @@ describe('http MCP initialization', () => {
 
   it('reports the serving process identity through internal-status', async () => {
     const server = await startHttpServer(8766, {
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'test-http-token'
     });
     cleanup.push(() => server.stop());
 
@@ -60,7 +60,7 @@ describe('http MCP initialization', () => {
 
   it('rejects unauthenticated HTTP requests', async () => {
     const server = await startHttpServer(8767, {
-      SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: 'test-http-token'
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'test-http-token'
     });
     cleanup.push(() => server.stop());
 

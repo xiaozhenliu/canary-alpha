@@ -1,6 +1,6 @@
-const MANAGED_SERVICE_ENV_KEYS = ['MCP_PORT', 'MCP_LOG_LEVEL', 'SCREENPIPE_BASE_URL', 'SCREENPIPE_API_KEY', 'SCREENPIPE_MEMORY_MCP_AUTH_TOKEN'];
-const MANAGED_SERVICE_SERVER_HOST_KEY = 'SCREENPIPE_MEMORY_MCP_SERVER_HOST';
-const MANAGED_SERVICE_SERVER_PORT_KEY = 'SCREENPIPE_MEMORY_MCP_SERVER_PORT';
+const MANAGED_SERVICE_ENV_KEYS = ['MCP_PORT', 'MCP_LOG_LEVEL', 'SCREENPIPE_BASE_URL', 'SCREENPIPE_API_KEY', 'CANARY_ALPHA_MCP_AUTH_TOKEN'];
+const MANAGED_SERVICE_SERVER_HOST_KEY = 'CANARY_ALPHA_MCP_SERVER_HOST';
+const MANAGED_SERVICE_SERVER_PORT_KEY = 'CANARY_ALPHA_MCP_SERVER_PORT';
 
 function xmlEscape(value) {
   return value
@@ -75,8 +75,8 @@ export function applyServerEnvironmentOverrides(server, environment = process.en
   return {
     host: server.host,
     port: overriddenPort ?? server.port,
-    authToken: typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-      ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+    authToken: typeof environment.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && environment.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+      ? environment.CANARY_ALPHA_MCP_AUTH_TOKEN
       : server.authToken
   };
 }
@@ -96,8 +96,8 @@ export function resolveManagedServiceServer(server, environment = process.env) {
   return {
     host: typeof managedHost === 'string' && managedHost.length > 0 ? managedHost : server.host,
     port: managedPort ?? server.port,
-    authToken: typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-      ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+    authToken: typeof environment.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && environment.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+      ? environment.CANARY_ALPHA_MCP_AUTH_TOKEN
       : server.authToken
   };
 }
@@ -116,17 +116,17 @@ export function resolveManagedServiceEnvironment(environment = process.env) {
 }
 
 export function renderManagedServiceEnvironmentXml(homeDirectory, environment = process.env, server) {
-  const authToken = typeof environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-    ? environment.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+  const authToken = typeof environment.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && environment.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+    ? environment.CANARY_ALPHA_MCP_AUTH_TOKEN
     : server?.authToken;
   const entries = [
     ['HOME', homeDirectory],
-    ['SCREENPIPE_MEMORY_MCP_MANAGED_SERVICE', '1'],
+    ['CANARY_ALPHA_MCP_MANAGED_SERVICE', '1'],
     [MANAGED_SERVICE_SERVER_HOST_KEY, server?.host ?? '127.0.0.1'],
     [MANAGED_SERVICE_SERVER_PORT_KEY, String(server?.port ?? 8765)],
     ...Object.entries(resolveManagedServiceEnvironment({
       ...environment,
-      ...(authToken ? { SCREENPIPE_MEMORY_MCP_AUTH_TOKEN: authToken } : {})
+      ...(authToken ? { CANARY_ALPHA_MCP_AUTH_TOKEN: authToken } : {})
     }))
   ];
 

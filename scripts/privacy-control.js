@@ -55,8 +55,8 @@ async function loadServerConfig() {
     return {
       host: typeof server?.host === 'string' && server.host.length > 0 ? server.host : DEFAULT_HOST,
       port: Number.isInteger(server?.port) && server.port > 0 ? server.port : DEFAULT_PORT,
-      authToken: typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-        ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+      authToken: typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+        ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
         : (typeof server?.authToken === 'string' && server.authToken.length > 0 ? server.authToken : undefined)
     };
   } catch (error) {
@@ -65,8 +65,8 @@ async function loadServerConfig() {
       return {
         host: DEFAULT_HOST,
         port: DEFAULT_PORT,
-        authToken: typeof process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN === 'string' && process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN.length > 0
-          ? process.env.SCREENPIPE_MEMORY_MCP_AUTH_TOKEN
+        authToken: typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+          ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
           : undefined
       };
     }
