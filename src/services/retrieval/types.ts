@@ -27,7 +27,17 @@ export interface RetrievalDegradedStatus {
 }
 
 export interface RetrievalActionableError {
-  code: 'SCREENPIPE_UNAVAILABLE' | 'EMBEDDING_UNAVAILABLE' | 'RETRIEVAL_FAILED';
+  /**
+   * 'CAPTURE_SOURCE_UNAVAILABLE' is the neutral code emitted from this
+   * migration onward. 'SCREENPIPE_UNAVAILABLE' remains a legal value for
+   * one compatibility window so external agents that match on it keep
+   * working; new code must emit the neutral form.
+   */
+  code:
+    | 'CAPTURE_SOURCE_UNAVAILABLE'
+    | 'SCREENPIPE_UNAVAILABLE'
+    | 'EMBEDDING_UNAVAILABLE'
+    | 'RETRIEVAL_FAILED';
   message: string;
   action: string;
 }

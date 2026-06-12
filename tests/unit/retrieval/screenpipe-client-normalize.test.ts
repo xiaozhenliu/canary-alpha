@@ -282,3 +282,43 @@ describe('normalizeScreenpipeRecord — wrong-type field values', () => {
     expect(records[0].frameId).toBe(77);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests: dual-path failure emits neutral captureCode + legacy screenpipeCode
+// ---------------------------------------------------------------------------
+
+describe('HttpScreenpipeClient error codes — dual-path failure', () => {
+  it('emits CAPTURE_SOURCE_UNAVAILABLE as the primary captureCode when both paths fail', async () => {
+    // Point the client at an unreachable port so both AX and OCR fetches fail.
+    const client = createScreenpipeClient('http://127.0.0.1:1');
+    type AugmentedError = Error & { captureCode?: string; screenpipeCode?: string };
+    let caughtError: AugmentedError | undefined;
+    try {
+      await client.search({ query: 'test' });
+    } catch (err) {
+      caughtError = err as AugmentedError;
+    }
+
+    expect(caughtError).toBeDefined();
+    // The neutral captureCode is the primary identifier — consumers MUST
+    // prefer this property over the legacy screenpipeCode going forward.
+    expect(caughtError?.captureCode).toBe('CAPTURE_SOURCE_UNAVAILABLE');
+  });
+
+  it('retains legacy screenpipeCode for the compatibility window', async () => {
+    // Exactly one test verifies the backward-compat property so external
+    // agents that currently match on screenpipeCode keep working until the
+    // compatibility window closes.
+    const client = createScreenpipeClient('http://127.0.0.1:1');
+    type AugmentedError = Error & { captureCode?: string; screenpipeCode?: string };
+    let caughtError: AugmentedError | undefined;
+    try {
+      await client.search({ query: 'legacy' });
+    } catch (err) {
+      caughtError = err as AugmentedError;
+    }
+
+    expect(caughtError).toBeDefined();
+    expect(caughtError?.screenpipeCode).toBe('SCREENPIPE_UNAVAILABLE');
+  });
+});

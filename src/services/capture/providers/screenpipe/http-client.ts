@@ -220,10 +220,13 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
     }
 
     if (axError !== null && ocrError !== null) {
-      // Both paths failed — surface as SCREENPIPE_UNAVAILABLE so upper-layer
-      // services can set error.code = 'SCREENPIPE_UNAVAILABLE'.
-      const combined = new Error('Screenpipe search failed on both AX and OCR paths.');
-      (combined as NodeJS.ErrnoException & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
+      // Both paths failed — attach the neutral captureCode (primary) and the
+      // legacy screenpipeCode (compatibility window) so upper-layer consumers
+      // that check either property keep working during the migration.
+      const combined = new Error('Capture source search failed on both AX and OCR paths (provider: screenpipe).');
+      (combined as Error & { captureCode?: string; screenpipeCode?: string }).captureCode = 'CAPTURE_SOURCE_UNAVAILABLE';
+      // Legacy property kept for the compatibility window.
+      (combined as Error & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
       throw combined;
     }
 
@@ -299,8 +302,13 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
     }
 
     if (axError !== null && ocrError !== null) {
-      const combined = new Error('Screenpipe search failed on both AX and OCR paths.');
-      (combined as NodeJS.ErrnoException & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
+      // Both paths failed — attach the neutral captureCode (primary) and the
+      // legacy screenpipeCode (compatibility window) so upper-layer consumers
+      // that check either property keep working during the migration.
+      const combined = new Error('Capture source search failed on both AX and OCR paths (provider: screenpipe).');
+      (combined as Error & { captureCode?: string; screenpipeCode?: string }).captureCode = 'CAPTURE_SOURCE_UNAVAILABLE';
+      // Legacy property kept for the compatibility window.
+      (combined as Error & { screenpipeCode?: string }).screenpipeCode = 'SCREENPIPE_UNAVAILABLE';
       throw combined;
     }
 
