@@ -98,8 +98,8 @@ export const analysisSummarySchema = z.object({
 
 export const analysisEmbeddingsSchema = z.object({
   topK: z.number().int().positive().default(DEFAULT_ANALYSIS_EMBEDDINGS_TOP_K),
-  // dot-product 没有上下界（embeddings 不一定归一化），这里只要求是有限实数；
-  // 默认 0.0 表示不设阈值（详见 design §10）。
+  // Dot-product scores have no fixed bounds (embeddings are not necessarily normalised);
+  // only finiteness is required. Default 0.0 means no threshold (see design §10).
   minScore: z.number().finite().default(DEFAULT_ANALYSIS_EMBEDDINGS_MIN_SCORE)
 });
 

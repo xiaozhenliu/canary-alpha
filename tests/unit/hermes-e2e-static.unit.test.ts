@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..');
 const E2E_SCRIPT = readFileSync(join(REPO_ROOT, 'scripts', 'hermes-e2e.js'), 'utf8');
-const HERMES_DOC = readFileSync(join(REPO_ROOT, 'docs', 'clients', 'hermes.md'), 'utf8');
+const HERMES_DOC = readFileSync(join(REPO_ROOT, 'docs', 'delivery', 'hermes.md'), 'utf8');
 
 const FAILURE_MODES = [
   'hermes-missing',
@@ -42,8 +42,8 @@ describe('hermes-e2e.js static analysis', () => {
       expect(E2E_SCRIPT, `Missing failure mode label '${mode}' in hermes-e2e.js`).toContain(mode);
     });
 
-    it(`failure mode label '${mode}' appears in docs/clients/hermes.md`, () => {
-      expect(HERMES_DOC, `Missing failure mode label '${mode}' in docs/clients/hermes.md`).toContain(mode);
+    it(`failure mode label '${mode}' appears in docs/delivery/hermes.md`, () => {
+      expect(HERMES_DOC, `Missing failure mode label '${mode}' in docs/delivery/hermes.md`).toContain(mode);
     });
   }
 });

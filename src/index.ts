@@ -20,6 +20,7 @@ import { resolveVectorStoreDirectory, resolveVectorStoreFilePath } from './servi
 import { startHttpTransport } from './transports/http.js';
 import { startStdioTransport } from './transports/stdio.js';
 import type { AppContext, ServerMode } from './types/app-config.js';
+import { runConfigCommand } from './config-cli.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -711,6 +712,17 @@ async function runRebuildIndex(): Promise<void> {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
+
+  // Short-circuit for the config subcommand before any heavy bootstrap (createApp) — spec I6.
+  const firstPositional = argv.find((v) => !v.startsWith('--'));
+  if (firstPositional === 'config') {
+    // Slice from the config token so any preceding flags (e.g. --mode http) do not leak
+    // as extra positional arguments into the config command parser.
+    const configIndex = argv.indexOf('config');
+    const code = await runConfigCommand(argv.slice(configIndex));
+    process.exit(code);
+  }
+
   const command = readCliCommand(argv);
 
   if (command === 'rebuild-index') {

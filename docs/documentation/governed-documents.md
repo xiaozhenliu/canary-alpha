@@ -1,5 +1,5 @@
 ---
-doc_version: 12
+doc_version: 14
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -82,6 +82,7 @@ Excluded from governance:
 |------|----------|----------|---------------|-------------------|
 | `docs/documentation/governed-documents.md` | Maintainers and contributors | Canonical documentation governance inventory and scope definition | adequate | none |
 | `docs/engineering/code-standards.md` | Maintainers and contributors | Engineering rules for the v1 codebase | adequate | none |
+| `docs/engineering/bug-reports/README.md` | Maintainers | Open defect register index (per-defect records under `docs/engineering/bug-reports/`) | adequate | none |
 | `docs/engineering/tech-debt.md` | Maintainers | Structural technical debt register | adequate | none |
 | `docs/delivery/http-service.md` | Operators and integrators | Local HTTP service lifecycle and runtime contract | adequate | none |
 | `docs/delivery/hermes.md` | Operators validating Hermes interoperability | Hermes-specific verification boundary | adequate | none |

@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 ---
 
 # Hermes delivery proof
@@ -13,6 +13,18 @@ Hermes is the official main client example for Phase 4. Its job is not to replac
 Deterministic Vitest acceptance remains the fast debugging backbone. Hermes adds a bounded outer proof that a real MCP-capable agent can discover and use the delivered local resident HTTP service bound to `127.0.0.1`.
 
 Stdio remains available only for compatibility and deterministic testing, and neither stdio nor Claude Desktop is the official v1 delivery path.
+
+## Verification entry points
+
+Three commands exercise the delivered service from a real Hermes agent, each with a distinct boundary. This document is the single home for all three; the end-user connection walkthrough lives in [docs/guide/clients/hermes.md](../guide/clients/hermes.md).
+
+| Command | Script | Tools exercised | Outcome vocabulary | Purpose |
+|---------|--------|-----------------|--------------------|---------|
+| `npm run hermes:verify` | `scripts/hermes-e2e.js` | `internal-status` | bracketed failure-mode labels (see [Failure modes](#failure-modes)) | Canonical post-onboarding connectivity check |
+| `npm run test:hermes:phase4` | `scripts/hermes-phase4-smoke.js` | `internal-status` + `recall` | chat outcome `passed` / `blocked` / `skipped` (uses `fail()`, not bracketed labels) | Bounded Phase 4 delivery gate — detailed below |
+| `npm run e2e:live` | `scripts/e2e-live-run.js` | `recall` + `find` | shares the bracketed labels below, plus `config-missing`, `screenpipe-unhealthy`, `empty-recall` | Full live retrieval run over a freshly recorded window (records, polls index readiness, then recalls) |
+
+The detailed sections below describe the Phase 4 gate. `hermes:verify` and `e2e:live` deliberately share the failure-mode vocabulary documented under [Failure modes](#failure-modes) (`scripts/e2e-live-run-lib.js` mirrors `scripts/hermes-e2e.js`'s signal lists).
 
 ## Canonical release command set
 
@@ -92,20 +104,28 @@ This bounded outer proof is not intended to prove open-ended agent quality, repl
 
 ## Failure modes
 
-### Hermes missing
+These bracketed labels are the shared failure-mode vocabulary of `npm run hermes:verify` (`scripts/hermes-e2e.js`) and `npm run e2e:live` (`scripts/e2e-live-run.js`); each label is shown in brackets alongside a human-readable message. `npm run test:hermes:phase4` instead reports a chat outcome of `passed` / `blocked` / `skipped` and does not emit these labels.
+
+The four labels below are emitted by `hermes:verify`. `e2e:live` reuses `llm-not-configured` and `tool-call-failed`, and adds `config-missing` (config file absent), `screenpipe-unhealthy` (recorder not healthy), and `empty-recall` (recall ran but returned no data).
+
+### `hermes-missing`
 
 If `hermes` is not installed or not on `PATH`, the script fails with an actionable setup message.
 
-### Service unreachable
+### `mcp-service-down`
 
-If the local HTTP service is not reachable, the script fails with a message pointing to the canonical service path:
+The script emits this label for three distinct sub-cases, each with its own next-step hints:
 
-- `npm run service:start`
-- `npm run service:status`
-- `npm run test`
+- configuration cannot be loaded — suggests `npm run setup` and `npm run service:status`
+- the configured host is not `127.0.0.1` (non-loopback) — reports the resolved host; no service command is suggested because the fix is editing `~/.canary-alpha-mcp/config.yaml`
+- the HTTP service is unreachable — suggests `npm run service:start`, `npm run service:status`, and `npm run service:logs`
 
-### Chat scenario blocked
+### `llm-not-configured`
 
-If Hermes can connect to the MCP server but cannot complete the bounded chat scenario, the script still writes evidence and fails with a message pointing to the captured transcript. This usually means the local Hermes install lacks a working model/provider configuration.
+If Hermes can reach the MCP service but has no working LLM provider configuration, the script fails with a message directing the user to configure a provider before re-running the smoke gate.
 
-That distinction matters: MCP connectivity may be healthy even when real-agent execution is blocked by local Hermes credentials.
+### `tool-call-failed`
+
+This is the catch-all branch: the MCP endpoint probe passed and `llm-not-configured` was not detected, but the Hermes chat did not successfully call `internal-status` (the expected tool marker was absent or the chat exited non-zero). Causes include a genuine tool-call failure, a chat timeout, or an unrecognized error. The script still writes the full transcript to a temp file and points to it — the transcript, not the label, is the source of truth for triage.
+
+That distinction matters: the MCP endpoint may probe healthy even when real-agent execution does not reach the tool.
