@@ -1,6 +1,12 @@
 # canary-alpha-mcp configuration example
 # Copy this file to config.yaml and adjust values as needed.
 # All fields are optional — defaults are shown below.
+#
+# Tip: manage these fields with the config CLI instead of hand-editing:
+#   node dist/src/index.js config list
+#   node dist/src/index.js config set <path> <value>
+#   node dist/src/index.js config get <path>
+# The CLI validates values, preserves comments, and masks secrets.
 
 server:
   mode: http          # stdio | http
