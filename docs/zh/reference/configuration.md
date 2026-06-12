@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -8,7 +8,7 @@ last_updated: 2026-06-12
 
 `canary-alpha-mcp` 从 `~/.canary-alpha-mcp/config.yaml` 读取运行时配置。
 
-本地 Screenpipe API 已健康后，使用 `npm run onboard` 完成 MCP 层首次运行。它会使用标准 v1 默认值创建或替换应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `canary-alpha-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用。
+本地 Screenpipe API 已健康后，使用 `npm run onboard` 完成 MCP 层首次运行。它会使用标准 Crimson 默认值创建或替换应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `canary-alpha-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用。
 
 ## 配置文件位置
 
@@ -130,7 +130,7 @@ node dist/src/index.js config <命令> ...
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `mode` | `stdio` \| `http` | `http` | 官方 v1 交付使用 `http`。 |
+| `mode` | `stdio` \| `http` | `http` | 官方 Crimson 交付使用 `http`。 |
 | `host` | string | `127.0.0.1` | `service:start` 拒绝非本地主机。 |
 | `port` | 正整数 | `8765` | schema 默认值为 `8765`，但官方 setup/onboarding 路径写入 `18765` 以使托管本地 HTTP 服务使用可预测的端点。 |
 
@@ -144,7 +144,7 @@ node dist/src/index.js config <命令> ...
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `url` | string | schema 中未设置；onboarding 写入 `http://localhost:3030` | 正常 v1 流程中必须指向可达的本地 Screenpipe 服务。 |
+| `url` | string | schema 中未设置；onboarding 写入 `http://localhost:3030` | 正常 Crimson 流程中必须指向可达的本地 Screenpipe 服务。 |
 
 ### `providers.embeddings`
 
@@ -169,7 +169,7 @@ node dist/src/index.js config <命令> ...
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `kind` | string | `chroma` | 当前 v1 存储契约假设 Chroma 风格的本地持久化。 |
+| `kind` | string | `chroma` | 当前 Crimson 存储契约假设 Chroma 风格的本地持久化。 |
 | `path` | string | 未设置 | 可选的自定义检索制品路径。省略时检索制品存放在应用主目录下。 |
 
 ### `retrieval`
