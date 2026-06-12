@@ -46,7 +46,7 @@ npm run dev:stdio
 npm run dev:http
 ```
 
-See the [Quickstart guide](docs/quickstart.md) for onboarding and managed
+See the [Quickstart guide](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart) for onboarding and managed
 service setup.
 
 ## Contribution Workflow

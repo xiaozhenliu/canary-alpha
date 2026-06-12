@@ -38,7 +38,7 @@ last_updated: 2026-06-11
 
 ### 2.3 MCP 边界层（工具注册 / 校验）
 
-- `src/mcp/create-server.ts`：`createMcpServer()` 构造 `McpServer`（`name: 'canary-alpha-mcp'`、`version: getPackageVersion()`），**仅声明 `logging` capability**，附带 v1 instructions。两种传输共享。
+- `src/mcp/create-server.ts`：`createMcpServer()` 构造 `McpServer`（`name: 'canary-alpha-mcp'`、`version: getPackageVersion()`），**仅声明 `logging` capability**，附带 Crimson instructions。两种传输共享。
 - `src/mcp/register-tools.ts`：`registerTools(server, app)` 按序注册 **9 个工具**。
 - `src/mcp/tools/*`：每个工具一个文件，co-located zod 输入/输出 schema，handler 通过 `app.services` 拿到领域服务，返回统一的 `CallToolResult`（text content + structuredContent）。
 - `src/mcp/tools/shared.ts`：共享响应格式化器与降级封装。

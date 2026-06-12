@@ -4,11 +4,11 @@ doc_status: active
 last_updated: 2026-05-27
 ---
 
-# canary-alpha-mcp v1 Engineering Standards
+# canary-alpha-mcp Crimson Engineering Standards
 
 ## Purpose and scope
 
-This document captures the current v1 engineering standards that are already visible in the repository. It is meant to anchor audit and implementation work to the real codebase shape, not to a generic TypeScript handbook.
+This document captures the current Crimson engineering standards that are already visible in the repository. It is meant to anchor audit and implementation work to the real codebase shape, not to a generic TypeScript handbook.
 
 Applies to:
 - `src/**`
@@ -186,7 +186,7 @@ Current anchors:
 Audit implication:
 - if a change modifies MCP shape, bootstrap behavior, local-only HTTP behavior, provider selection, retrieval degradation, or privacy enforcement, expect acceptance or integration verification at that same boundary
 
-## Explicit v1 constraints that the standards must preserve
+## Explicit Crimson constraints that the standards must preserve
 
 These are not optional style choices; they are part of the current repo contract.
 
@@ -195,12 +195,12 @@ These are not optional style choices; they are part of the current repo contract
 - keep HTTP local-only and bound to `127.0.0.1`
 - keep provider switching configuration-driven instead of scattering provider-specific branches across services
 - preserve explicit wiring over heavy framework abstraction
-- keep the document and future audit scope focused on current v1 MCP-server reality
+- keep the document and future audit scope focused on current Crimson MCP-server reality
 - keep `tests/helpers/**` and end-to-end harnesses as first-class infrastructure whenever boundary-level behavior changes
 
 ## Active cleanup targets for the audit
 
-This section is intentionally short. It identifies real drift points in the current v1 codebase without turning this document into a speculative refactor manifesto.
+This section is intentionally short. It identifies real drift points in the current Crimson codebase without turning this document into a speculative refactor manifesto.
 
 ### 1. Duplicated retrieval/privacy helpers
 
@@ -216,7 +216,7 @@ The audit should check version metadata drift between package metadata and runti
 
 ## Practical review checklist
 
-Use this checklist when reviewing changes against the current v1 standards:
+Use this checklist when reviewing changes against the current Crimson standards:
 
 - Does the change keep the composition root in `src/bootstrap/create-app.ts` as the place where shared dependencies are assembled?
 - Are MCP tools still thin MCP tools rather than new homes for domain logic?
@@ -227,8 +227,8 @@ Use this checklist when reviewing changes against the current v1 standards:
 - Does the MCP response include both `content` and `structuredContent` where agents or tests need stable fields?
 - Does the code use structured actionable errors on agent-facing paths instead of transport-breaking exceptions?
 - Did the change add acceptance or integration coverage at the boundary it modified?
-- Did the change avoid widening scope beyond the focused v1 MCP server surface?
+- Did the change avoid widening scope beyond the Crimson MCP server surface?
 
 ## What this document is not
 
-This is not a generic TypeScript formatting guide and not a v2 roadmap. It exists to describe the current v1 standards surface that future audit and implementation work should follow in this repository.
+This is not a generic TypeScript formatting guide and not a v2 roadmap. It exists to describe the current Crimson standards surface that future audit and implementation work should follow in this repository.

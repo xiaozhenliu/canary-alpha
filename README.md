@@ -1,7 +1,7 @@
 ---
-doc_version: 18
+doc_version: 19
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 ---
 
 # canary-alpha-mcp
@@ -10,13 +10,14 @@ last_updated: 2026-06-10
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](docs/clients/generic-mcp.md)
+[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp)
+[![Docs](https://img.shields.io/badge/Docs-site-blue)](https://xiaozhenliu.github.io/canary-alpha/)
 
 **A local-first MCP server that turns your Screenpipe history into searchable, privacy-aware memory for AI agents.**
 
 `canary-alpha-mcp` exposes captured work activity, long-term memory, local file analysis, privacy controls, and runtime diagnostics as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs on your machine, stores derived data locally, and serves MCP clients over a loopback-only Streamable HTTP endpoint.
 
-Use it with any MCP-compatible client that can connect to `http://127.0.0.1:18765/mcp`. The onboarding flow also configures [Hermes](docs/clients/hermes.md) automatically.
+Use it with any MCP-compatible client that can connect to `http://127.0.0.1:18765/mcp`. The onboarding flow also configures [Hermes](https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes) automatically.
 
 ## Why canary-alpha-mcp?
 
@@ -69,7 +70,7 @@ The default MCP endpoint is:
 http://127.0.0.1:18765/mcp
 ```
 
-For the complete first-run walkthrough, Screenpipe permissions, safer terminal capture defaults, and troubleshooting steps, see the [Quickstart guide](docs/quickstart.md).
+For the complete first-run walkthrough, Screenpipe permissions, safer terminal capture defaults, and troubleshooting steps, see the [Quickstart guide](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart).
 
 ## MCP Tools
 
@@ -87,7 +88,7 @@ The runtime registers nine MCP tools:
 | `screenpipe-control` | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | Inspect runtime health, capture state, and retrieval recovery status |
 
-See the [MCP tools reference](docs/documentation/mcp-tools.md) for schemas and result contracts.
+See the [MCP tools reference](https://xiaozhenliu.github.io/canary-alpha/reference/tools) for schemas and result contracts.
 
 ## Connect Your MCP Client
 
@@ -104,7 +105,7 @@ hermes mcp list
 hermes mcp test canary-alpha-mcp
 ```
 
-See [Generic MCP client setup](docs/clients/generic-mcp.md) and the [Hermes guide](docs/clients/hermes.md) for client-specific instructions.
+See [Generic MCP client setup](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp) and the [Hermes guide](https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes) for client-specific instructions.
 
 ## Architecture
 
@@ -121,15 +122,17 @@ Read the [architecture document](docs/architecture.md) for subsystem boundaries,
 
 ## Documentation
 
+Full documentation is available at **[xiaozhenliu.github.io/canary-alpha](https://xiaozhenliu.github.io/canary-alpha/)**.
+
 | Document | What it covers |
 |----------|----------------|
-| [Quickstart](docs/quickstart.md) | First install, onboarding, and validation |
-| [Configuration](docs/documentation/configuration.md) | Configuration fields and embedding providers |
-| [MCP tools](docs/documentation/mcp-tools.md) | Tool schemas and result contracts |
-| [Generic MCP client](docs/clients/generic-mcp.md) | Streamable HTTP client setup |
-| [Hermes](docs/clients/hermes.md) | Hermes onboarding and verification |
-| [Troubleshooting](docs/troubleshooting.md) | Service, provider, capture, and index recovery |
-| [Architecture](docs/architecture.md) | Runtime layers, data flow, and local storage |
+| [Quickstart](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart) | First install, onboarding, and validation |
+| [Configuration](https://xiaozhenliu.github.io/canary-alpha/reference/configuration) | Configuration fields and embedding providers |
+| [MCP tools](https://xiaozhenliu.github.io/canary-alpha/reference/tools) | Tool schemas and result contracts |
+| [Generic MCP client](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp) | Streamable HTTP client setup |
+| [Hermes](https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes) | Hermes onboarding and verification |
+| [Troubleshooting](https://xiaozhenliu.github.io/canary-alpha/guide/troubleshooting) | Service, provider, capture, and index recovery |
+| [Architecture](docs/architecture.md) | Runtime layers, data flow, and local storage (repo-only) |
 
 ## Community
 

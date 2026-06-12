@@ -8,7 +8,7 @@ last_updated: 2026-06-12
 
 `canary-alpha-mcp` reads its runtime config from `~/.canary-alpha-mcp/config.yaml`.
 
-Use `npm run onboard` for the MCP-layer first-run path after your local Screenpipe API is already healthy. It creates or replaces the app config using the standard v1 defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `canary-alpha-mcp` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow.
+Use `npm run onboard` for the MCP-layer first-run path after your local Screenpipe API is already healthy. It creates or replaces the app config using the standard Crimson defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `canary-alpha-mcp` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow.
 
 ## Config file location
 
@@ -94,7 +94,7 @@ The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the 
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| `mode` | `stdio` \| `http` | `http` | Official v1 delivery uses `http`. |
+| `mode` | `stdio` \| `http` | `http` | Official Crimson delivery uses `http`. |
 | `host` | string | `127.0.0.1` | `service:start` refuses non-local hosts. |
 | `port` | positive integer | `8765` | The schema default is `8765`, but the official setup/onboarding path writes `18765` so the managed local HTTP service uses a predictable endpoint. |
 
@@ -108,7 +108,7 @@ The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the 
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| `url` | string | unset in schema; onboarding writes `http://localhost:3030` | Must point at a reachable local Screenpipe service for the normal v1 flow. |
+| `url` | string | unset in schema; onboarding writes `http://localhost:3030` | Must point at a reachable local Screenpipe service for the normal Crimson flow. |
 
 ### `providers.embeddings`
 
@@ -133,7 +133,7 @@ In other words: pick whichever embedding endpoint you like, but the `remote-llm`
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
-| `kind` | string | `chroma` | Current v1 storage contract assumes Chroma-style local persistence. |
+| `kind` | string | `chroma` | Current Crimson storage contract assumes Chroma-style local persistence. |
 | `path` | string | unset | Optional custom retrieval artifact path. If omitted, retrieval artifacts stay under the app home. |
 
 ### `retrieval`

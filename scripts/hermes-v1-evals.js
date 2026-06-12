@@ -154,7 +154,7 @@ async function main() {
 
   const detectionResult = await detectHermes();
   if (!detectionResult.present) {
-    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the v1 evaluation layer. See ${detectionResult.installGuidanceUrl}`);
+    throw new Error(`Hermes CLI is not available. Install or expose 'hermes' on PATH before running the Crimson evaluation layer. See ${detectionResult.installGuidanceUrl}`);
   }
   const hermesVersion = detectionResult.version;
   await writeEvidenceFile('hermes-version.txt', `${hermesVersion}\n`);
@@ -256,7 +256,7 @@ async function main() {
 
     const failedTasks = summary.filter((task) => task.outcome !== 'passed');
     if (failedTasks.length > 0) {
-      fail(`Focused v1 real-agent evaluations failed. See ${join(evidenceDirectory, 'SUMMARY.json')} for details.`);
+      fail(`Crimson real-agent evaluations failed. See ${join(evidenceDirectory, 'SUMMARY.json')} for details.`);
     }
   } finally {
     await Promise.allSettled([
@@ -265,7 +265,7 @@ async function main() {
     ]);
   }
 
-  console.log('Focused v1 real-agent evaluations passed.');
+  console.log('Crimson real-agent evaluations passed.');
   console.log(`- evidence: ${evidenceDirectory}`);
 }
 

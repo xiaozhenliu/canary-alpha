@@ -236,8 +236,8 @@ async function main() {
     console.error('');
     console.error('[tool-call-failed] Hermes connected to the LLM and MCP service but did not call internal-status.');
     console.error(`Transcript saved to: ${transcriptPath}`);
-    console.error('See docs/clients/hermes.md for the walkthrough and troubleshooting steps.');
-    console.error('See docs/clients/generic-mcp.md for the tool surface.');
+    console.error('See https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes for the walkthrough and troubleshooting steps.');
+    console.error('See https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp for the tool surface.');
   }
   // ── Step 6: Print Pass_Fail_Summary and exit ─────────────────────────────
   printPassFailSummary({

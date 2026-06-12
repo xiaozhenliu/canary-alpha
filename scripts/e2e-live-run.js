@@ -292,7 +292,7 @@ async function main() {
       fail('screenpipe-unhealthy', { hermesVersion }, [
         `Screenpipe did not become healthy within ${SCREENPIPE_START_TIMEOUT_MS / 1_000}s.`,
         'Check macOS Screen Recording / Accessibility permissions, then retry.',
-        'See docs/quickstart.md section 1.'
+        'See https://xiaozhenliu.github.io/canary-alpha/guide/quickstart (Step 1).'
       ]);
       await cleanup();
       return;
@@ -425,7 +425,7 @@ async function main() {
       }, [
         'No frames from the recording window became searchable before the index timeout.',
         'Common causes: macOS Screen Recording permission missing, or the screen was locked during the window (Screenpipe pauses capture while locked).',
-        'See docs/quickstart.md Troubleshooting.'
+        'See https://xiaozhenliu.github.io/canary-alpha/guide/troubleshooting for diagnosis.'
       ]);
     } else {
       fail('index-lag', {

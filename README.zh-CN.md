@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 ---
 
 # canary-alpha-mcp
@@ -10,13 +10,14 @@ last_updated: 2026-06-11
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](docs/clients/generic-mcp.md)
+[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp)
+[![文档站](https://img.shields.io/badge/文档-站点-blue)](https://xiaozhenliu.github.io/canary-alpha/zh/)
 
 **一个本地优先的 MCP server，把 Screenpipe 历史转化为可检索、可控制隐私的 AI agent 记忆。**
 
 `canary-alpha-mcp` 将工作活动记录、长期记忆、本地文件分析、隐私控制和运行状态诊断封装成标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。服务在本机运行，派生数据保存在本地，并通过仅监听回环地址的 Streamable HTTP 端点供 MCP 客户端调用。
 
-任何兼容 MCP 且支持连接 `http://127.0.0.1:18765/mcp` 的客户端都可以使用它。初始化流程也会自动配置 [Hermes](docs/clients/hermes.md)。
+任何兼容 MCP 且支持连接 `http://127.0.0.1:18765/mcp` 的客户端都可以使用它。初始化流程也会自动配置 [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes)。
 
 ## 为什么使用 canary-alpha-mcp？
 
@@ -69,7 +70,7 @@ npm run onboard
 http://127.0.0.1:18765/mcp
 ```
 
-完整的首次安装流程、Screenpipe 权限说明、更安全的命令行采集默认值和故障排查步骤，请阅读[快速开始指南](docs/quickstart.md)。
+完整的首次安装流程、Screenpipe 权限说明、更安全的命令行采集默认值和故障排查步骤，请阅读[快速开始指南](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart)。
 
 ## MCP 工具
 
@@ -87,7 +88,7 @@ http://127.0.0.1:18765/mcp
 | `screenpipe-control` | 检查、启动或停止本地 Screenpipe 录制进程 |
 | `internal-status` | 检查运行健康状态、采集状态和索引恢复状态 |
 
-输入 schema 和返回结果约定请阅读 [MCP 工具参考](docs/documentation/mcp-tools.md)。
+输入 schema 和返回结果约定请阅读 [MCP 工具参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools)。
 
 ## 连接 MCP 客户端
 
@@ -104,7 +105,7 @@ hermes mcp list
 hermes mcp test canary-alpha-mcp
 ```
 
-其他客户端请参考[通用 MCP 客户端配置](docs/clients/generic-mcp.md)；Hermes 用户请参考 [Hermes 指南](docs/clients/hermes.md)。
+其他客户端请参考[通用 MCP 客户端配置](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp)；Hermes 用户请参考 [Hermes 指南](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes)。
 
 ## 架构
 
@@ -121,14 +122,16 @@ flowchart LR
 
 ## 文档导航
 
+完整文档请访问 **[xiaozhenliu.github.io/canary-alpha/zh](https://xiaozhenliu.github.io/canary-alpha/zh/)**。
+
 | 文档 | 内容 |
 |------|------|
-| [快速开始](docs/quickstart.md) | 首次安装、初始化与验证 |
-| [配置参考](docs/documentation/configuration.md) | 配置字段与 embedding provider |
-| [MCP 工具](docs/documentation/mcp-tools.md) | 工具 schema 与返回约定 |
-| [通用 MCP 客户端](docs/clients/generic-mcp.md) | Streamable HTTP 客户端配置 |
-| [Hermes](docs/clients/hermes.md) | Hermes 初始化与验证 |
-| [故障排查](docs/troubleshooting.md) | 服务、provider、采集与索引恢复 |
+| [快速开始](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart) | 首次安装、初始化与验证 |
+| [配置参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/configuration) | 配置字段与 embedding provider |
+| [MCP 工具](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools) | 工具 schema 与返回约定 |
+| [通用 MCP 客户端](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp) | Streamable HTTP 客户端配置 |
+| [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes) | Hermes 初始化与验证 |
+| [故障排查](https://xiaozhenliu.github.io/canary-alpha/zh/guide/troubleshooting) | 服务、provider、采集与索引恢复 |
 | [架构](docs/architecture.md) | 运行分层、数据流和本地存储 |
 
 ## 社区
