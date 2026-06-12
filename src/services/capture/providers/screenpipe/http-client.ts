@@ -234,7 +234,7 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
 
     if (axError !== null) {
       // AX path failed, fell back to OCR only
-      merged[CAPTURE_DEGRADED_REASON] = 'AX path unavailable, falling back to OCR';
+      merged[CAPTURE_DEGRADED_REASON] = 'capture provider screenpipe: AX path unavailable, falling back to OCR';
     } else if (ocrError !== null) {
       // OCR path failed, AX-only result (still valid, no degradation message needed
       // per spec — OCR is the fallback, not the primary)
@@ -315,7 +315,7 @@ export class HttpScreenpipeClient implements ScreenpipeClient {
     const merged: ScreenpipeRecordPage = mergeByFrameId(axRecords, ocrRecords);
 
     if (axError !== null) {
-      merged[CAPTURE_DEGRADED_REASON] = 'AX path unavailable, falling back to OCR';
+      merged[CAPTURE_DEGRADED_REASON] = 'capture provider screenpipe: AX path unavailable, falling back to OCR';
     }
 
     return merged;

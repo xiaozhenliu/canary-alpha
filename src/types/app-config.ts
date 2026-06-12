@@ -4,6 +4,7 @@ import type { FileAnalyzeService } from '../services/file-analysis/types.js';
 import type { MemoryService } from '../services/memory/types.js';
 import type { ScreenpipeControlService } from '../services/capture/providers/screenpipe/control-service.js';
 import type { PrivacyControlService } from '../services/privacy/types.js';
+import type { CaptureCapabilities } from '../services/capture/types.js';
 import type {
   CaptureClient,
   CheckpointStore,
@@ -421,6 +422,8 @@ export interface AppServices {
   fileAnalysis: FileAnalyzeService;
   privacy: PrivacyControlService;
   screenpipeControl: ScreenpipeControlService;
+  /** Capability descriptor of the active capture provider. Upper layers branch on these flags. */
+  captureCapabilities: CaptureCapabilities;
   retrieval: {
     embeddingProvider: EmbeddingProvider;
     captureClient: CaptureClient;

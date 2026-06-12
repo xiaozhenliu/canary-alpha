@@ -34,10 +34,13 @@ export interface CaptureProvider {
   upstreamDatabasePath?: string;
 }
 
+/** Canonical provider name for Screenpipe. Use this constant instead of the bare string literal. */
+export const SCREENPIPE_PROVIDER_NAME = 'screenpipe' as const;
+
 function createScreenpipeProvider(config: AppConfig): CaptureProvider {
   return {
     capabilities: {
-      providerName: 'screenpipe',
+      providerName: SCREENPIPE_PROVIDER_NAME,
       ocrText: true,
       accessibilityTree: true,
       frameDetail: true,

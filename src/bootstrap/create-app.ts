@@ -16,7 +16,7 @@ import { createFreshnessPolicy } from '../services/retrieval/freshness-policy.js
 import { createIndexingService } from '../services/retrieval/indexing-service.js';
 import { createEmbeddingProvider } from '../services/retrieval/provider-factory.js';
 import { runTrimOnce } from '../services/capture/providers/screenpipe/trim-service.js';
-import { createCaptureProvider } from '../services/capture/provider-factory.js';
+import { createCaptureProvider, SCREENPIPE_PROVIDER_NAME } from '../services/capture/provider-factory.js';
 import { createVectorStore, resolveVectorStoreDirectory } from '../services/retrieval/vector-store.js';
 import {
   initDerivedSchema,
@@ -57,7 +57,7 @@ export function resolveCheckpointPath(provider: string, vectorStorePath?: string
   const legacy = join(dir, 'retrieval-checkpoint.json');
   // One-shot migration: adopt the pre-namespace checkpoint as the
   // screenpipe checkpoint so an upgrade does not trigger a full re-index.
-  if (provider === 'screenpipe' && !existsSync(namespaced) && existsSync(legacy)) {
+  if (provider === SCREENPIPE_PROVIDER_NAME && !existsSync(namespaced) && existsSync(legacy)) {
     renameSync(legacy, namespaced);
   }
   return namespaced;
@@ -346,6 +346,7 @@ export async function createApp(overrides?: {
       privacy,
       screenpipeControl: captureProvider.lifecycle
         ?? { execute: async (req) => ({ action: req.action, running: false, error: 'capture provider has no lifecycle control' }) },
+      captureCapabilities: captureProvider.capabilities,
       retrieval,
       workActivity: {
         find: findService,
