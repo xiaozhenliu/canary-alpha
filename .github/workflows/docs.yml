@@ -2,10 +2,10 @@ name: Docs
 
 on:
   push:
-    branches: [public-main]
+    branches: [main]
     paths: ['docs/**', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
   pull_request:
-    branches: [dev, public-main]
+    branches: [main]
     paths: ['docs/**', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
   workflow_dispatch:
 
@@ -29,15 +29,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run docs:build
-      - if: github.ref == 'refs/heads/public-main' && github.event_name == 'push'
+      - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/configure-pages@v5
-      - if: github.ref == 'refs/heads/public-main' && github.event_name == 'push'
+      - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
-    if: github.ref == 'refs/heads/public-main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     environment:
