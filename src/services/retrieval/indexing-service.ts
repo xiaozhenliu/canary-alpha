@@ -157,7 +157,7 @@ function toCheckpoint(record: CaptureRecord): IndexedCheckpoint {
  * Build the `ExtractionInput` consumed by the extraction registry from a
  * `CaptureRecord`. The conversion is straightforward — every field
  * the registry needs is already on the record; `accessibilityTreeJson`
- * is forwarded as `null` when the upstream (HttpScreenpipeClient) has
+ * is forwarded as `null` when the upstream capture client has
  * not populated it.
  *
  * Compatibility shim: if the upstream did NOT populate
@@ -193,8 +193,8 @@ function toExtractionInput(record: CaptureRecord): ExtractionInput {
  * consume. When the record carries an explicit `accessibilityTreeJson`
  * — null or non-null — that value wins (callers explicitly choose to
  * pass `null` when they want Empty_Extraction). When the field is
- * `undefined` (the current production state, since
- * `HttpScreenpipeClient` does not yet populate it) and the record
+ * `undefined` (the current production state, since the capture
+ * client does not yet populate it) and the record
  * carries non-empty `text`, synthesise a minimal AX tree so the
  * extraction layer can recover the text.
  *
