@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 ---
 
 # Hermes delivery proof
@@ -92,20 +92,26 @@ This bounded outer proof is not intended to prove open-ended agent quality, repl
 
 ## Failure modes
 
-### Hermes missing
+The script uses distinct failure-mode labels in its error output to make triage unambiguous. Each label is shown in brackets alongside a human-readable message.
+
+### `hermes-missing`
 
 If `hermes` is not installed or not on `PATH`, the script fails with an actionable setup message.
 
-### Service unreachable
+### `mcp-service-down`
 
-If the local HTTP service is not reachable, the script fails with a message pointing to the canonical service path:
+The script emits this label for three distinct sub-cases, each with its own next-step hints:
 
-- `npm run service:start`
-- `npm run service:status`
-- `npm run test`
+- configuration cannot be loaded — suggests `npm run setup` and `npm run service:status`
+- the configured host is not `127.0.0.1` (non-loopback) — reports the resolved host; no service command is suggested because the fix is editing `~/.canary-alpha-mcp/config.yaml`
+- the HTTP service is unreachable — suggests `npm run service:start`, `npm run service:status`, and `npm run service:logs`
 
-### Chat scenario blocked
+### `llm-not-configured`
 
-If Hermes can connect to the MCP server but cannot complete the bounded chat scenario, the script still writes evidence and fails with a message pointing to the captured transcript. This usually means the local Hermes install lacks a working model/provider configuration.
+If Hermes can reach the MCP service but has no working LLM provider configuration, the script fails with a message directing the user to configure a provider before re-running the smoke gate.
 
-That distinction matters: MCP connectivity may be healthy even when real-agent execution is blocked by local Hermes credentials.
+### `tool-call-failed`
+
+This is the catch-all branch: the MCP endpoint probe passed and `llm-not-configured` was not detected, but the Hermes chat did not successfully call `internal-status` (the expected tool marker was absent or the chat exited non-zero). Causes include a genuine tool-call failure, a chat timeout, or an unrecognized error. The script still writes the full transcript to a temp file and points to it — the transcript, not the label, is the source of truth for triage.
+
+That distinction matters: the MCP endpoint may probe healthy even when real-agent execution does not reach the tool.

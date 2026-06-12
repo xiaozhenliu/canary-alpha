@@ -344,22 +344,22 @@ const currentScreenpipeStorageSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Smoke test: docs/troubleshooting.md section existence
+// Smoke test: docs/guide/troubleshooting.md section existence
 //
 // Validates: Requirements 7.4
 //
-// Asserts that docs/troubleshooting.md contains the five failure mode strings
+// Asserts that docs/guide/troubleshooting.md contains the five failure mode strings
 // and their corresponding internal-status field names.
 // ---------------------------------------------------------------------------
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-describe('docs/troubleshooting.md: capture & ingestion observability section', () => {
+describe('docs/guide/troubleshooting.md: capture & ingestion observability section', () => {
   let content: string;
 
   beforeAll(() => {
-    const docPath = path.resolve(__dirname, '../../docs/troubleshooting.md');
+    const docPath = path.resolve(__dirname, '../../docs/guide/troubleshooting.md');
     content = fs.readFileSync(docPath, 'utf-8');
   });
 
@@ -413,7 +413,7 @@ describe('docs/troubleshooting.md: capture & ingestion observability section', (
       'ingestionMix.ratio',
     ];
     for (const field of requiredFields) {
-      expect(content, `Expected docs/troubleshooting.md to contain "${field}"`).toContain(field);
+      expect(content, `Expected docs/guide/troubleshooting.md to contain "${field}"`).toContain(field);
     }
   });
 });
