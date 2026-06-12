@@ -1,14 +1,14 @@
 import type { PrivacyState, PrivacyStateReader, PrivacySuppressedRange } from '../privacy/types.js';
 import { DEFAULT_PRIVACY_STATE } from '../privacy/types.js';
 import type {
+  CaptureClient,
+  CaptureRecord,
   CheckpointStore,
   EmbeddingProvider,
   IndexedBacklogProgress,
   IndexedCheckpoint,
   IndexingRunResult,
   IndexingService,
-  ScreenpipeClient,
-  ScreenpipeRecord,
   VectorStore
 } from './types.js';
 import type { AppConfig, Logger } from '../../types/app-config.js';
@@ -28,7 +28,7 @@ export interface IndexingServiceDependencies {
    * deduplication and the hash-cache.
    */
   embeddingProvider: EmbeddingProvider;
-  screenpipeClient: ScreenpipeClient;
+  captureClient: CaptureClient;
   /**
    * Vector store — likewise retained on the dependencies bag for
    * parity. The indexing service no longer writes to it directly; the
@@ -82,7 +82,7 @@ export interface IndexingServiceDependencies {
 
 interface FetchCandidateRecordsResult {
   fetched: number;
-  records: ScreenpipeRecord[];
+  records: CaptureRecord[];
   backlogAfter: IndexedBacklogProgress | null;
   usedBacklog: boolean;
 }
@@ -120,7 +120,7 @@ function getSearchStartTime(checkpoint: IndexedCheckpoint | null, now: Date, win
   return compareTimestamps(checkpoint.timestamp, windowStart) > 0 ? checkpoint.timestamp : windowStart;
 }
 
-function isNewerThanCheckpoint(record: ScreenpipeRecord, checkpoint: IndexedCheckpoint | null): boolean {
+function isNewerThanCheckpoint(record: CaptureRecord, checkpoint: IndexedCheckpoint | null): boolean {
   if (!checkpoint) {
     return true;
   }
@@ -137,7 +137,7 @@ function isNewerThanCheckpoint(record: ScreenpipeRecord, checkpoint: IndexedChec
   return record.id > (checkpoint.cursor ?? '');
 }
 
-function compareRecords(left: ScreenpipeRecord, right: ScreenpipeRecord): number {
+function compareRecords(left: CaptureRecord, right: CaptureRecord): number {
   const timestampComparison = compareTimestamps(left.timestamp, right.timestamp);
   if (timestampComparison === 0) {
     return left.id.localeCompare(right.id);
@@ -146,7 +146,7 @@ function compareRecords(left: ScreenpipeRecord, right: ScreenpipeRecord): number
   return timestampComparison;
 }
 
-function toCheckpoint(record: ScreenpipeRecord): IndexedCheckpoint {
+function toCheckpoint(record: CaptureRecord): IndexedCheckpoint {
   return {
     cursor: record.id,
     timestamp: record.timestamp
@@ -155,7 +155,7 @@ function toCheckpoint(record: ScreenpipeRecord): IndexedCheckpoint {
 
 /**
  * Build the `ExtractionInput` consumed by the extraction registry from a
- * `ScreenpipeRecord`. The conversion is straightforward — every field
+ * `CaptureRecord`. The conversion is straightforward — every field
  * the registry needs is already on the record; `accessibilityTreeJson`
  * is forwarded as `null` when the upstream (HttpScreenpipeClient) has
  * not populated it.
@@ -171,7 +171,7 @@ function toCheckpoint(record: ScreenpipeRecord): IndexedCheckpoint {
  * will become a no-op for AX records (they carry their real tree) and
  * a documented fallback for OCR records.
  */
-function toExtractionInput(record: ScreenpipeRecord): ExtractionInput {
+function toExtractionInput(record: CaptureRecord): ExtractionInput {
   return {
     // The extraction layer expects `frameId: number` — use it when
     // present, fall back to a numeric hash of `record.id` so OCR-only
@@ -206,7 +206,7 @@ function toExtractionInput(record: ScreenpipeRecord): ExtractionInput {
  * text content" and is the role most likely to appear in real AX
  * captures of OCR-eligible content.
  */
-function resolveAccessibilityTreeJson(record: ScreenpipeRecord): string | null {
+function resolveAccessibilityTreeJson(record: CaptureRecord): string | null {
   if (record.accessibilityTreeJson !== undefined) {
     return record.accessibilityTreeJson;
   }
@@ -321,7 +321,7 @@ function normalizeAppName(appName: string): string {
   return appName.toLowerCase();
 }
 
-function isExcluded(record: ScreenpipeRecord, privacy: PrivacyState): boolean {
+function isExcluded(record: CaptureRecord, privacy: PrivacyState): boolean {
   if (!record.appName) {
     return false;
   }
@@ -356,12 +356,12 @@ function intersectsSuppressedRange(timestamp: string, range: PrivacySuppressedRa
   return timestampMillis >= fromMillis && timestampMillis <= toMillis;
 }
 
-function isSuppressed(record: ScreenpipeRecord, privacy: PrivacyState): boolean {
+function isSuppressed(record: CaptureRecord, privacy: PrivacyState): boolean {
   const suppressedRanges = privacy.suppressedRanges ?? [];
   return suppressedRanges.some((range) => intersectsSuppressedRange(record.timestamp, range));
 }
 
-function isBlockedByPause(record: ScreenpipeRecord, privacy: PrivacyState): boolean {
+function isBlockedByPause(record: CaptureRecord, privacy: PrivacyState): boolean {
   if (!privacy.paused || !privacy.pauseStartedAt) {
     return false;
   }
@@ -369,7 +369,7 @@ function isBlockedByPause(record: ScreenpipeRecord, privacy: PrivacyState): bool
   return compareTimestamps(record.timestamp, privacy.pauseStartedAt) >= 0;
 }
 
-function isBlockedByPrivacy(record: ScreenpipeRecord, privacy: PrivacyState): boolean {
+function isBlockedByPrivacy(record: CaptureRecord, privacy: PrivacyState): boolean {
   return isExcluded(record, privacy) || isSuppressed(record, privacy) || isBlockedByPause(record, privacy);
 }
 
@@ -392,22 +392,22 @@ async function readPrivacyState(reader?: PrivacyStateReader): Promise<PrivacySta
  * itself is filtered; subtree pruning is skipped and a debug log is emitted.
  */
 export function stripSecureAxSubtrees(
-  records: ScreenpipeRecord[],
+  records: CaptureRecord[],
   secureAxRoles: string[],
   logger?: Logger
-): ScreenpipeRecord[] {
+): CaptureRecord[] {
   if (secureAxRoles.length === 0) {
     return records;
   }
 
   const secureRoleSet = new Set(secureAxRoles.map((r) => r.toLowerCase()));
 
-  function isSecureRole(record: ScreenpipeRecord): boolean {
+  function isSecureRole(record: CaptureRecord): boolean {
     return record.role !== undefined && secureRoleSet.has(record.role.toLowerCase());
   }
 
   // Group records by frameId (undefined frameId → each record is its own group)
-  const byFrame = new Map<string, ScreenpipeRecord[]>();
+  const byFrame = new Map<string, CaptureRecord[]>();
   for (const record of records) {
     const key = record.frameId !== undefined ? `frame:${record.frameId}` : `id:${record.id}`;
     const group = byFrame.get(key);
@@ -418,7 +418,7 @@ export function stripSecureAxSubtrees(
     }
   }
 
-  const filtered: ScreenpipeRecord[] = [];
+  const filtered: CaptureRecord[] = [];
 
   for (const group of byFrame.values()) {
     // Check if any record in this group has parentId or path for tree traversal
@@ -440,7 +440,7 @@ export function stripSecureAxSubtrees(
 
     // Full subtree pruning mode
     // Build id → record map and parent → children map
-    const byId = new Map<string, ScreenpipeRecord>();
+    const byId = new Map<string, CaptureRecord>();
     for (const r of group) {
       byId.set(r.id, r);
     }
@@ -511,7 +511,7 @@ export function stripSecureAxSubtrees(
 }
 
 async function fetchCandidateRecords(
-  deps: Pick<IndexingServiceDependencies, 'screenpipeClient' | 'freshnessWindowMinutes' | 'maxCatchUpBatches' | 'maxCatchUpRecords'>,
+  deps: Pick<IndexingServiceDependencies, 'captureClient' | 'freshnessWindowMinutes' | 'maxCatchUpBatches' | 'maxCatchUpRecords'>,
   checkpoint: IndexedCheckpoint | null,
   now: Date,
   forcedBacklog?: IndexedBacklogProgress | null
@@ -519,7 +519,7 @@ async function fetchCandidateRecords(
   const backlog = forcedBacklog ?? getBacklogProgress(checkpoint, now, deps);
   if (!backlog) {
     const windowMinutes = getFetchWindowMinutes(checkpoint, now, deps);
-    const records = await deps.screenpipeClient.recent(windowMinutes);
+    const records = await deps.captureClient.recent(windowMinutes);
     return {
       fetched: records.length,
       records,
@@ -528,12 +528,12 @@ async function fetchCandidateRecords(
     };
   }
 
-  const records: ScreenpipeRecord[] = [];
+  const records: CaptureRecord[] = [];
   let offset = backlog.nextOffset;
   let backlogAfter: IndexedBacklogProgress | null = backlog;
 
   for (let batch = 0; batch < deps.maxCatchUpBatches; batch += 1) {
-    const page = await deps.screenpipeClient.search({
+    const page = await deps.captureClient.search({
       from: backlog.from,
       to: backlog.to,
       limit: deps.maxCatchUpRecords,
@@ -616,7 +616,7 @@ export class DefaultIndexingService implements IndexingService {
      * `provider-unavailable` outcome leaves the record un-indexed.
      */
     let indexedCount = 0;
-    let blockedRecords: ScreenpipeRecord[] = [];
+    let blockedRecords: CaptureRecord[] = [];
     let firstEmbeddingError: unknown;
     let latestCheckpoint: IndexedCheckpoint | null = checkpointBefore
       ? {
@@ -653,7 +653,7 @@ export class DefaultIndexingService implements IndexingService {
         throw new Error('Privacy controls could not be loaded while processing indexing.');
       }
 
-      const stillBlockedRecords: ScreenpipeRecord[] = [];
+      const stillBlockedRecords: CaptureRecord[] = [];
       let releasedBlockedRecord = false;
 
       for (const record of blockedRecords) {
@@ -771,7 +771,7 @@ export class DefaultIndexingService implements IndexingService {
    *     pre-task-6.1 behavior of holding the checkpoint back on
    *     embedding error.
    */
-  private async processRecord(record: ScreenpipeRecord): Promise<ProcessRecordOutcome> {
+  private async processRecord(record: CaptureRecord): Promise<ProcessRecordOutcome> {
     const extraction = this.deps.extractionRegistry.extract(toExtractionInput(record));
     await this.deps.extractedContentStore.upsert(extraction);
     await this.deps.sessionAggregator.handleExtraction(extraction);

@@ -248,7 +248,7 @@ export class DefaultEmbeddingService implements EmbeddingService {
       id: `extracted:${e.frameId}`,
       text: e.extractedText,
       timestamp: e.frameTimestamp,
-      // The top-level `appName` follows the upstream `ScreenpipeRecord`
+      // The top-level `appName` follows the upstream `CaptureRecord`
       // convention where the field is optional — leave it `undefined`
       // when the extraction did not have one. R5.2 names `appName` as
       // *metadata*-required, which is what the next block enforces.

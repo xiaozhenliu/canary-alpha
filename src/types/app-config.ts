@@ -5,11 +5,11 @@ import type { MemoryService } from '../services/memory/types.js';
 import type { ScreenpipeControlService } from '../services/screenpipe-control/screenpipe-control-service.js';
 import type { PrivacyControlService } from '../services/privacy/types.js';
 import type {
+  CaptureClient,
   CheckpointStore,
   EmbeddingProvider,
   FreshnessPolicy,
   IndexingService,
-  ScreenpipeClient,
   VectorStore
 } from '../services/retrieval/types.js';
 import type { FindService } from '../services/work-activity/find/find-service.js';
@@ -422,7 +422,7 @@ export interface AppServices {
   screenpipeControl: ScreenpipeControlService;
   retrieval: {
     embeddingProvider: EmbeddingProvider;
-    screenpipeClient: ScreenpipeClient;
+    captureClient: CaptureClient;
     vectorStore: VectorStore;
     checkpointStore: CheckpointStore;
     freshnessPolicy: FreshnessPolicy;

@@ -130,7 +130,7 @@ export async function createApp(overrides?: {
       }
     : undefined);
   const embeddingProvider = createEmbeddingProvider(config);
-  const screenpipeClient = createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey);
+  const captureClient = createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey);
   const vectorStore = createVectorStore(config);
   const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(resolveVectorStoreDirectory(config.vectorStore)));
   const fileAnalysis = new DefaultFileAnalyzeService();
@@ -287,7 +287,7 @@ export async function createApp(overrides?: {
 
   const indexing = createIndexingService({
     embeddingProvider,
-    screenpipeClient,
+    captureClient,
     vectorStore,
     checkpointStore,
     freshnessWindowMinutes: config.retrieval.freshnessWindowMinutes,
@@ -308,7 +308,7 @@ export async function createApp(overrides?: {
   });
   const retrieval = {
     embeddingProvider,
-    screenpipeClient,
+    captureClient,
     vectorStore,
     checkpointStore,
     freshnessPolicy,

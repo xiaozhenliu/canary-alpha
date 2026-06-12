@@ -47,44 +47,26 @@ export interface EmbeddingProvider {
   embed(input: string): Promise<number[]>;
 }
 
-export interface ScreenpipeSearchRequest {
-  query?: string;
-  appName?: string;
-  from?: string;
-  to?: string;
-  limit?: number;
-  offset?: number;
-}
+import type {
+  CaptureClient,
+  CaptureRecord,
+  CaptureSearchRequest
+} from '../capture/types.js';
 
-export interface ScreenpipeRecord {
-  id: string;
-  text: string;
-  timestamp: string;
-  appName?: string;
-  windowName?: string;   // NEW: used for Noise_Window filtering (R3.4)
-  frameId?: number;      // NEW: used for cross-source deduplication (R1.4)
-  sourceTypes: string[]; // NEW: ['accessibility'] | ['ocr'] (R1.5)
-  // AX element tree fields for Secure_AX_Field subtree pruning (R4.4)
-  role?: string;         // AX element role (e.g. 'AXSecureTextField')
-  parentId?: string;     // parent element id within the same frame's AX tree
-  path?: string;         // dot-separated ancestor path (e.g. '0.1.2')
-  // work-activity-analysis: full accessibility tree JSON. The HTTP screenpipe
-  // client does NOT yet populate this field — task 6.1 reserves the slot so
-  // the indexing service can pass it to the extraction layer once an upstream
-  // task wires the accessibility_tree_json column through ScreenPipe's API.
-  // When `null` (set explicitly by callers / fixtures), the
-  // GenericHeuristicRule emits Empty_Extraction. When `undefined` (the
-  // current production state for HTTP records), the indexing service
-  // synthesises a minimal AX tree from `text` so OCR-only records remain
-  // indexable; see `resolveAccessibilityTreeJson` in
-  // `src/services/retrieval/indexing-service.ts`.
-  accessibilityTreeJson?: string | null;
-}
+// Re-export the neutral capture model under this module so existing
+// retrieval-layer imports keep resolving during the migration.
+export type {
+  CaptureClient,
+  CaptureRecord,
+  CaptureSearchRequest
+} from '../capture/types.js';
 
-export interface ScreenpipeClient {
-  search(request: ScreenpipeSearchRequest): Promise<ScreenpipeRecord[]>;
-  recent(minutes: number): Promise<ScreenpipeRecord[]>;
-}
+/** @deprecated Use CaptureSearchRequest from services/capture/types.js. */
+export type ScreenpipeSearchRequest = CaptureSearchRequest;
+/** @deprecated Use CaptureRecord from services/capture/types.js. */
+export type ScreenpipeRecord = CaptureRecord;
+/** @deprecated Use CaptureClient from services/capture/types.js. */
+export type ScreenpipeClient = CaptureClient;
 
 export interface VectorSearchRequest {
   queryEmbedding: number[];
