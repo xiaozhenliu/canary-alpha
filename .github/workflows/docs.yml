@@ -27,7 +27,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      # node 22 ships npm 10.x, which has a bug where `npm ci` treats
+      # platform-specific optional deps (e.g. @rollup/rollup-freebsd-arm64)
+      # as hard requirements and fails with EBADPLATFORM on linux/x64.
+      # npm 11 fixes this. See npm/cli#4828.
+      - run: npm install -g npm@11
+      - run: npm ci
       - run: npm run docs:build
       - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/configure-pages@v5
