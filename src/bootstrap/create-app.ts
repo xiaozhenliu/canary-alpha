@@ -15,8 +15,7 @@ import { createFreshnessPolicy } from '../services/retrieval/freshness-policy.js
 import { createIndexingService } from '../services/retrieval/indexing-service.js';
 import { createEmbeddingProvider } from '../services/retrieval/provider-factory.js';
 import { runTrimOnce } from '../services/capture/providers/screenpipe/trim-service.js';
-import { DefaultScreenpipeControlService } from '../services/capture/providers/screenpipe/control-service.js';
-import { createScreenpipeClient } from '../services/capture/providers/screenpipe/http-client.js';
+import { createCaptureProvider } from '../services/capture/provider-factory.js';
 import { createVectorStore, resolveVectorStoreDirectory } from '../services/retrieval/vector-store.js';
 import {
   initDerivedSchema,
@@ -29,7 +28,6 @@ import { SqliteHashIndex } from '../services/work-activity/hash-index.js';
 import { DefaultEmbeddingService } from '../services/work-activity/embedding-service.js';
 import { DefaultFindService } from '../services/work-activity/find/find-service.js';
 import { DefaultInspectService } from '../services/work-activity/inspect/inspect-service.js';
-import { SqliteScreenpipeFramesReader } from '../services/capture/providers/screenpipe/frames-reader.js';
 import { DefaultRecallService } from '../services/work-activity/recall/recall-service.js';
 import { DefaultSessionAggregator } from '../services/work-activity/sessions/aggregator.js';
 import { SqliteSessionStore } from '../services/work-activity/sessions/session-store.js';
@@ -48,15 +46,18 @@ function resolveCheckpointPath(vectorStorePath?: string): string {
 export function startTrimPoller(
   app: Pick<AppContext, 'config' | 'logger'>,
   cascadeDeleteCoordinator?: CascadeDeleteCoordinator,
-  privacyStore?: import('../services/privacy/types.js').PrivacyStore
+  privacyStore?: import('../services/privacy/types.js').PrivacyStore,
+  upstreamDatabasePath?: string
 ): void {
   const intervalMs = app.config.trim.intervalSeconds * 1_000;
+  // Fallback to the Screenpipe default path when not supplied by the factory.
+  const databasePath = upstreamDatabasePath ?? join(resolveScreenpipeDirectory(), 'db.sqlite');
   let trimming = false;
 
   const trimOnce = (): void => {
     if (trimming) return;
     trimming = true;
-    void runTrimOnce(join(resolveScreenpipeDirectory(), 'db.sqlite'), {
+    void runTrimOnce(databasePath, {
       budgetBytes: app.config.storage.diskBudgetBytes,
       retentionDays: app.config.storage.retentionDays,
       cascadeDeleteCoordinator,
@@ -130,7 +131,8 @@ export async function createApp(overrides?: {
       }
     : undefined);
   const embeddingProvider = createEmbeddingProvider(config);
-  const captureClient = createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey);
+  const captureProvider = createCaptureProvider(config);
+  const captureClient = captureProvider.client;
   const vectorStore = createVectorStore(config);
   const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(resolveVectorStoreDirectory(config.vectorStore)));
   const fileAnalysis = new DefaultFileAnalyzeService();
@@ -232,14 +234,12 @@ export async function createApp(overrides?: {
     privacyState: privacyStore,
     now: () => new Date()
   });
-  const screenpipeFramesReader = new SqliteScreenpipeFramesReader(
-    join(resolveScreenpipeDirectory(), 'db.sqlite')
-  );
   const inspectService = new DefaultInspectService({
     sessionStore,
     extractedContentStore,
     summaryWorker,
-    screenpipeFramesReader,
+    screenpipeFramesReader: captureProvider.frameDetail
+      ?? { getFrame: async () => null },  // capability-absent fallback, never throws
     now: () => new Date()
   });
 
@@ -323,7 +323,8 @@ export async function createApp(overrides?: {
       memory,
       fileAnalysis,
       privacy,
-      screenpipeControl: new DefaultScreenpipeControlService(),
+      screenpipeControl: captureProvider.lifecycle
+        ?? { execute: async (req) => ({ action: req.action, running: false, error: 'capture provider has no lifecycle control' }) },
       retrieval,
       workActivity: {
         find: findService,
@@ -338,8 +339,8 @@ export async function createApp(overrides?: {
     startIndexingPoller(app);
   }
 
-  if (app.config.trim.enabled) {
-    startTrimPoller(app, cascadeDeleteCoordinator, privacyStore);
+  if (app.config.trim.enabled && captureProvider.capabilities.retentionTrim) {
+    startTrimPoller(app, cascadeDeleteCoordinator, privacyStore, captureProvider.upstreamDatabasePath);
   }
 
   return app;

@@ -136,6 +136,7 @@ export interface AppConfig {
     intervalSeconds: number;
   };
   capture: {
+    provider: 'screenpipe';
     livenessThresholdSeconds: number;
     permissionsGracePeriodSeconds: number;
   };

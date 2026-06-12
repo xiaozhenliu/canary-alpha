@@ -47,6 +47,10 @@ const trimConfigSchema = z.object({
 });
 
 export const captureConfigSchema = z.object({
+  // Which capture provider backs the ingest / inspect / trim / control
+  // paths. Adding a new provider = new directory under
+  // src/services/capture/providers/ + a new enum member here.
+  provider: z.enum(['screenpipe']).default('screenpipe'),
   livenessThresholdSeconds: z.number().int().positive().default(120),
   permissionsGracePeriodSeconds: z.number().int().nonnegative().default(60)
 });
@@ -155,6 +159,7 @@ export const appConfigSchema = z.object({
   routines: routinesConfigSchema.default({ enabled: false }),
   trim: trimConfigSchema.default({ enabled: true, intervalSeconds: 600 }),
   capture: captureConfigSchema.default({
+    provider: 'screenpipe',
     livenessThresholdSeconds: 120,
     permissionsGracePeriodSeconds: 60
   }),
