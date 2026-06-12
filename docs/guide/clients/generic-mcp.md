@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 ---
 
 # Generic MCP Client Setup
@@ -13,23 +13,16 @@ Use this guide when connecting any MCP-compatible client to the public `canary-a
 The official v1 endpoint is:
 
 ```
-http://127.0.0.1:<port>/mcp
+http://127.0.0.1:18765/mcp
 ```
 
 This server is intentionally local-only. The managed service refuses non-local hosts.
 
 ## Before you connect
 
-1. For the normal first-run path, install dependencies and run onboarding after Screenpipe is healthy:
+Complete the [Quickstart](/guide/quickstart) first. Onboarding writes the app config, starts the managed service, and validates the MCP endpoint.
 
-```bash
-npm install
-npm run onboard
-```
-
-Onboarding writes the app config, starts the managed service, validates the MCP endpoint, and configures Hermes automatically.
-
-2. For manual generic-client setup, use the validated endpoint from onboarding or `npm run service:status`.
+For manual generic-client setup, use the validated endpoint from onboarding or `npm run service:status`.
 
 A healthy status output should report an endpoint like:
 
@@ -50,7 +43,7 @@ endpoint: http://127.0.0.1:18765/mcp (healthy)
 Any client should support these steps:
 
 1. Add a new MCP server using Streamable HTTP
-2. Set the server URL to `http://127.0.0.1:<port>/mcp`
+2. Set the server URL to `http://127.0.0.1:18765/mcp`
 3. Connect and list available tools
 4. Confirm these tools appear:
    - `find`
@@ -149,8 +142,7 @@ If the client can reach the port but tools fail, run `npm run service:status`. I
 
 ## Related docs
 
-- [../../README.md](../../README.md)
-- [../documentation/configuration.md](../documentation/configuration.md)
-- [../documentation/mcp-tools.md](../documentation/mcp-tools.md)
-- [../delivery/http-service.md](../delivery/http-service.md)
-- [../troubleshooting.md](../troubleshooting.md)
+- [MCP Tools Reference](/reference/tools) — Full tool surface reference
+- [Configuration](/reference/configuration) — Configuration options
+- [Troubleshooting](/guide/troubleshooting) — Symptom-based diagnosis
+- [Quickstart](/guide/quickstart) — First-run setup

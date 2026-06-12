@@ -1,79 +1,31 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-10
+last_updated: 2026-06-12
 ---
 
-# Hermes Quickstart
+# Hermes
 
 This document walks you through connecting Hermes Agent to the local `canary-alpha-mcp` MCP service and running your first real tool call.
 
-## Scope of this document
-
-This document covers the path from "Hermes installed and configured to a working LLM provider" to "first real tool call through `npm run hermes:verify`".
-
-It is distinct from:
-
-- **[docs/delivery/hermes.md](../delivery/hermes.md)** — Phase 4 evidence capture. That document describes the bounded smoke gate that runs in an isolated Hermes home and writes evidence files to `.planning/`. It is not a user walkthrough.
-- **[docs/clients/generic-mcp.md](./generic-mcp.md)** — Generic MCP client setup for any client. That document covers transport expectations and the tool surface for any MCP-compatible client, not Hermes specifically.
-
-If you landed on the wrong page, use the links above to navigate.
-
 ## Prerequisites
 
-Before following this walkthrough, you need:
+Before following this walkthrough, complete the [Quickstart](/guide/quickstart) first — the service must already be running. Then make sure you have:
 
 1. **Hermes CLI on `PATH`** — Install from the upstream Hermes project. See the [Hermes install instructions](https://github.com/HermesMCP/hermes) for the current install path.
 2. **`~/.hermes/config.yaml` configured with a working LLM provider** — Hermes calls the LLM; this repo does not write provider credentials. See the upstream Hermes provider-configuration docs for how to set `model` and `provider` fields. For workspace examples, DeepSeek (`https://api.deepseek.com`) is the recommended provider.
-3. **Screenpipe running locally** — The Screenpipe desktop app or `npm run screenpipe:safe-record`.
-4. **Node.js ≥ 22**.
+
+The `npm run onboard` step from the Quickstart automatically writes a `canary-alpha-mcp` entry into `~/.hermes/config.yaml`. If Hermes was not installed at that time, install it and the config entry will already be waiting.
 
 ## Step-by-step walkthrough
 
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Verify Screenpipe is healthy
-
-```bash
-curl http://localhost:3030/health
-```
-
-Expected: HTTP 200 with a JSON health payload.
-
-### 3. Run onboarding
-
-```bash
-npm run onboard
-```
-
-Onboarding:
-- writes `~/.canary-alpha-mcp/config.yaml`
-- builds the project
-- starts the managed local HTTP service
-- runs a first MCP validation against your local Screenpipe data
-- writes or updates `~/.hermes/config.yaml` with the `canary-alpha-mcp` MCP server entry
-- reports the detected Hermes version (or a warning if Hermes is not on `PATH`)
-
-Expected summary output includes:
-```
-- Hermes MCP config: ~/.hermes/config.yaml
-- Hermes MCP server: canary-alpha-mcp
-- hermes version: <version>
-```
-
-If Hermes is not yet installed, onboarding still completes and writes the Hermes config. Install Hermes afterwards and the config will be ready.
-
-### 4. Start the MCP service (if not already running)
+### 1. Start the MCP service (if not already running)
 
 ```bash
 npm run service:start
 ```
 
-### 5. Verify the MCP service
+### 2. Verify the MCP service
 
 ```bash
 npm run service:status
@@ -81,7 +33,7 @@ npm run service:status
 
 Expected: endpoint reported as healthy, e.g. `endpoint: http://127.0.0.1:18765/mcp (healthy)`.
 
-### 6. Run the end-to-end smoke gate
+### 3. Run the end-to-end smoke gate
 
 ```bash
 npm run hermes:verify
@@ -174,12 +126,12 @@ npm run service:logs
 1. Inspect the transcript at the path printed in the summary.
 2. Check that `canary-alpha-mcp` is listed in `hermes mcp list`.
 3. Run `hermes mcp test canary-alpha-mcp` to verify tool discovery.
-4. See [docs/clients/generic-mcp.md](./generic-mcp.md) for the full tool surface.
+4. See [Generic MCP Client](/guide/clients/generic-mcp) for the full tool surface.
 5. Re-run `npm run hermes:verify`.
 
 ## Related documents
 
-- [docs/delivery/hermes.md](../delivery/hermes.md) — Phase 4 evidence capture (bounded, isolated HOME)
-- [docs/clients/generic-mcp.md](./generic-mcp.md) — Generic MCP client setup
-- [docs/documentation/mcp-tools.md](../documentation/mcp-tools.md) — Tool surface reference
-- [docs/quickstart.md](../quickstart.md) — General quickstart
+- [Generic MCP Client](/guide/clients/generic-mcp) — Transport expectations and tool surface for any MCP client
+- [MCP Tools Reference](/reference/tools) — Full tool surface reference
+- [Quickstart](/guide/quickstart) — First-run setup
+- [Troubleshooting](/guide/troubleshooting) — Symptom-based diagnosis
