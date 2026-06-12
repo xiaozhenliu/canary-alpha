@@ -1,9 +1,9 @@
-import type { ScreenpipeClient, ScreenpipeRecord, ScreenpipeSearchRequest } from './types.js';
+import type { ScreenpipeClient, ScreenpipeRecord, ScreenpipeSearchRequest } from '../../../retrieval/types.js';
 
 import {
   CAPTURE_DEGRADED_REASON,
   type CaptureRecordPage
-} from '../capture/types.js';
+} from '../../types.js';
 
 /** @deprecated Use CAPTURE_DEGRADED_REASON from services/capture/types.js. */
 export const DEGRADED_REASON_SYMBOL = CAPTURE_DEGRADED_REASON;

@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 
 import type { FileAnalyzeService } from '../services/file-analysis/types.js';
 import type { MemoryService } from '../services/memory/types.js';
-import type { ScreenpipeControlService } from '../services/screenpipe-control/screenpipe-control-service.js';
+import type { ScreenpipeControlService } from '../services/capture/providers/screenpipe/control-service.js';
 import type { PrivacyControlService } from '../services/privacy/types.js';
 import type {
   CaptureClient,

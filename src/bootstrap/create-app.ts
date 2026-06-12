@@ -14,9 +14,9 @@ import { FileCheckpointStore } from '../services/retrieval/checkpoint-store.js';
 import { createFreshnessPolicy } from '../services/retrieval/freshness-policy.js';
 import { createIndexingService } from '../services/retrieval/indexing-service.js';
 import { createEmbeddingProvider } from '../services/retrieval/provider-factory.js';
-import { runTrimOnce } from '../services/trim/screenpipe-trim-service.js';
-import { DefaultScreenpipeControlService } from '../services/screenpipe-control/screenpipe-control-service.js';
-import { createScreenpipeClient } from '../services/retrieval/screenpipe-client.js';
+import { runTrimOnce } from '../services/capture/providers/screenpipe/trim-service.js';
+import { DefaultScreenpipeControlService } from '../services/capture/providers/screenpipe/control-service.js';
+import { createScreenpipeClient } from '../services/capture/providers/screenpipe/http-client.js';
 import { createVectorStore, resolveVectorStoreDirectory } from '../services/retrieval/vector-store.js';
 import {
   initDerivedSchema,
@@ -29,7 +29,7 @@ import { SqliteHashIndex } from '../services/work-activity/hash-index.js';
 import { DefaultEmbeddingService } from '../services/work-activity/embedding-service.js';
 import { DefaultFindService } from '../services/work-activity/find/find-service.js';
 import { DefaultInspectService } from '../services/work-activity/inspect/inspect-service.js';
-import { SqliteScreenpipeFramesReader } from '../services/work-activity/inspect/screenpipe-frames-reader.js';
+import { SqliteScreenpipeFramesReader } from '../services/capture/providers/screenpipe/frames-reader.js';
 import { DefaultRecallService } from '../services/work-activity/recall/recall-service.js';
 import { DefaultSessionAggregator } from '../services/work-activity/sessions/aggregator.js';
 import { SqliteSessionStore } from '../services/work-activity/sessions/session-store.js';

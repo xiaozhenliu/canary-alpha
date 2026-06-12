@@ -16,7 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runRetentionIfOverBudget } from '../../../src/services/trim/screenpipe-trim-service.js';
+import { runRetentionIfOverBudget } from '../../../src/services/capture/providers/screenpipe/trim-service.js';
 import type { CascadeDeleteCoordinator } from '../../../src/services/work-activity/cascade-delete-coordinator.js';
 import type { PrivacyState, PrivacyStore } from '../../../src/services/privacy/types.js';
 import { testTempRoot } from '../../helpers/test-tmp.js';

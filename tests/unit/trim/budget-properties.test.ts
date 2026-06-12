@@ -23,7 +23,7 @@ import type { AppConfig, Logger } from '../../../src/types/app-config.js';
 // Module-level mock for runTrimOnce — must be hoisted before any imports
 // ---------------------------------------------------------------------------
 
-vi.mock('../../../src/services/trim/screenpipe-trim-service.js', () => ({
+vi.mock('../../../src/services/capture/providers/screenpipe/trim-service.js', () => ({
   runTrimOnce: vi.fn().mockResolvedValue({
     framesDeleted: 0,
     elementsDeleted: 0,
@@ -33,7 +33,7 @@ vi.mock('../../../src/services/trim/screenpipe-trim-service.js', () => ({
 }));
 
 // Import the mocked module at the top level so we can reference it in tests
-import { runTrimOnce as mockRunTrimOnce } from '../../../src/services/trim/screenpipe-trim-service.js';
+import { runTrimOnce as mockRunTrimOnce } from '../../../src/services/capture/providers/screenpipe/trim-service.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

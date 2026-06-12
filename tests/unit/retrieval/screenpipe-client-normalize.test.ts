@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { createScreenpipeClient } from '../../../src/services/retrieval/screenpipe-client.js';
+import { createScreenpipeClient } from '../../../src/services/capture/providers/screenpipe/http-client.js';
 
 // ---------------------------------------------------------------------------
 // Helpers: spin up a tiny HTTP server that returns a fixed JSON payload

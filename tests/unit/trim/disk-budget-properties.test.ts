@@ -23,7 +23,7 @@ import { promisify } from 'node:util';
 import * as fc from 'fast-check';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runRetentionIfOverBudget } from '../../../src/services/trim/screenpipe-trim-service.js';
+import { runRetentionIfOverBudget } from '../../../src/services/capture/providers/screenpipe/trim-service.js';
 import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);

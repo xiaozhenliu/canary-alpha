@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createEmbeddingProvider } from '../../../src/services/retrieval/provider-factory.js';
-import { createScreenpipeClient } from '../../../src/services/retrieval/screenpipe-client.js';
+import { createScreenpipeClient } from '../../../src/services/capture/providers/screenpipe/http-client.js';
 import { testTempRoot } from '../../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];

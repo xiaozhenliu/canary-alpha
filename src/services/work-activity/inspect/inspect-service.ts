@@ -47,7 +47,7 @@ import type { SummaryWorker, EnsureSummaryResult } from '../summary/worker.js';
 import type {
   ScreenpipeFrameRow,
   ScreenpipeFramesReader
-} from './screenpipe-frames-reader.js';
+} from '../../capture/providers/screenpipe/frames-reader.js';
 
 // ---------------------------------------------------------------------------
 // Public types

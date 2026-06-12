@@ -2,7 +2,7 @@ import * as z from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 import type { AppContext } from '../../types/app-config.js';
-import type { ScreenpipeControlResult } from '../../services/screenpipe-control/screenpipe-control-service.js';
+import type { ScreenpipeControlResult } from '../../services/capture/providers/screenpipe/control-service.js';
 
 const inputSchema = z.object({
   action: z.enum(['status', 'start', 'stop'])

@@ -28,7 +28,7 @@ import { buildScreenpipeSafeRecordArgs } from '../../../scripts/screenpipe-safe-
 import { appConfigSchema } from '../../../src/config/schema.js';
 import { createFreshnessPolicy } from '../../../src/services/retrieval/freshness-policy.js';
 import { createLegacyIndexingService as createIndexingService } from '../../helpers/indexing-test-doubles.js';
-import { createScreenpipeClient, mergeByFrameId } from '../../../src/services/retrieval/screenpipe-client.js';
+import { createScreenpipeClient, mergeByFrameId } from '../../../src/services/capture/providers/screenpipe/http-client.js';
 import type {
   CheckpointStore,
   EmbeddingProvider,
