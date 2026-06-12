@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -6,12 +6,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const exec = promisify(execFile);
-const ENTRY = join(process.cwd(), 'dist', 'src', 'index.js');
+// Run the CLI from source via tsx, matching the project's rebuild-index/dev:stdio scripts.
+// This avoids building dist inside the suite, which previously raced with other tests that
+// share/exec dist/src/index.js and spiked CPU on timing-sensitive acceptance tests.
+const TSX = join(process.cwd(), 'node_modules', '.bin', 'tsx');
+const ENTRY = join(process.cwd(), 'src', 'index.ts');
 let home: string;
 
 async function run(args: string[], env: Record<string, string> = {}) {
   try {
-    const { stdout, stderr } = await exec('node', [ENTRY, ...args],
+    const { stdout, stderr } = await exec(TSX, [ENTRY, ...args],
       { env: { ...process.env, HOME: home, ...env } });
     return { code: 0, stdout, stderr };
   } catch (e: any) {
@@ -19,9 +23,6 @@ async function run(args: string[], env: Record<string, string> = {}) {
   }
 }
 
-beforeAll(async () => {
-  await exec('npm', ['run', 'build'], { cwd: process.cwd() });
-}, 120_000);
 beforeEach(async () => { home = await mkdtemp(join(tmpdir(), 'cfg-acc-')); });
 afterEach(async () => { await rm(home, { recursive: true, force: true }); });
 
