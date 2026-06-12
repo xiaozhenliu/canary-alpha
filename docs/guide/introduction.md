@@ -1,0 +1,37 @@
+---
+doc_version: 1
+doc_status: active
+last_updated: 2026-06-12
+---
+
+# Introduction
+
+`canary-alpha-mcp` is a local-first MCP server that wraps Screenpipe screen memory, long-term memory, local file analysis, and privacy controls as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs entirely on your machine and exposes a loopback-only Streamable HTTP endpoint (`http://127.0.0.1:18765/mcp`) that any MCP-compatible client can connect to.
+
+The problem it solves: AI agents have no memory of what you actually did on your computer. When you ask "what was I working on this morning?" or "find that link I saw yesterday," every conversation starts from scratch. `canary-alpha-mcp` fills that gap by indexing your Screenpipe activity locally and making it queryable through a focused MCP interface — without sending your activity stream to a hosted service.
+
+## How it works
+
+Screenpipe continuously captures your screen activity and stores it locally. This server reads that data, builds a hybrid index (FTS5 keyword search + vector embeddings), and exposes retrieval through MCP tools:
+
+```
+Screenpipe daemon
+  └─ captures screen activity → ~/.screenpipe/
+       └─ canary-alpha-mcp
+            ├─ indexes frames (FTS5 + vector embeddings)
+            └─ exposes MCP tools: find / recall / inspect / memory / ...
+                  └─ any MCP client (Claude Code, Cursor, Hermes, ...)
+```
+
+When an agent calls `recall` or `find`, the server queries the local index using hybrid retrieval (keyword match ranked by BM25, fused with vector similarity), returns evidence fragments, and never contacts an external service with your activity data.
+
+## What it is not
+
+- **Not a frontend product.** There is no web UI or desktop app. All capability is exposed exclusively through MCP tools and resources.
+- **Not a cloud service.** The server binds to `127.0.0.1` only. Your screen data stays on your machine.
+- **Not a replacement for Screenpipe.** This server depends on Screenpipe to capture and store your screen activity. It adds the MCP interface layer on top; Screenpipe must be running for retrieval to work.
+
+## Next steps
+
+- [Quickstart](/guide/quickstart) — from a clean machine to your first successful tool call
+- [Connect your client](/guide/clients/claude-code) — Claude Code, Cursor, Hermes, and more
