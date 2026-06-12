@@ -1,3 +1,4 @@
+import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -39,8 +40,27 @@ import { createCascadeDeleteCoordinator, type CascadeDeleteCoordinator } from '.
 import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../types/app-config.js';
 
-function resolveCheckpointPath(vectorStorePath?: string): string {
-  return join(vectorStorePath ?? join(homedir(), '.canary-alpha-mcp'), 'retrieval-checkpoint.json');
+/**
+ * Resolve the checkpoint file path for the given capture provider.
+ *
+ * The checkpoint file is namespaced by provider to isolate state across
+ * different capture backends and to enable clean provider switching without
+ * triggering a spurious full re-index.
+ *
+ * One-shot migration: when upgrading from a pre-namespace installation the
+ * legacy `retrieval-checkpoint.json` is renamed to the namespaced path so
+ * existing index progress is preserved for the screenpipe provider.
+ */
+export function resolveCheckpointPath(provider: string, vectorStorePath?: string): string {
+  const dir = vectorStorePath ?? join(homedir(), '.canary-alpha-mcp');
+  const namespaced = join(dir, `retrieval-checkpoint.${provider}.json`);
+  const legacy = join(dir, 'retrieval-checkpoint.json');
+  // One-shot migration: adopt the pre-namespace checkpoint as the
+  // screenpipe checkpoint so an upgrade does not trigger a full re-index.
+  if (provider === 'screenpipe' && !existsSync(namespaced) && existsSync(legacy)) {
+    renameSync(legacy, namespaced);
+  }
+  return namespaced;
 }
 
 export function startTrimPoller(
@@ -134,7 +154,7 @@ export async function createApp(overrides?: {
   const captureProvider = createCaptureProvider(config);
   const captureClient = captureProvider.client;
   const vectorStore = createVectorStore(config);
-  const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(resolveVectorStoreDirectory(config.vectorStore)));
+  const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(captureProvider.capabilities.providerName, resolveVectorStoreDirectory(config.vectorStore)));
   const fileAnalysis = new DefaultFileAnalyzeService();
   const memory = new DefaultMemoryService(
     new FileMemoryStore({

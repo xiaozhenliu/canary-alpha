@@ -121,7 +121,7 @@ describe('privacy control acceptance', () => {
     const checkpointDir = join(homeDir, '.canary-alpha-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
-      join(checkpointDir, 'retrieval-checkpoint.json'),
+      join(checkpointDir, 'retrieval-checkpoint.screenpipe.json'),
       JSON.stringify({
         cursor: 'checkpoint-1',
         timestamp: minusMinutes(2)
