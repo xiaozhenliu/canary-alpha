@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -41,6 +41,16 @@ describe('service:start script', () => {
     await mkdir(fakeBinDir, { recursive: true });
     await mkdir(distDir, { recursive: true });
 
+    // service-start.js only checks existsSync(distEntrypoint). If the real built file is
+    // already present, we must not overwrite it — doing so would corrupt dist/src/index.js
+    // for other tests running in parallel (e.g. config-cli acceptance tests). We write a
+    // stub only when the file does not yet exist, and remove it afterwards.
+    const entrypointPreExisted = await readFile(distEntrypoint, 'utf8').then(() => true).catch(() => false);
+    if (!entrypointPreExisted) {
+      await writeFile(distEntrypoint, 'export {};\n', 'utf8');
+      cleanup.push(() => rm(distEntrypoint, { force: true }));
+    }
+
     await writeFile(join(appDir, 'config.yaml'), [
       'server:',
       '  mode: http',
@@ -63,7 +73,6 @@ describe('service:start script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(distEntrypoint, 'export {};\n', 'utf8');
     await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'Could not find service' >&2\n  exit 113\nfi\nif [ \"$1\" = \"bootstrap\" ]; then\n  echo 'bootstrap failed' >&2\n  exit 1\nfi\nexit 0\n", 'utf8');
     await writeFile(lsofPath, "#!/bin/sh\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
@@ -108,6 +117,16 @@ describe('service:start script', () => {
     await mkdir(fakeBinDir, { recursive: true });
     await mkdir(distDir, { recursive: true });
 
+    // service-start.js only checks existsSync(distEntrypoint). If the real built file is
+    // already present, we must not overwrite it — doing so would corrupt dist/src/index.js
+    // for other tests running in parallel (e.g. config-cli acceptance tests). We write a
+    // stub only when the file does not yet exist, and remove it afterwards.
+    const entrypointPreExisted = await readFile(distEntrypoint, 'utf8').then(() => true).catch(() => false);
+    if (!entrypointPreExisted) {
+      await writeFile(distEntrypoint, 'export {};\n', 'utf8');
+      cleanup.push(() => rm(distEntrypoint, { force: true }));
+    }
+
     await writeFile(join(appDir, 'config.yaml'), [
       'server:',
       '  mode: http',
@@ -130,7 +149,6 @@ describe('service:start script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(distEntrypoint, 'export {};\n', 'utf8');
     await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'Could not find service' >&2\n  exit 113\nfi\necho 'bootstrap should not run' >&2\nexit 1\n", 'utf8');
     await writeFile(lsofPath, "#!/bin/sh\nprintf 'p29083\\ncnode\\nnTCP 127.0.0.1:18765 (LISTEN)\\n'\n", 'utf8');
     await chmod(launchctlPath, 0o755);

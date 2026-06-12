@@ -713,10 +713,11 @@ async function runRebuildIndex(): Promise<void> {
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
 
-  // config 子命令：在任何重型 bootstrap（createApp）之前短路处理（spec I6）。
+  // Short-circuit for the config subcommand before any heavy bootstrap (createApp) — spec I6.
   const firstPositional = argv.find((v) => !v.startsWith('--'));
   if (firstPositional === 'config') {
-    // 从 config token 起切片，干净丢弃其前的任何 flag（避免 `--mode http` 之类值泄漏成多余 positional）。
+    // Slice from the config token so any preceding flags (e.g. --mode http) do not leak
+    // as extra positional arguments into the config command parser.
     const configIndex = argv.indexOf('config');
     const code = await runConfigCommand(argv.slice(configIndex));
     process.exit(code);
