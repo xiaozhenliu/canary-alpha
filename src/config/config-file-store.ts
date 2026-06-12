@@ -11,7 +11,7 @@ export class ConfigFileStore {
     return this.filePath;
   }
 
-  // 读为可编辑 Document；文件不存在 → 空 Document。语法错误 → 抛出（validate 捕获）。
+  // Read into an editable Document; file absent → empty Document. Syntax error → throw (caught by validate).
   async readDocument(): Promise<{ doc: Document; existed: boolean }> {
     try {
       const raw = await readFile(this.filePath, 'utf8');
@@ -30,7 +30,7 @@ export class ConfigFileStore {
   }
 
   getAtPath(doc: Document, path: string[]): unknown {
-    // keepScalar=false：标量直接返回裸 JS 值；集合节点用 toJSON() 转为普通数组/对象。
+    // keepScalar=false: scalars are returned as bare JS values; collection nodes are converted to plain arrays/objects via toJSON().
     const node = doc.getIn(path, false);
     if (node != null && typeof (node as { toJSON?: unknown }).toJSON === 'function') {
       return (node as { toJSON: () => unknown }).toJSON();
@@ -38,12 +38,12 @@ export class ConfigFileStore {
     return node;
   }
 
-  // 取 seq 条目的可比较值：Scalar 节点取其 value，其它节点原样返回（与字符串比较自然为 false）。
+  // Extract a comparable value from a seq item: Scalar nodes return their .value; other nodes are returned as-is (naturally false when compared with a string).
   private nodeValue(n: unknown): unknown {
     return isScalar(n) ? (n as Scalar).value : n;
   }
 
-  // 标量就地赋值，保留注释；中间节点自动创建。
+  // Set scalar in-place, preserving comments; intermediate nodes are created automatically.
   setScalarAtPath(doc: Document, path: string[], value: unknown): void {
     doc.setIn(path, value);
   }
@@ -52,7 +52,7 @@ export class ConfigFileStore {
     doc.deleteIn(path);
   }
 
-  // 数组就地追加（YAMLSeq.add），不存在则创建空 seq；返回 false 表示已存在（去重）。
+  // Append to array in-place (YAMLSeq.add), creating an empty seq if absent; returns false when the item already exists (dedup).
   addToSeqAtPath(doc: Document, path: string[], item: string): boolean {
     let seq = doc.getIn(path) as YAMLSeq | undefined;
     if (!(seq instanceof YAMLSeq)) {
@@ -67,7 +67,7 @@ export class ConfigFileStore {
     return true;
   }
 
-  // 数组就地移除；返回 false 表示未找到。
+  // Remove from array in-place; returns false when the item is not found.
   removeFromSeqAtPath(doc: Document, path: string[], item: string): boolean {
     const seq = doc.getIn(path) as YAMLSeq | undefined;
     if (!(seq instanceof YAMLSeq)) {
@@ -81,7 +81,7 @@ export class ConfigFileStore {
     return true;
   }
 
-  // 原子写：同目录临时文件 + 创建时 0600 + rename。目录不存在则 mkdir -p。
+  // Atomic write: temp file in the same directory + mode 0600 on creation + rename. Creates the directory with mkdir -p if absent.
   async write(doc: Document): Promise<void> {
     const dir = dirname(this.filePath);
     await mkdir(dir, { recursive: true });

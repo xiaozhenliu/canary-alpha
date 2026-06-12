@@ -6,7 +6,7 @@ export type SchemaResolveResult =
   | { ok: false; error: 'not-found'; availableKeys: string[] }
   | { ok: false; error: 'unsupported' };
 
-// 逐层剥离 ZodDefault/ZodOptional/ZodNullable 包装，取内层类型。
+// Unwrap ZodDefault/ZodOptional/ZodNullable wrappers layer by layer to obtain the inner type.
 function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
   let current = schema;
   while (
@@ -57,8 +57,8 @@ export type CoerceResult =
   | { ok: true; value: unknown }
   | { ok: false; message: string };
 
-// 把命令行字符串按叶子 zod 类型转换。leaf 已 unwrap。rawValue 已由调用方处理 '--' 终止符。
-// 调用方在 resolveSchemaAtPath 返回 isArray===true 时不得调用本函数（数组走 add/remove，不经 coerce）。
+// Coerce a CLI string to the leaf zod type. leaf is already unwrapped. rawValue has had '--' terminator handled by the caller.
+// Callers must not invoke this function when resolveSchemaAtPath returns isArray===true (arrays go through add/remove, not coerce).
 export function coerceValue(leaf: z.ZodTypeAny, rawValue: string, nullable: boolean): CoerceResult {
   if (nullable && rawValue.toLowerCase() === 'null') {
     return { ok: true, value: null };
@@ -89,7 +89,7 @@ export function coerceValue(leaf: z.ZodTypeAny, rawValue: string, nullable: bool
   return { ok: false, message: `cannot set this field type directly` };
 }
 
-// 判断叶子（含任意层 ZodDefault/ZodOptional/ZodNullable 包装）是否 nullable。
+// Determine whether a leaf (possibly wrapped in any number of ZodDefault/ZodOptional/ZodNullable layers) is nullable.
 export function isNullable(schema: z.ZodTypeAny): boolean {
   let current = schema;
   while (

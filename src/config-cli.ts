@@ -1,17 +1,17 @@
-// src/config-cli.ts —— config 子命令的参数解析与输出，不触发重型 bootstrap。
+// src/config-cli.ts — argument parsing and output for the config subcommand, does not trigger heavy bootstrap.
 import { ConfigCliService, CliError } from './config/config-cli-service.js';
 
-// 解析 `config <sub> [args...]`，支持 '--' 终止符与 '--reveal'。
+// Parse `config <sub> [args...]`, supporting the '--' terminator and '--reveal'.
 export function parseConfigArgs(argv: string[]): {
   sub: string; positionals: string[]; reveal: boolean;
 } {
-  const after = argv.slice(1); // 去掉 'config'
+  const after = argv.slice(1); // drop 'config'
   const positionals: string[] = [];
   let reveal = false;
   let terminated = false;
   for (let i = 0; i < after.length; i += 1) {
     const v = after[i];
-    // '--' 之后的所有 token（含 --reveal）按字面 positional 处理，不再识别为 flag。
+    // All tokens after '--' (including --reveal) are treated as literal positionals, no longer recognised as flags.
     if (!terminated && v === '--') { terminated = true; continue; }
     if (!terminated && v === '--reveal') { reveal = true; continue; }
     positionals.push(v);

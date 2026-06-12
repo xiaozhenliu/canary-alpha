@@ -7,7 +7,7 @@ import { computeConfigProvenance } from './config-provenance.js';
 import { isSecretPath, maskValue } from './config-secrets.js';
 import type { Document } from 'yaml';
 
-// list 展示文件态：字段在文件中显式存在为 'file'，否则回落 schema 默认为 'default'。
+// list display source: 'file' when the field is explicitly present in the file, 'default' when falling back to the schema default.
 export type ConfigValueSource = 'file' | 'default';
 
 export interface ConfigGetResult {
@@ -63,7 +63,7 @@ export class ConfigCliService {
     return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
 
-  // resolved 必为失败态。showAvailable=true 时附带同层可选 key 提示。
+  // resolved must be a failure result. When showAvailable=true, includes a hint listing available keys at the same level.
   private pathError(
     resolved: { error: 'not-found'; availableKeys: string[] } | { error: 'unsupported' },
     dotted: string,
@@ -109,7 +109,7 @@ export class ConfigCliService {
       throw new CliError(`Cannot set ${dotted}: ${coerced.message}`);
     }
     const { doc, existed } = await this.store.readDocument();
-    // null 字面量（仅 nullable 字段可达）等价于 unset：删除该 key。
+    // null literal (only reachable for nullable fields) is equivalent to unset: delete the key.
     if (coerced.value === null) {
       this.store.deleteAtPath(doc, path);
     } else {

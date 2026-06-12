@@ -174,12 +174,12 @@ export async function loadConfig(overrides?: {
 }
 
 export interface EnvOverride {
-  path: string;        // 点路径
-  envName: string;     // 触发覆盖的环境变量名
+  path: string;        // dot-path
+  envName: string;     // name of the environment variable that triggers the override
 }
 
-// 返回当前进程环境下，哪些文件字段会被 env 覆盖。仅覆盖 spec §3.2 字段。
-// 与 loadConfig 内同款条件保持一致——若 loadConfig 逻辑变更，此处需同步（单测会捕获偏差）。
+// Returns which file fields would be overridden by env in the current process environment. Only covers spec §3.2 fields.
+// Must stay in sync with the equivalent conditions in loadConfig — if loadConfig logic changes, update here too (unit tests will catch drift).
 export function computeEnvOverrides(): EnvOverride[] {
   const out: EnvOverride[] = [];
   const isManaged = process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE === '1';
