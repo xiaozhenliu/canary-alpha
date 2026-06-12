@@ -173,7 +173,8 @@ beforeEach(() => {
     embeddingProvider: provider,
     vectorStore,
     hashIndex,
-    now: () => new Date('2026-05-25T10:00:00.000Z')
+    now: () => new Date('2026-05-25T10:00:00.000Z'),
+    captureProviderName: 'screenpipe'
   });
 });
 
@@ -296,7 +297,8 @@ describe('DefaultEmbeddingService.embedExtraction — Hash_Dedup (W13)', () => {
             embeddingProvider: localProvider,
             vectorStore: localVectorStore,
             hashIndex: localHashIndex,
-            now: () => new Date('2026-05-25T10:00:00.000Z')
+            now: () => new Date('2026-05-25T10:00:00.000Z'),
+            captureProviderName: 'screenpipe'
           });
 
           for (let i = 0; i < n; i++) {
@@ -393,6 +395,20 @@ describe('DefaultEmbeddingService.embedExtraction — fresh embed', () => {
       appName: 'Cursor',
       sourceTypes: ['accessibility', 'ocr']
     });
+  });
+
+  it('dual-writes metadata.captureId and keeps legacy metadata.frameId (Task 5)', async () => {
+    // After the captureId migration, each new vector-store record MUST
+    // carry BOTH the legacy `frameId` key (for backward-compat Cascade_Delete
+    // during the retention window) AND the neutral `captureId` key.
+    const result = buildExtraction({ frameId: 42, extractedText: 'dual-write check' });
+
+    await service.embedExtraction(result);
+
+    const [row] = vectorStore.records;
+    expect(row).toBeDefined();
+    expect(row.metadata?.frameId).toBe(42);
+    expect(row.metadata?.captureId).toBe('screenpipe:frame:42');
   });
 
   it('coerces metadata.appName to "" when the extraction has no appName so JSON-backed stores keep the key (R5.2)', async () => {

@@ -31,6 +31,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { buildCaptureId } from '../capture/types.js';
 import type {
   EmbeddingProvider,
   VectorStore,
@@ -90,6 +91,8 @@ export interface EmbeddingServiceDependencies {
   vectorStore: VectorStore;
   hashIndex: HashIndex;
   now: () => Date;
+  /** Provider name used to build the neutral captureId metadata field. */
+  captureProviderName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,7 +260,16 @@ export class DefaultEmbeddingService implements EmbeddingService {
       embedding,
       metadata: {
         sourceTypes: e.sourceTypes,
+        // Legacy key: kept for one retention cycle so Cascade_Delete
+        // still matches records written before the captureId migration.
         frameId: e.frameId,
+        // Neutral key: the provider-namespaced identifier written from
+        // this migration onward (Task 5 dual-write). Both keys are
+        // matched by deleteByFrameIds during the transition window.
+        captureId: buildCaptureId(this.deps.captureProviderName, {
+          frameId: e.frameId,
+          id: String(e.frameId)
+        }),
         frameTimestamp: e.frameTimestamp,
         contextKey: e.contextKey,
         extractedTextHash,

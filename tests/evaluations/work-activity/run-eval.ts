@@ -496,7 +496,8 @@ async function runEval(): Promise<WorkActivityEvalResult> {
     embeddingProvider,
     vectorStore,
     hashIndex,
-    now: () => new Date()
+    now: () => new Date(),
+    captureProviderName: 'screenpipe'
   });
 
   // Step 3: Build ScreenpipeClient stub and load fixture frames

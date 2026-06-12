@@ -171,7 +171,8 @@ export async function createApp(overrides?: {
     embeddingProvider,
     vectorStore,
     hashIndex,
-    now: () => new Date()
+    now: () => new Date(),
+    captureProviderName: captureProvider.capabilities.providerName
   });
 
   // Cascade_Delete coordinator (task 10.1 / 10.2, R9.1). Wired here so

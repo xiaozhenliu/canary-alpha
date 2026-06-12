@@ -242,7 +242,8 @@ function buildIndexingHarness(
     embeddingProvider,
     vectorStore,
     hashIndex,
-    now: () => currentNow
+    now: () => currentNow,
+    captureProviderName: 'screenpipe'
   });
 
   const indexing = createIndexingService({

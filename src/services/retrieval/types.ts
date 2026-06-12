@@ -103,14 +103,23 @@ export interface VectorStore {
    */
   listByTimeWindow?(from: string, to: string): Promise<VectorStoreRecord[]>;
   /**
-   * Delete all records whose `metadata.frameId` matches one of the supplied
-   * frame ids. The `frameIds` are normalised via `String(id)` before
-   * comparison so callers may supply numeric or string ids interchangeably.
+   * Delete all records whose frame identity matches one of the supplied frame
+   * ids. Matching uses DUAL-KEY semantics to handle the transition window:
    *
-   * Returns the number of records deleted. Records that do not carry a
-   * `metadata.frameId` are left untouched.
+   *   1. Legacy key — `metadata.frameId`: records written before the
+   *      captureId migration (Task 5) carry only this bare numeric id.
+   *   2. Neutral key — `metadata.captureId`: records written after Task 5
+   *      carry a `<provider>:frame:<id>` string; the frame value is parsed
+   *      via `parseCaptureId` and compared to the target set.
    *
-   * Used by Cascade_Delete (R9) when ScreenPipe frames are removed via
+   * A record is deleted when EITHER key resolves to a target frame id.
+   * The `frameIds` are normalised via `String(id)` before comparison so
+   * callers may supply numeric or string ids interchangeably.
+   *
+   * Returns the number of records deleted. Records that carry neither key
+   * are left untouched.
+   *
+   * Used by Cascade_Delete (R9) when capture frames are removed via
    * retention or `delete-range`.
    */
   deleteByFrameIds?(frameIds: ReadonlyArray<string | number>): Promise<number>;
