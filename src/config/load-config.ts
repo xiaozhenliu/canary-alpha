@@ -172,3 +172,33 @@ export async function loadConfig(overrides?: {
     }
   };
 }
+
+export interface EnvOverride {
+  path: string;        // 点路径
+  envName: string;     // 触发覆盖的环境变量名
+}
+
+// 返回当前进程环境下，哪些文件字段会被 env 覆盖。仅覆盖 spec §3.2 字段。
+// 与 loadConfig 内同款条件保持一致——若 loadConfig 逻辑变更，此处需同步（单测会捕获偏差）。
+export function computeEnvOverrides(): EnvOverride[] {
+  const out: EnvOverride[] = [];
+  const isManaged = process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE === '1';
+  const nonEmpty = (v: string | undefined): v is string => typeof v === 'string' && v.length > 0;
+
+  if (nonEmpty(process.env.MCP_MODE)) out.push({ path: 'server.mode', envName: 'MCP_MODE' });
+  if (nonEmpty(process.env.MCP_LOG_LEVEL)) out.push({ path: 'logging.level', envName: 'MCP_LOG_LEVEL' });
+  if (nonEmpty(process.env.MCP_PORT)) out.push({ path: 'server.port', envName: 'MCP_PORT' });
+  else if (isManaged && nonEmpty(process.env.CANARY_ALPHA_MCP_SERVER_PORT)) {
+    out.push({ path: 'server.port', envName: 'CANARY_ALPHA_MCP_SERVER_PORT' });
+  }
+  if (isManaged && nonEmpty(process.env.SCREENPIPE_BASE_URL)) {
+    out.push({ path: 'screenpipe.url', envName: 'SCREENPIPE_BASE_URL' });
+  }
+  if (isManaged && nonEmpty(process.env.SCREENPIPE_API_KEY)) {
+    out.push({ path: 'screenpipe.apiKey', envName: 'SCREENPIPE_API_KEY' });
+  }
+  if (nonEmpty(process.env.CANARY_ALPHA_MCP_AUTH_TOKEN)) {
+    out.push({ path: 'server.authToken', envName: 'CANARY_ALPHA_MCP_AUTH_TOKEN' });
+  }
+  return out;
+}
