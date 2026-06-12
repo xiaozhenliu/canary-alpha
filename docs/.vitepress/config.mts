@@ -4,7 +4,6 @@ export default defineConfig({
   title: 'canary-alpha-mcp',
   description: 'Local-first MCP server for Screenpipe memory and automation workflows.',
   base: '/canary-alpha/',
-  ignoreDeadLinks: true,
   srcExclude: [
     'architecture.md',
     'develop_log.md',
