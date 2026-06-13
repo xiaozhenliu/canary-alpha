@@ -1,5 +1,5 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
 last_updated: 2026-06-13
 ---
@@ -45,6 +45,28 @@ from Git history and keep each entry scoped to:
 - Full Vitest suite green (1019 tests) with new regression coverage: cross-timezone window matching (session store + extracted-content store), `recall` fractional→integer rounding, and the `up` orchestration contract.
 - Live `npm run e2e:live` end-to-end pass: `recall.sessions > 0` over a freshly recorded window, ground-truth probe satisfied.
 - Live `npm run up` brings the full stack up and `npm run service:status` reports `healthy`; clean teardown via `npm run down` leaves no orphan processes.
+
+## 2026-06-13: Screen-Memory `db.sqlite` Growth Diagnosis and Maintenance Throughput Fix
+
+**Result**
+
+- Diagnosed why a live `~/.screenpipe/db.sqlite` had reached 4.55 GB while captured frames spanned only ~3 days (06-10 .. 06-13) and `--retention-days 7` was working (zero rows older than 7 days). It was neither a retention bug nor un-reclaimed deleted space (freelist was ~0; the file was almost entirely live data).
+- Located the cost driver via `dbstat` + per-column length sums: the `frames` table was 3.85 GB, of which the per-frame `accessibility_tree_json` blob alone was 2.6 GB across ~2,400 frames (avg 1.1 MB/frame, max 3 MB). Event-driven capture under `--use-all-monitors` snapshots a full accessibility tree on every keypress / visual change (2,034 `key_press` + 1,746 `visual_change` triggers), so the blobs accumulate quickly.
+- Confirmed the reduction mechanism works but could not keep up: `AxTreeMaintenanceService.sweepOnce()` converts each frame's tree JSON into the compact `elements` table after 15 minutes and nulls the blob, then `reclaimOnce()` returns pages via `incremental_vacuum`. At `DEFAULT_BATCH_SIZE=100` and reclaim `maxPages=2000` (~8 MB/run) it fell behind the capture inflow and never drained the backlog, and the file never shrank.
+- Fix (commit `897a964`): raised `DEFAULT_BATCH_SIZE` 100 → 500 and the reclaim page ceiling 2000 → 20000 (~80 MB/run). Sweep/convert logic unchanged. Because the scheduled maintenance runs via `tsx` against `src/` (spawned by `screenpipe-safe-record.js` every 10 min), the new defaults take effect on the next cycle without a rebuild.
+- One-time lossless cleanup of the live database: drained the backlog (`maintain:run` ×7, ~2,257 frames swept) then `PRAGMA incremental_vacuum` + `PRAGMA wal_checkpoint(TRUNCATE)`. Result: 4.55 GB → 0.93 GB.
+
+**Decisions**
+
+- Use `incremental_vacuum` + a TRUNCATE checkpoint for the live reclaim rather than a full `VACUUM` / `maintain:init`. `auto_vacuum` was already INCREMENTAL, so this returns space in place with no downtime and no extra disk — important because only ~13 GB was free, and `maintain:init` would back up the DB and `VACUUM` under an exclusive lock (needs Screenpipe stopped + ~2× DB size free).
+- In WAL mode `incremental_vacuum` reduces `page_count` immediately but only truncates the main file after a checkpoint; the cleanup must pair it with `wal_checkpoint(TRUNCATE)`.
+- Keep routine reclaim on `incremental_vacuum` (steady, lock-friendly) instead of adding a periodic full `VACUUM` to the maintenance loop. `maintain:init` remains the manual defrag path.
+- Did not change capture volume (`--use-all-monitors` / per-keypress AX snapshots) — deferred per the user; the throughput fix makes the DB self-bounding regardless.
+
+**Verification**
+
+- Maintenance unit tests green (33) and `tsc --noEmit` clean. Existing reclaim/sweep tests pass explicit overrides, so the new defaults do not affect them.
+- Live cleanup verified: `page_count` 951,171 → 226,500, file 4.55 GB → 0.93 GB, `PRAGMA quick_check = ok`, 247,413 accessibility `elements` rows preserved, `framesWithTreeJson` down to ~180 (only the <15-min working set), and Screenpipe kept recording with `/health` OK throughout.
 
 ## 2026-06-11: Screenpipe Maintenance Observability
 
