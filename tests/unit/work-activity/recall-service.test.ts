@@ -210,6 +210,39 @@ describe('DefaultRecallService — granularity="session"', () => {
     expect(result.sessions[1].appName).toBe('AppA');
   });
 
+  it('rounds fractional active_seconds to an integer (outputSchema is int)', async () => {
+    // Regression: active_seconds accumulates fractional frame deltas, but the
+    // recall outputSchema declares activeSeconds as an integer. A real
+    // (non-empty) session therefore made the MCP SDK reject the whole result
+    // with an "Output validation error" — masked for a long time because a
+    // separate timezone-window bug kept recall returning zero sessions.
+    const f = makeExtraction(0, {
+      frameId: 1,
+      appName: 'AppF',
+      contextLabel: 'F.txt'
+    });
+    await extracted.upsert(f);
+    await sessions.createSession({ session_id: 'frac', ...f });
+    await sessions.appendFrame('frac', f, { activeSecondsDelta: 12.416 });
+
+    const stored = (await sessions.listSessions({})).find(
+      (r) => r.session_id === 'frac'
+    );
+    // Precondition: the stored value really is fractional, so the assertion
+    // below exercises the rounding rather than a coincidentally-integer value.
+    expect(stored).toBeDefined();
+    expect(Number.isInteger(stored!.active_seconds)).toBe(false);
+
+    const { service } = buildService();
+    const result = await service.recall({ from: tsAt(-10), to: tsAt(1000) });
+    if (result.granularity !== 'session') throw new Error('granularity guard');
+
+    const item = result.sessions.find((s) => s.sessionId === 'frac');
+    expect(item).toBeDefined();
+    expect(Number.isInteger(item!.activeSeconds)).toBe(true);
+    expect(item!.activeSeconds).toBe(Math.round(stored!.active_seconds));
+  });
+
   it('omits the summary block when includeSummary=false (W22 / R7.10)', async () => {
     await ingest([makeExtraction(0)]);
     const { service, worker } = buildService();

@@ -278,7 +278,13 @@ export class DefaultRecallService implements RecallService {
         contextLabel: row.context_label,
         startedAt: row.started_at,
         endedAt: row.ended_at,
-        activeSeconds: row.active_seconds,
+        // `active_seconds` accumulates fractional frame deltas (e.g. 12.416),
+        // but the tool's outputSchema declares `activeSeconds` as an integer.
+        // Round to whole seconds at the boundary so the structured payload
+        // validates — otherwise the MCP SDK rejects every non-empty recall
+        // result with an "Output validation error". (Whole-second granularity
+        // is all the recall surface promises.)
+        activeSeconds: Math.round(row.active_seconds),
         // The schema declares `evidenceFrameIds: string[]`. SQL stores
         // numeric IDs; stringify here so MCP consumers see a stable
         // scalar type regardless of language.
@@ -402,6 +408,13 @@ export class DefaultRecallService implements RecallService {
       .sort((a, b) => a.start.localeCompare(b.start))
       .map((agg) => ({
         ...agg,
+        // Same integer-seconds contract as session granularity: the bucket
+        // totals accumulate fractional `secs`, so round both the aggregate
+        // and each per-app value before they reach the int-typed outputSchema.
+        totalActiveSeconds: Math.round(agg.totalActiveSeconds),
+        byApp: Object.fromEntries(
+          Object.entries(agg.byApp).map(([app, secs]) => [app, Math.round(secs)])
+        ),
         narrativeText: buildBlockNarrative(agg)
       }));
 
