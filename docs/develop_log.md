@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-13
 ---
 
 # Development Log
@@ -21,6 +21,30 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-13: Retrieval Correctness and One-Command Daily Bring-Up
+
+**Result**
+
+- `recall` and `find` now return results for time-window queries that mix timezone representations. Time-window bounds are compared as absolute UTC instants instead of by raw string ordering, so a UTC `Z` query bound matches capture data stored with a local offset.
+- `recall` no longer fails MCP output validation on real data: `activeSeconds` / `totalActiveSeconds` / `byApp` are rounded to integer whole seconds to match the tool's output schema.
+- `npm run e2e:live` builds the current source before starting the service (no longer validating a stale `dist/`), runs a direct ground-truth `recall` probe over the recorded window, and fails (`build-failed` / `empty-recall`) instead of falsely passing.
+- `npm run service:start` and `npm run service:status` work when the auth token lives in `config.yaml` (not the environment); their readiness/health probes previously timed out or misreported a healthy service.
+- Added `npm run up` (build → start managed service → ensure Screenpipe recording) and `npm run down` as the one-command daily bring-up / teardown.
+- Registered TD-008 (time-window queries depend on runtime `datetime()` normalization; canonical-UTC storage deferred).
+
+**Decisions**
+
+- Fix the timezone-window bug query-side with SQLite `datetime()` on both bounds (the existing `ax-tree-maintenance-service` pattern); no on-disk data migration. Accept the index-bypass cost at local-first scale; defer canonical-UTC storage to TD-008.
+- Keep keyset-pagination cursor comparisons as raw string compares — their bound is a stored timestamp of the same representation, and `datetime()` would truncate the sub-second tiebreak.
+- Preserve `recall`'s integer-seconds output contract by rounding at the service boundary rather than relaxing the schema.
+- These were pre-existing defects, independent of the capture-provider migration; two pairs of them masked each other (the timezone bug kept `recall` empty, which hid the integer-validation bug; the auth-token env-only probe was hidden because `e2e:live` injected the token from config).
+
+**Verification**
+
+- Full Vitest suite green (1019 tests) with new regression coverage: cross-timezone window matching (session store + extracted-content store), `recall` fractional→integer rounding, and the `up` orchestration contract.
+- Live `npm run e2e:live` end-to-end pass: `recall.sessions > 0` over a freshly recorded window, ground-truth probe satisfied.
+- Live `npm run up` brings the full stack up and `npm run service:status` reports `healthy`; clean teardown via `npm run down` leaves no orphan processes.
 
 ## 2026-06-11: Screenpipe Maintenance Observability
 
