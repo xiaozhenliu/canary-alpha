@@ -1,7 +1,7 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 ---
 
 # Hermes delivery proof
@@ -22,7 +22,7 @@ Three commands exercise the delivered service from a real Hermes agent, each wit
 |---------|--------|-----------------|--------------------|---------|
 | `npm run hermes:verify` | `scripts/hermes-e2e.js` | `internal-status` | bracketed failure-mode labels (see [Failure modes](#failure-modes)) | Canonical post-onboarding connectivity check |
 | `npm run test:hermes:phase4` | `scripts/hermes-phase4-smoke.js` | `internal-status` + `recall` | chat outcome `passed` / `blocked` / `skipped` (uses `fail()`, not bracketed labels) | Bounded Phase 4 delivery gate — detailed below |
-| `npm run e2e:live` | `scripts/e2e-live-run.js` | `recall` + `find` | shares the bracketed labels below, plus `config-missing`, `screenpipe-unhealthy`, `empty-recall` | Full live retrieval run over a freshly recorded window (records, polls index readiness, then recalls) |
+| `npm run e2e:live` | `scripts/e2e-live-run.js` | `recall` + `find` | shares the bracketed labels below, plus `build-failed`, `config-missing`, `screenpipe-unhealthy`, `empty-recall` | Full live retrieval run over a freshly recorded window. Builds the current source first (so the service under test reflects HEAD), then records, polls index readiness, and recalls |
 
 The detailed sections below describe the Phase 4 gate. `hermes:verify` and `e2e:live` deliberately share the failure-mode vocabulary documented under [Failure modes](#failure-modes) (`scripts/e2e-live-run-lib.js` mirrors `scripts/hermes-e2e.js`'s signal lists).
 
@@ -106,7 +106,7 @@ This bounded outer proof is not intended to prove open-ended agent quality, repl
 
 These bracketed labels are the shared failure-mode vocabulary of `npm run hermes:verify` (`scripts/hermes-e2e.js`) and `npm run e2e:live` (`scripts/e2e-live-run.js`); each label is shown in brackets alongside a human-readable message. `npm run test:hermes:phase4` instead reports a chat outcome of `passed` / `blocked` / `skipped` and does not emit these labels.
 
-The four labels below are emitted by `hermes:verify`. `e2e:live` reuses `llm-not-configured` and `tool-call-failed`, and adds `config-missing` (config file absent), `screenpipe-unhealthy` (recorder not healthy), and `empty-recall` (recall ran but returned no data).
+The four labels below are emitted by `hermes:verify`. `e2e:live` reuses `llm-not-configured` and `tool-call-failed`, and adds `build-failed` (`npm run build` failed in preflight — the run aborts before touching any service so it never validates stale code), `config-missing` (config file absent), `screenpipe-unhealthy` (recorder not healthy), and `empty-recall` (recall ran but returned no data, decided by a direct ground-truth `recall` probe over the window).
 
 ### `hermes-missing`
 

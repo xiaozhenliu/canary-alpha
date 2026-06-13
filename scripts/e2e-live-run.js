@@ -4,7 +4,7 @@
 // One-command live verification on this machine:
 //   npm run e2e:live -- --duration 10m [--index-timeout 120s]
 //
-// Phase 0  preflight (hermes CLI, app config, args)
+// Phase 0  preflight (build current source, hermes CLI, app config, args)
 // Phase 1  Screenpipe: reuse healthy instance or start CLI daemon
 // Phase 2  MCP service: reuse reachable endpoint or `npm run service:start`
 // Phase 3  recording window with frame-count progress
@@ -44,6 +44,7 @@ const appDirectory = join(homedir(), '.canary-alpha-mcp');
 const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
 
 const SCREENPIPE_BASE_URL = 'http://localhost:3030';
+const BUILD_TIMEOUT_MS = 180_000;
 const SCREENPIPE_START_TIMEOUT_MS = 60_000;
 const MCP_START_TIMEOUT_MS = 60_000;
 const PROGRESS_INTERVAL_MS = 30_000;
@@ -307,6 +308,23 @@ async function main() {
 
   log('phase0', `duration=${options.durationMs / 1_000}s indexTimeout=${options.indexTimeoutMs / 1_000}s hermes=${hermesVersion}`);
 
+  // Build the current source before anything runs the service. `service:start`
+  // launches the prebuilt `dist/` entrypoint and never rebuilds, so without
+  // this step e2e:live can validate a stale build — silently defeating the
+  // point of a live end-to-end check (the harness would "pass" code that is
+  // not what is on disk). Building here guarantees a service WE start reflects
+  // HEAD; the reuse branch in phase 2 warns when it cannot make that promise.
+  log('phase0', 'Building current source (npm run build) so the service under test reflects HEAD.');
+  try {
+    await execFileAsync('npm', ['run', 'build'], { cwd: repositoryRoot, timeout: BUILD_TIMEOUT_MS });
+  } catch (error) {
+    fail('build-failed', { hermesVersion }, [
+      `npm run build failed: ${error instanceof Error ? error.message : String(error)}`,
+      'Fix the TypeScript build before running e2e:live.'
+    ]);
+    return;
+  }
+
   screenpipeSettings = await loadScreenpipeSettings();
 
   // Phase 1: Screenpipe (hybrid start)
@@ -357,6 +375,11 @@ async function main() {
 
   if (await isMcpReachable(server)) {
     log('phase2', `Reusing reachable MCP service at ${endpoint}.`);
+    // The phase-0 build refreshed dist/ on disk, but an already-running
+    // service loaded its code into memory at its own start time — we cannot
+    // prove it is the freshly-built code. Surface this so a "pass" against a
+    // stale reused service is never mistaken for validation of HEAD.
+    console.warn('[phase2] WARNING: reusing an already-running MCP service; e2e:live cannot guarantee it runs the just-built code. For a guaranteed-fresh run, stop it first: npm run service:stop.');
   } else {
     log('phase2', `MCP service not reachable — running npm run service:start.`);
     try {
