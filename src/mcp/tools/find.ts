@@ -93,9 +93,11 @@ export function registerFindTool(server: McpServer, app: AppContext): void {
   server.registerTool(
     'find',
     {
-      title: 'Find Evidence',
+      title: 'Find in Screen Memory',
       description:
-        'Search captured work-activity content for evidence fragments by keyword (or, in the future, by semantic similarity). Returns per-fragment hits ordered by recency, optionally grouped by session.',
+        "Search THIS MACHINE'S local screen-capture memory — text that was actually on the user's screen (captured windows, apps, documents, terminals, web pages) — for fragments matching a keyword. " +
+        'Use this only to recall what the user previously saw or did on screen; it does NOT search the web, the local filesystem, or any external source. ' +
+        'Returns per-fragment hits ordered by recency, optionally grouped by work session.',
       inputSchema,
       outputSchema,
       annotations: {
