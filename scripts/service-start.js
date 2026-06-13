@@ -158,11 +158,8 @@ function createClient() {
   });
 }
 
-async function probeManagedService(host, port, expectedConfigFile, expectedPid) {
+async function probeManagedService(host, port, expectedConfigFile, expectedPid, authToken) {
   const client = createClient();
-  const authToken = typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
-    ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
-    : undefined;
   const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), authToken
     ? {
         authProvider: {
@@ -213,7 +210,7 @@ async function probeManagedService(host, port, expectedConfigFile, expectedPid) 
   }
 }
 
-async function waitForManagedService(domain, host, port, expectedConfigFile, timeoutMs = 10_000) {
+async function waitForManagedService(domain, host, port, expectedConfigFile, authToken, timeoutMs = 10_000) {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -231,7 +228,7 @@ async function waitForManagedService(domain, host, port, expectedConfigFile, tim
         continue;
       }
 
-      const ready = await probeManagedService(host, port, expectedConfigFile, servicePid);
+      const ready = await probeManagedService(host, port, expectedConfigFile, servicePid, authToken);
       if (ready) {
         return;
       }
@@ -284,7 +281,15 @@ async function main() {
     assertPortAvailable(server.port);
     launchctl(['bootstrap', domain, installedPlistPath]);
     launchctl(['kickstart', '-k', `${domain}/${LABEL}`]);
-    await waitForManagedService(domain, server.host, server.port, configPath);
+    // The readiness probe must authenticate against the auth-protected HTTP
+    // transport. Resolve the token the same way the launchd service does —
+    // env override first, then `server.authToken` from config — so a standard
+    // `service:start` (token in config, not env) does not falsely time out.
+    const probeAuthToken =
+      typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
+        ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
+        : server.authToken;
+    await waitForManagedService(domain, server.host, server.port, configPath, probeAuthToken);
   } catch (error) {
     if (isServiceLoaded(domain)) {
       spawnSync('launchctl', ['bootout', domain, installedPlistPath], { encoding: 'utf8' });
