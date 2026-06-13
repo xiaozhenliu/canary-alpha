@@ -60,7 +60,78 @@ async function isScreenpipeHealthy(baseUrl) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Stop whatever process is currently recording on the Screenpipe port.
+ *
+ * Used only by `--restart-capture`: a reused Screenpipe may have been started
+ * by something else (an earlier run, the desktop app, a different flag set),
+ * so a forced restart guarantees the recorder runs with THIS script's intended
+ * options. Sends SIGTERM (Screenpipe shuts down gracefully), waits for the port
+ * to go quiet, then escalates to SIGKILL as a backstop.
+ */
+async function stopRunningScreenpipe(baseUrl) {
+  const port = new URL(baseUrl).port || '3030';
+  const findListeners = () => {
+    const result = spawnSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { encoding: 'utf8' });
+    return (result.stdout ?? '')
+      .split('\n')
+      .map((line) => Number(line.trim()))
+      .filter((pid) => Number.isInteger(pid) && pid > 0);
+  };
+
+  const pids = findListeners();
+  if (pids.length === 0) {
+    log('capture', `No listener found on port ${port}; nothing to stop.`);
+    return;
+  }
+  log('capture', `Force-restart: stopping Screenpipe listener(s) on port ${port} (pid ${pids.join(', ')}).`);
+  for (const pid of pids) {
+    try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
+  }
+
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    await sleep(1_000);
+    if (!(await isScreenpipeHealthy(baseUrl)) && findListeners().length === 0) {
+      log('capture', 'Previous Screenpipe stopped.');
+      return;
+    }
+  }
+  for (const pid of findListeners()) {
+    log('capture', `Screenpipe pid ${pid} did not exit gracefully; sending SIGKILL.`);
+    try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ }
+  }
+  await sleep(1_000);
+}
+
+/** Start the safe-record recorder in the foreground and mirror its exit code. */
+function startRecorderForeground() {
+  log('capture', 'Starting the recorder in the foreground.');
+  log('capture', 'Press Ctrl-C to stop recording; the MCP service keeps running for past-data queries.');
+  console.log('');
+  // The recorder owns its own SIGINT/SIGTERM handling (graceful stop + a final
+  // DB-maintenance pass), so we simply mirror its exit.
+  const recorder = spawn(
+    process.execPath,
+    [join(scriptDirectory, 'screenpipe-safe-record.js'), '--use-all-monitors'],
+    { cwd: repositoryRoot, stdio: 'inherit' }
+  );
+  recorder.on('exit', (code) => {
+    process.exit(code ?? 0);
+  });
+}
+
 async function main() {
+  const argv = process.argv.slice(2);
+  // Opt-in: stop any running Screenpipe and start a fresh recorder, so the
+  // capture process is guaranteed to use this script's flags rather than
+  // whatever an already-running (possibly differently-configured) instance had.
+  const forceRestartCapture = argv.includes('--restart-capture') || argv.includes('--force-capture');
+
   // Step 1: build current source.
   log('build', 'Compiling current source (npm run build)…');
   if (run('npm', ['run', 'build']) !== 0) {
@@ -77,27 +148,24 @@ async function main() {
 
   // Step 3: ensure Screenpipe is capturing.
   const screenpipeUrl = await resolveScreenpipeUrl();
-  if (await isScreenpipeHealthy(screenpipeUrl)) {
+  const healthy = await isScreenpipeHealthy(screenpipeUrl);
+
+  if (healthy && !forceRestartCapture) {
     log('capture', `Reusing the already-running Screenpipe at ${screenpipeUrl}.`);
+    log('capture', 'Pass `--restart-capture` if you want a guaranteed-fresh recorder instead.');
     console.log('');
     console.log('Stack is up. The MCP service is serving and Screenpipe is recording.');
     console.log('Your agent (Hermes) can now retrieve screen memory. Stop the service with `npm run down`.');
     return;
   }
 
-  log('capture', 'Screenpipe is not running — starting the recorder in the foreground.');
-  log('capture', 'Press Ctrl-C to stop recording; the MCP service keeps running for past-data queries.');
-  console.log('');
-  // Hand the terminal to the recorder. It owns its own SIGINT/SIGTERM handling
-  // (graceful stop + a final DB-maintenance pass), so we simply mirror its exit.
-  const recorder = spawn(
-    process.execPath,
-    [join(scriptDirectory, 'screenpipe-safe-record.js'), '--use-all-monitors'],
-    { cwd: repositoryRoot, stdio: 'inherit' }
-  );
-  recorder.on('exit', (code) => {
-    process.exit(code ?? 0);
-  });
+  if (healthy && forceRestartCapture) {
+    await stopRunningScreenpipe(screenpipeUrl);
+  } else {
+    log('capture', 'Screenpipe is not running.');
+  }
+
+  startRecorderForeground();
 }
 
 await main();

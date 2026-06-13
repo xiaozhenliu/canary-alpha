@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
 last_updated: 2026-06-13
 ---
@@ -16,6 +16,12 @@ npm run down    # 停止托管 MCP 服务
 ```
 
 `up` 是日常启动入口：它先编译当前源码（确保服务运行最新代码而非过期的 `dist/`），启动 launchd 托管的 MCP 服务并等待其可达，然后确保 Screenpipe 正在采集——已在运行则复用，否则在前台启动录制进程。录制进程在前台运行时，按 Ctrl-C 停止录制；MCP 服务仍保持运行，agent 可继续查询已采集的记忆。用 `npm run down` 停止服务。
+
+Screenpipe 默认 24/7 连续录制、数据保留 7 天，没有固定录制时长。若已有 Screenpipe 实例在跑，`up` 会原样复用它。如果想确保录制进程使用本脚本的预期参数（而非某个已在运行实例的旧参数），可强制干净重启：
+
+```bash
+npm run up -- --restart-capture   # 停掉正在运行的 Screenpipe，再启动全新录制
+```
 
 需要比 `up` / `down` 更精细的控制时，使用下面的单项命令。
 
