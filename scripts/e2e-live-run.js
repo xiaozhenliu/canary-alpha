@@ -263,9 +263,19 @@ async function probeRetrieval(server, fromIso, toIso) {
       arguments: { from: fromIso, to: toIso, granularity: 'session', includeSummary: false }
     });
     const text = result?.content?.find((entry) => entry.type === 'text')?.text;
+    if (result?.isError === true) {
+      // The recall tool itself errored (e.g. output-schema validation). That
+      // is a real failure, not "no ground truth" — report it as a failed probe
+      // with the detail so it is not silently swallowed.
+      const detail = typeof text === 'string' ? text.slice(0, 200) : 'unknown error';
+      console.warn(`[phase5] retrieval probe: recall returned an error result: ${detail}`);
+      return { ok: false, recallSessions: null };
+    }
     const parsed = result?.structuredContent ?? (typeof text === 'string' ? JSON.parse(text) : null);
     const recallSessions = Array.isArray(parsed?.sessions) ? parsed.sessions.length : 0;
-    return { ok: true, recallSessions };
+    // `hasContent` is what classifyHermesOutcome gates on; derive it here so a
+    // non-empty window is recognised as a pass (and an empty one as a fail).
+    return { ok: true, recallSessions, hasContent: recallSessions > 0 };
   } catch (error) {
     console.warn(`[phase5] retrieval probe failed: ${error instanceof Error ? error.message : String(error)}`);
     return { ok: false, recallSessions: null };
