@@ -719,7 +719,11 @@ export class DefaultFindService implements FindService {
             source_types
          FROM extracted_content
          WHERE extracted_text != ''
-           AND frame_timestamp BETWEEN ? AND ?
+           -- Normalize both window bounds to UTC via datetime(): stored
+           -- frame_timestamp carries a local offset while from/to are UTC,
+           -- so a raw BETWEEN compares mixed representations lexicographically
+           -- and drops in-window rows. See session-store.listSessions.
+           AND datetime(frame_timestamp) BETWEEN datetime(?) AND datetime(?)
            AND (? IS NULL OR app_name = ?)
          ORDER BY frame_timestamp DESC, frame_id DESC
          LIMIT ?`
@@ -743,7 +747,12 @@ export class DefaultFindService implements FindService {
           source_types
        FROM extracted_content
        WHERE extracted_text != ''
-         AND frame_timestamp >= ?
+         -- External window floor: normalize to UTC (stored value carries a
+         -- local offset; from is UTC). The keyset cursor predicate below
+         -- stays a RAW comparison — its bound is a stored frame_timestamp of
+         -- the same representation, and datetime() would truncate the
+         -- sub-second precision the (timestamp, frame_id) tiebreak relies on.
+         AND datetime(frame_timestamp) >= datetime(?)
          AND (? IS NULL OR app_name = ?)
          AND (
            frame_timestamp < ?
