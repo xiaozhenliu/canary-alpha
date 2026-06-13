@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
 last_updated: 2026-06-13
 ---
@@ -16,6 +16,12 @@ npm run down    # Stop the managed MCP service
 ```
 
 `up` is the everyday bring-up: it compiles the current source (so the service runs the latest code, not a stale `dist/`), starts the launchd-managed MCP service and waits until it is reachable, then ensures Screenpipe is capturing — reusing an already-running instance, or starting the recorder in the foreground otherwise. While the recorder runs in the foreground, press Ctrl-C to stop recording; the MCP service keeps running so an agent can still query already-captured memory. Stop the service with `npm run down`.
+
+Screenpipe records continuously (24/7) with a 7-day retention window; there is no fixed recording duration. If a Screenpipe instance is already running, `up` reuses it as-is. To guarantee the recorder runs with this script's intended options instead of whatever an already-running instance was started with, force a clean restart:
+
+```bash
+npm run up -- --restart-capture   # stop any running Screenpipe, then start a fresh recorder
+```
 
 Use the individual commands below when you want finer control than `up` / `down`.
 

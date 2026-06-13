@@ -39,6 +39,14 @@ describe('start-daily.js orchestration', () => {
     expect(SCRIPT).toContain('isScreenpipeHealthy');
     expect(SCRIPT).toContain('/health');
   });
+
+  it('supports --restart-capture to force a fresh recorder', () => {
+    expect(SCRIPT).toContain('--restart-capture');
+    expect(SCRIPT).toContain('stopRunningScreenpipe');
+    // Forced restart must stop the existing listener before starting fresh.
+    expect(SCRIPT).toContain('SIGTERM');
+    expect(SCRIPT).toContain('SIGKILL');
+  });
 });
 
 describe('package.json daily-use scripts', () => {
