@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 ---
 
 # MCP 工具
@@ -18,6 +18,8 @@ last_updated: 2026-06-12
 部分失败路径还会设置 `isError: true`。
 
 工作活动检索工具（`find`、`recall`、`inspect`）始终在结构化载荷中包含 `narrativeText` 字符串字段——即使在降级路径上——调用者无需针对 `null` 做分支处理。当发生回退行为时，通过显式的 `degraded` 块暴露降级状态。
+
+`find` 与 `recall` 的 `from` / `to` 时间窗边界按**绝对时刻并以 UTC 比较**。因此 UTC `Z` 边界（如 `2026-04-16T00:00:00Z`）能正确匹配采集记录，与录制端的本地时区偏移无关；也可传带偏移的形式（`+08:00`），解析为同一时刻。
 
 ## 工具列表
 
@@ -97,8 +99,8 @@ last_updated: 2026-06-12
 
 - `content[0].text` 包含 `narrativeText` 摘要
 - `structuredContent.granularity` 回显解析后的粒度
-- `structuredContent.sessions` 在 `granularity="session"` 时存在；每个 session 含 `sessionId`、`appName`、`contextLabel`、`startedAt`、`endedAt`、`activeSeconds`、`evidenceFrameIds`、`sourceTypes`，以及可选 `summary`（`text`、`status` ∈ `pending` | `ready` | `failed` | `degraded` | `not_applicable`、`providerKind` ∈ `template` | `remote-llm`）
-- `structuredContent.blocks` 在 `granularity="hour"` 或 `"day"` 时存在；每个块含 `start`、`end`、`sessionCount`、`totalActiveSeconds`、`byApp`（appName → 秒数）、`narrativeText`
+- `structuredContent.sessions` 在 `granularity="session"` 时存在；每个 session 含 `sessionId`、`appName`、`contextLabel`、`startedAt`、`endedAt`、`activeSeconds`（整数秒）、`evidenceFrameIds`、`sourceTypes`，以及可选 `summary`（`text`、`status` ∈ `pending` | `ready` | `failed` | `degraded` | `not_applicable`、`providerKind` ∈ `template` | `remote-llm`）
+- `structuredContent.blocks` 在 `granularity="hour"` 或 `"day"` 时存在；每个块含 `start`、`end`、`sessionCount`、`totalActiveSeconds`（整数秒）、`byApp`（appName → 整数秒）、`narrativeText`
 - `structuredContent.narrativeText` 始终存在
 
 ## `inspect`
