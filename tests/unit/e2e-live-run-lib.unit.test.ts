@@ -152,6 +152,54 @@ describe('classifyHermesOutcome', () => {
     expect(classifyHermesOutcome({ transcript, chatFailed: false }))
       .toEqual({ outcome: 'pass', failureMode: 'none' });
   });
+
+  it('detects empty-result phrasings the original list missed (fallback path)', () => {
+    for (const phrase of ['returned no results for that window', '都没有返回任何内容', '没有任何会话']) {
+      const transcript = `${RECALL_TOOL_MARKER}\n${phrase}`;
+      expect(classifyHermesOutcome({ transcript, chatFailed: false }))
+        .toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+    }
+  });
+
+  describe('retrievalProbe is authoritative when ok', () => {
+    // The false-pass this guards against: the transcript reads like a full,
+    // substantive answer (the agent reconstructed it from fallback metadata),
+    // but the direct recall probe proves the window was not retrievable.
+    it('fails empty-recall on an empty probe even when the transcript looks substantive', () => {
+      expect(classifyHermesOutcome({
+        transcript: okTranscript,
+        chatFailed: false,
+        retrievalProbe: { ok: true, hasContent: false }
+      })).toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+    });
+
+    it('passes on a non-empty probe even when the transcript contains an empty-result phrase', () => {
+      const transcript = `${RECALL_TOOL_MARKER}\nno results found at first, then I broadened the search.`;
+      expect(classifyHermesOutcome({
+        transcript,
+        chatFailed: false,
+        retrievalProbe: { ok: true, hasContent: true }
+      })).toEqual({ outcome: 'pass', failureMode: 'none' });
+    });
+
+    it('falls back to transcript heuristics when the probe could not run', () => {
+      const transcript = `${RECALL_TOOL_MARKER}\nThe recall tool returned no results found for that window.`;
+      expect(classifyHermesOutcome({
+        transcript,
+        chatFailed: false,
+        retrievalProbe: { ok: false, recallSessions: null }
+      })).toEqual({ outcome: 'fail:empty-recall', failureMode: 'empty-recall' });
+    });
+
+    it('still applies the llm-not-configured and tool-call checks before the probe', () => {
+      // A green probe must not paper over a chat process failure.
+      expect(classifyHermesOutcome({
+        transcript: okTranscript,
+        chatFailed: true,
+        retrievalProbe: { ok: true, hasContent: true }
+      })).toEqual({ outcome: 'fail:tool-call-failed', failureMode: 'tool-call-failed' });
+    });
+  });
 });
 
 describe('buildCleanupPlan', () => {
