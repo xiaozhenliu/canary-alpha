@@ -3,7 +3,19 @@ import { DatabaseSync } from 'node:sqlite';
 import { convertTreeJson } from './ax-tree-converter.js';
 
 const DEFAULT_MIN_FRAME_AGE_MS = 15 * 60_000;
-const DEFAULT_BATCH_SIZE = 100;
+// Per-run sweep ceiling. Each captured frame can carry a ~1 MB accessibility
+// tree JSON blob, and event-driven capture (one snapshot per keypress /
+// visual change) can emit several hundred frames per 10-minute maintenance
+// cycle. A batch of 100 could not keep up with that inflow, let alone drain a
+// backlog, so tree JSON accumulated unbounded. 500 out-paces typical inflow
+// and clears a multi-thousand-frame backlog within a few cycles.
+const DEFAULT_BATCH_SIZE = 500;
+// Per-run incremental_vacuum page ceiling (auto_vacuum=INCREMENTAL). 2_000
+// pages (~8 MB) returned far too little to the OS to offset the space freed by
+// nulling 1 MB blobs, so the file never shrank. 20_000 (~80 MB) steadily
+// returns the slowly-accumulating freelist surplus without holding the write
+// lock long enough to starve the live recorder.
+const DEFAULT_RECLAIM_MAX_PAGES = 20_000;
 
 export interface SweepResult {
   jsonNulledViaExisting: number;
@@ -235,7 +247,7 @@ export function createAxTreeMaintenanceService(options: MaintenanceServiceOption
   }
 
   function reclaimOnce(opts: { maxPages?: number } = {}): ReclaimResult {
-    const maxPages = opts.maxPages ?? 2_000;
+    const maxPages = opts.maxPages ?? DEFAULT_RECLAIM_MAX_PAGES;
     const db = new DatabaseSync(options.databasePath);
     let before = 0;
     try {
