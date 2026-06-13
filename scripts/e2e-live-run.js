@@ -232,6 +232,47 @@ async function readExtractionWatermark(server) {
   }
 }
 
+/**
+ * Ground-truth retrieval probe over the recorded window.
+ *
+ * Calls the `recall` tool directly (session granularity) so the harness has
+ * an objective count of how much of the window is actually retrievable,
+ * independent of how the hermes agent phrases its answer or whether it falls
+ * back to other tools' metadata. `recall` is used rather than `find` because
+ * it is query-independent — a `find` keyword returning zero does not prove
+ * the window is empty, whereas a session count is a direct measure.
+ *
+ * Returns `{ ok, recallSessions }`. `ok` is false when the probe itself could
+ * not run (connection/tool error); callers must treat `ok === false` as
+ * "no ground truth available" and fall back to transcript heuristics rather
+ * than as an empty window.
+ */
+async function probeRetrieval(server, fromIso, toIso) {
+  const client = new Client({ name: 'e2e-live-run-probe', version: '1.0.0' });
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://${server.host}:${server.port}/mcp`),
+    server.authToken !== undefined
+      ? { authProvider: { token: async () => server.authToken } }
+      : undefined
+  );
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({
+      name: 'recall',
+      arguments: { from: fromIso, to: toIso, granularity: 'session', includeSummary: false }
+    });
+    const text = result?.content?.find((entry) => entry.type === 'text')?.text;
+    const parsed = result?.structuredContent ?? (typeof text === 'string' ? JSON.parse(text) : null);
+    const recallSessions = Array.isArray(parsed?.sessions) ? parsed.sessions.length : 0;
+    return { ok: true, recallSessions };
+  } catch (error) {
+    console.warn(`[phase5] retrieval probe failed: ${error instanceof Error ? error.message : String(error)}`);
+    return { ok: false, recallSessions: null };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -443,7 +484,16 @@ async function main() {
     return;
   }
 
-  // Phase 5: hermes content verification
+  // Phase 5: ground-truth retrieval probe + hermes content verification.
+  // The probe runs first so the harness has an objective measure of window
+  // retrievability before — and independent of — the model's narrative.
+  const retrievalProbe = await probeRetrieval(server, recordStartIso, recordEndIso);
+  if (retrievalProbe.ok) {
+    log('phase5', `retrieval probe: recall.sessions=${retrievalProbe.recallSessions} over the recorded window.`);
+  } else {
+    log('phase5', 'retrieval probe could not run; falling back to transcript heuristics for pass/fail.');
+  }
+
   const query = `调用 recall（from=${recordStartIso}，to=${recordEndIso}，granularity 自选）查询这段时间的屏幕活动；如果 recall 没有返回会话，就改用 find 在同一时间窗内检索屏幕内容。最后总结这段时间屏幕上实际出现的内容，引用具体的应用或文本。`;
   log('phase5', 'Running hermes chat content verification.');
   let chatTranscript = '';
@@ -472,7 +522,7 @@ async function main() {
   const transcriptPath = join(tmpdir(), `e2e-live-run-transcript-${recordEnd.getTime()}.txt`);
   await writeFile(transcriptPath, chatTranscript, 'utf8');
 
-  const verdict = classifyHermesOutcome({ transcript: chatTranscript, chatFailed });
+  const verdict = classifyHermesOutcome({ transcript: chatTranscript, chatFailed, retrievalProbe });
 
   // Phase 6: cleanup + summary
   await cleanup();
@@ -484,6 +534,9 @@ async function main() {
     mcpEndpoint: endpoint,
     recordWindow: `${recordStartIso} .. ${recordEndIso}`,
     framesInWindow: lastWindowCount,
+    // Ground-truth retrieval count over the window (independent of the model's
+    // narrative); 'probe-failed' means the harness could not measure it.
+    recallSessionsInWindow: retrievalProbe.ok ? retrievalProbe.recallSessions : 'probe-failed',
     transcriptPath
   });
 
@@ -491,7 +544,7 @@ async function main() {
     if (verdict.failureMode === 'llm-not-configured') {
       console.error('Configure a model/provider in ~/.hermes/config.yaml (credentials are user responsibility).');
     } else if (verdict.failureMode === 'empty-recall') {
-      console.error('Tool ran but returned no content for the window — inspect the transcript and storage diagnostics.');
+      console.error('recall returned no sessions for the recorded window (see recallSessionsInWindow above) — the window was captured but is not retrievable. Inspect the indexer/embedding health: npm run service:logs / npm run storage:diagnostics.');
     } else if (verdict.failureMode === 'tool-call-failed') {
       console.error('Hermes did not call recall/find successfully — inspect the transcript.');
     }
