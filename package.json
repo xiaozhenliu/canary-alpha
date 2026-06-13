@@ -19,6 +19,8 @@
     "test:smoke:mcp": "vitest run tests/acceptance/mcp-smoke.test.ts",
     "setup": "node scripts/setup.js",
     "onboard": "node scripts/onboard.js",
+    "up": "node scripts/start-daily.js",
+    "down": "node scripts/service-stop.js",
     "service:start": "node scripts/service-start.js",
     "service:stop": "node scripts/service-stop.js",
     "service:status": "node scripts/service-status.js",
