@@ -59,3 +59,11 @@ docs/plan/
 
 # OS noise
 .DS_Store
+
+# understand-anything: track only the regenerated knowledge graph + shared metadata;
+# ignore regenerable/runtime artifacts (intermediate batches, trash, fingerprints, dashboard runtime).
+.understand-anything/*
+!.understand-anything/knowledge-graph.json
+!.understand-anything/meta.json
+!.understand-anything/config.json
+!.understand-anything/.understandignore
