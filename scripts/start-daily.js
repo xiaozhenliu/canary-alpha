@@ -15,8 +15,13 @@
 //                   foreground (Ctrl-C stops recording; the MCP service, being
 //                   launchd-managed, keeps running for past-data queries)
 //
-// Tear down with `npm run down` (stops the managed service; Ctrl-C the
-// recorder separately).
+// Pass `--detach` (alias `--background`) to start the recorder detached from the
+// terminal instead, so the launching window can be closed. In that mode capture
+// output goes to ~/.canary-alpha-mcp/logs/recorder.log; stop it gracefully with
+// `npm run recorder:stop`.
+//
+// Tear down with `npm run down` (stops the managed service). Stop the recorder
+// with Ctrl-C (foreground) or `npm run recorder:stop` (detached).
 
 import { spawnSync, spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -125,12 +130,32 @@ function startRecorderForeground() {
   });
 }
 
+/**
+ * Start the safe-record recorder detached from the terminal via recorder:start,
+ * then return so the launching window can be closed. recorder:start itself
+ * spawns the recorder detached, redirects output to a log file, and exits.
+ */
+function startRecorderBackground() {
+  log('capture', 'Starting the recorder in the background (the terminal will be free).');
+  const code = run('npm', ['run', 'recorder:start']);
+  if (code !== 0) {
+    log('capture', 'recorder:start failed — inspect with `npm run recorder:logs`.');
+    process.exit(code);
+  }
+  console.log('');
+  console.log('Stack is up in the background. The MCP service and the recorder are both detached.');
+  console.log('Stop the service with `npm run down`; stop the recorder with `npm run recorder:stop`.');
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   // Opt-in: stop any running Screenpipe and start a fresh recorder, so the
   // capture process is guaranteed to use this script's flags rather than
   // whatever an already-running (possibly differently-configured) instance had.
   const forceRestartCapture = argv.includes('--restart-capture') || argv.includes('--force-capture');
+  // Opt-in: run the recorder detached from the terminal (background) instead of
+  // in the foreground, so the launching window can be closed.
+  const detachRecorder = argv.includes('--detach') || argv.includes('--background');
 
   // Step 1: build current source.
   log('build', 'Compiling current source (npm run build)…');
@@ -163,6 +188,11 @@ async function main() {
     await stopRunningScreenpipe(screenpipeUrl);
   } else {
     log('capture', 'Screenpipe is not running.');
+  }
+
+  if (detachRecorder) {
+    startRecorderBackground();
+    return;
   }
 
   startRecorderForeground();
