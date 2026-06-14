@@ -45,4 +45,4 @@ export function evaluateIndexReadiness(input: {
   recordEndIso: string;
   previousWindowCount: number;
   currentWindowCount: number;
-}): { ready: boolean; reason: 'watermark' | 'stable-count' | 'waiting' };
+}): { ready: boolean; reason: 'watermark' | 'waiting' };

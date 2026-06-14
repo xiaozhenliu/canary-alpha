@@ -259,7 +259,9 @@ function buildIndexingHarness(
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
-    embeddingService
+    embeddingService,
+    embeddingConcurrency: 1,
+    captureProviderName: 'screenpipe'
   });
 
   return {

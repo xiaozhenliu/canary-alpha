@@ -1,5 +1,5 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -12,6 +12,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [2.3.0] - 2026-06-14
+
+### Added
+
+- Concurrent embedding in the indexing pipeline: `runOnce()` now splits into
+  serial extraction + concurrent embedding (sliding-window promise pool) +
+  batch vector-store upsert. Controlled by `providers.embeddings.concurrency`
+  (default 2). Significantly reduces catch-up time after prolonged offline
+  periods.
+- `EmbeddingService.computeEmbedding()` method for computing embeddings without
+  vector-store persistence, enabling the concurrent pipeline.
+- Startup priority catch-up: the first indexing poll runs up to 10 consecutive
+  `runOnce()` rounds to aggressively clear any backlog before switching to the
+  normal polling interval.
+
+### Changed
+
+- `maxCatchUpRecords` default raised from 500 to 1500 per batch, reducing the
+  number of poll cycles needed to clear a large backlog.
+
+### Fixed
+
+- Removed the `stable-count` false-positive signal from the e2e
+  `evaluateIndexReadiness` harness. The signal indicated "Screenpipe stopped
+  producing frames" but did not confirm "MCP finished embedding those frames",
+  causing premature readiness and `empty-recall` test failures.
 
 ## [2.2.0] - 2026-06-14
 

@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { loadConfig } from '../config/load-config.js';
+import { DEFAULT_EMBEDDING_CONCURRENCY } from '../config/schema.js';
 import { resolveMemoryFilePath, resolvePrivacyStatePath, resolveRetrievalArtifactsDirectory, resolveScreenpipeDirectory } from '../config/paths.js';
 import { createLogger } from '../lib/logging.js';
 import { DefaultFileAnalyzeService } from '../services/file-analysis/file-analyze-service.js';
@@ -98,6 +99,7 @@ export function startTrimPoller(
 export function startIndexingPoller(app: Pick<AppContext, 'config' | 'logger' | 'services'>): void {
   const intervalMs = app.config.retrieval.pollIntervalSeconds * 1_000;
   let polling = false;
+  let isFirstPoll = true;
 
   const pollOnce = (): void => {
     if (polling) {
@@ -105,8 +107,36 @@ export function startIndexingPoller(app: Pick<AppContext, 'config' | 'logger' | 
     }
 
     polling = true;
-    void app.services.retrieval.indexing.runOnce()
+
+    const runPromise = isFirstPoll
+      ? (async () => {
+          isFirstPoll = false;
+          app.logger.info('Startup catch-up: running initial indexing poll.');
+          let hasMore = true;
+          let rounds = 0;
+          const maxStartupRounds = 10;
+          while (hasMore && rounds < maxStartupRounds) {
+            rounds += 1;
+            try {
+              const result = await app.services.retrieval.indexing.runOnce();
+              hasMore = result.indexed > 0 && result.hadEmbeddingFailures === false;
+            } catch (error) {
+              app.logger.warn('Startup catch-up round failed; switching to normal polling.', {
+                round: rounds,
+                message: error instanceof Error ? error.message : String(error)
+              });
+              hasMore = false;
+            }
+          }
+          if (rounds > 1) {
+            app.logger.info(`Startup catch-up: completed ${rounds} indexing rounds.`);
+          }
+        })()
+      : app.services.retrieval.indexing.runOnce();
+
+    void runPromise
       .catch((error) => {
+        isFirstPoll = false;
         app.logger.warn('Background indexing poll failed; will retry on the next interval.', {
           message: error instanceof Error ? error.message : String(error)
         });
@@ -325,7 +355,9 @@ export async function createApp(overrides?: {
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
-    embeddingService
+    embeddingService,
+    embeddingConcurrency: config.providers.embeddings.concurrency ?? DEFAULT_EMBEDDING_CONCURRENCY,
+    captureProviderName: captureProvider.capabilities.providerName
   });
   const retrieval = {
     embeddingProvider,

@@ -535,7 +535,9 @@ async function runEval(): Promise<WorkActivityEvalResult> {
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
-    embeddingService
+    embeddingService,
+    embeddingConcurrency: 1,
+    captureProviderName: 'screenpipe'
   });
 
   // Use a fixed "now" slightly after the latest fixture timestamp

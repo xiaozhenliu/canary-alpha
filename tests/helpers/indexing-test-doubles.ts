@@ -68,7 +68,8 @@ import type {
 } from '../../src/services/work-activity/sessions/aggregator.js';
 import type {
   EmbeddingService,
-  EmbeddingOutcome
+  EmbeddingOutcome,
+  ComputeEmbeddingOutcome
 } from '../../src/services/work-activity/embedding-service.js';
 import {
   buildContextKey,
@@ -150,6 +151,17 @@ class NoopSessionAggregator implements SessionAggregator {
  * `runOnce()` returns (or throws). Provider errors translate to
  * `provider-unavailable` outcomes so the indexing service's
  * checkpoint-error contract stays intact.
+ *
+ * Architecture note: the new `DefaultIndexingService.runOnce()` calls
+ * `computeEmbedding()` (Step 2, no vector-store write) and then
+ * directly calls `vectorStore.upsert()` on the *inner* vector store
+ * (Step 3). To keep legacy assertions (a single upsert per runOnce,
+ * records keyed by the original `record.id`) working, the factory
+ * wires the inner service with a **null-sink vector store** so Step 3
+ * writes are silently discarded. The shim's `computeEmbedding()`
+ * buffers a record in the legacy format (keyed by `record.id`), and
+ * the wrapper calls `flushBatch()` after `runOnce()` to persist them
+ * to the *real* vector store in a single batch.
  */
 class LegacyShimEmbeddingService implements EmbeddingService {
   private readonly buffered: import('../../src/services/retrieval/types.js').VectorStoreRecord[] = [];
@@ -163,6 +175,62 @@ class LegacyShimEmbeddingService implements EmbeddingService {
     }
   ) {}
 
+  /**
+   * Called by the new `runOnce()` Step 2 (concurrent embedding pool).
+   * Computes the embedding via the provider and buffers a legacy-format record
+   * so `flushBatch()` can write it to the real vector store as a single batch.
+   * Returns `provider-unavailable` on error so the indexing service's
+   * checkpoint-error contract stays intact.
+   *
+   * The inner `vectorStore` passed to `createIndexingService` is a null-sink,
+   * so Step 3's direct upsert is a no-op — `flushBatch()` owns the real write.
+   */
+  async computeEmbedding(extraction: ExtractionResult): Promise<ComputeEmbeddingOutcome> {
+    if (extraction.extractedText === '') {
+      return { kind: 'skipped-empty' };
+    }
+
+    const record = this.deps.records.get(extraction.frameId);
+    if (record === undefined) {
+      return {
+        kind: 'provider-unavailable',
+        error: new Error(
+          `LegacyShimEmbeddingService: no record captured for frameId=${extraction.frameId}`
+        )
+      };
+    }
+
+    let embedding: number[];
+    try {
+      embedding = await this.deps.embeddingProvider.embed(extraction.extractedText);
+    } catch (error) {
+      return { kind: 'provider-unavailable', error };
+    }
+
+    // Buffer the vector record in the legacy format (keyed by the original
+    // `record.id`). The wrapper calls `flushBatch()` after `runOnce()` to
+    // persist this batch to the real vector store.
+    this.buffered.push({
+      ...record,
+      embedding,
+      metadata: {
+        sourceTypes: record.sourceTypes,
+        windowName: record.windowName,
+        frameId: record.frameId
+      }
+    });
+
+    // Return a stub hash — legacy tests do not assert on it and it is never
+    // stored to the real vector store (the hash used is the one built by the
+    // shim's legacy record format above).
+    return { kind: 'computed', embedding, extractedTextHash: '' };
+  }
+
+  /**
+   * Called by the blocked-records re-check loop (serial path) via
+   * `processRecord()`. Identical to the old implementation: forward to the
+   * provider, buffer the record, return the outcome.
+   */
   async embedExtraction(extraction: ExtractionResult): Promise<EmbeddingOutcome> {
     if (extraction.extractedText === '') {
       return { kind: 'skipped-empty' };
@@ -327,6 +395,23 @@ function isBlockedByPrivacy(
 }
 
 // ---------------------------------------------------------------------------
+// Null-sink vector store
+// ---------------------------------------------------------------------------
+
+/**
+ * Drops all writes silently. Used as the vector store passed to the inner
+ * `DefaultIndexingService` so that Step 3's batch upsert is a no-op — the
+ * legacy shim controls what actually lands in the real vector store via its
+ * own `flushBatch()` call.
+ */
+class NullSinkVectorStore implements VectorStore {
+  readonly kind = 'null-sink';
+  async upsert(): Promise<void> { /* discard */ }
+  async reset(): Promise<void> { /* no-op */ }
+  async query() { return []; }
+}
+
+// ---------------------------------------------------------------------------
 // Capturing screenpipe-client wrapper
 // ---------------------------------------------------------------------------
 
@@ -370,15 +455,22 @@ function capture(target: Map<number, ScreenpipeRecord>, record: ScreenpipeRecord
 // ---------------------------------------------------------------------------
 
 /**
- * Pre-task-6.1 dependencies (what tests provided before the four new
- * fields were added). Mirrors `IndexingServiceDependencies` minus
- * `extractionRegistry` / `extractedContentStore` /
- * `sessionAggregator` / `embeddingService`.
+ * Pre-task-6.1 dependencies (what tests provided before the work-activity
+ * collaborators were added). Mirrors `IndexingServiceDependencies` minus the
+ * four pipeline collaborators (`extractionRegistry`, `extractedContentStore`,
+ * `sessionAggregator`, `embeddingService`) and the two new concurrency fields
+ * (`embeddingConcurrency`, `captureProviderName`) that are synthesised
+ * internally by `createLegacyIndexingService`.
  */
 export type LegacyIndexingDependencies =
   Omit<
     IndexingServiceDependencies,
-    'extractionRegistry' | 'extractedContentStore' | 'sessionAggregator' | 'embeddingService'
+    | 'extractionRegistry'
+    | 'extractedContentStore'
+    | 'sessionAggregator'
+    | 'embeddingService'
+    | 'embeddingConcurrency'
+    | 'captureProviderName'
   >;
 
 /**
@@ -436,10 +528,21 @@ export function createLegacyIndexingService(
     ...deps,
     embeddingProvider: trackingProvider,
     captureClient: wrappedClient,
+    // Step 3 of the new runOnce() calls vectorStore.upsert() directly using
+    // records built by buildVectorStoreRecord() (keyed by `extracted:frameId`).
+    // We replace the real vector store with a null-sink so those writes are
+    // discarded; the shim's flushBatch() owns the actual write to the real
+    // vectorStore using the legacy record format (keyed by the original record.id).
+    vectorStore: new NullSinkVectorStore(),
     extractionRegistry: new PassthroughExtractionRegistry(records),
     extractedContentStore: new NoopExtractedContentStore(),
     sessionAggregator: new NoopSessionAggregator(),
-    embeddingService
+    embeddingService,
+    // Serial execution keeps legacy test assertions deterministic: one
+    // promise at a time means the order of vector-store writes is stable
+    // and `vectorStore.upserts[0]?.map(r => r.id)` assertions hold.
+    embeddingConcurrency: 1,
+    captureProviderName: 'screenpipe'
   });
 
   return {

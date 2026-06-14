@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # canary-alpha-mcp 架构文档
@@ -117,13 +117,13 @@ v1 在 `src/mcp/register-tools.ts` 中实际注册 **9 个工具**。`src/mcp/to
 
 ### (b) 索引路径
 
-1. `startIndexingPoller` 周期触发 `DefaultIndexingService.runOnce()`：读 checkpoint、flush 空闲 session。
+1. `startIndexingPoller` 周期触发 `DefaultIndexingService.runOnce()`：读 checkpoint、flush 空闲 session。首次启动时执行 priority catch-up（最多 10 轮连续 `runOnce`）快速清理积压。
 2. `fetchCandidateRecords` 在稳态用 `screenpipe-client.recent(windowMinutes)`、在 backlog 追赶时分页 `search()`。Screenpipe client 对 `/search` 双查询（accessibility 主 + ocr 兜底），`mergeByFrameId`（AX 优先）合并。
-3. 过滤晚于 checkpoint 的记录 → 剪除 secure-AX 子树 → 隐私过滤。
-4. 逐帧 `extraction 规则注册表`（`TerminalRefinementRule → GenericHeuristicRule`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**）。
-5. 逐条 embed：`embed(input: string)` 单条处理，`embedExtraction` 每次一个 extraction，仅受并发限制器约束（默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`，**不批处理**）。
-6. 写 derived SQLite（`extracted_content`）+ `vector-store.json`（id=`extracted:${frameId}`）+ 按 SHA256 在 `embedding_hash_index` 去重（命中复用向量、仍写每帧向量行）。
-7. 推进 checkpoint（provider-unavailable 时回退保持，extraction/session 行仍持久化，embedding 稍后重试）。
+3. 过滤晚于 checkpoint 的记录 → 剪除 secure-AX 子树。
+4. **Step 1（串行）**：逐帧 `extraction 规则注册表`（`TerminalRefinementRule → GenericHeuristicRule`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**），同时写 derived SQLite（`extracted_content`）并折叠到 `SessionAggregator`。隐私状态逐帧刷新，被阻断的记录进入 blocked 队列。
+5. **Step 2（并发）**：通过 `computeEmbedding()` 发起并发 embedding 调用（滑动窗口 promise 池，并发度由 `providers.embeddings.concurrency` 控制，默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`），仅计算 embedding 向量，不写 vector store。按 SHA256 在 `embedding_hash_index` 去重（命中复用向量）。
+6. **Step 3（串行）**：将所有成功的 embedding 批量写入 `vector-store.json`（id=`extracted:${frameId}`，单次 `upsert` 调用）。
+7. 推进 checkpoint（provider-unavailable 时回退保持，extraction/session 行仍持久化，embedding 稍后重试）。blocked 记录释放后走串行 `embedExtraction` 路径。
 
 ### (c) work-activity 端到端
 

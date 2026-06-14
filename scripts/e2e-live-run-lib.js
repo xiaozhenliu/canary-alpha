@@ -125,12 +125,5 @@ export function evaluateIndexReadiness({ lastExtractedAt, recordEndIso, previous
   ) {
     return { ready: true, reason: 'watermark' };
   }
-  if (
-    typeof currentWindowCount === 'number'
-    && currentWindowCount > 0
-    && currentWindowCount === previousWindowCount
-  ) {
-    return { ready: true, reason: 'stable-count' };
-  }
   return { ready: false, reason: 'waiting' };
 }

@@ -70,7 +70,7 @@ const retrievalConfigSchema = z.object({
   freshnessWindowMinutes: z.number().int().positive().default(15),
   pollIntervalSeconds: z.number().int().positive().default(30),
   maxCatchUpBatches: z.number().int().positive().default(3),
-  maxCatchUpRecords: z.number().int().positive().default(500)
+  maxCatchUpRecords: z.number().int().positive().default(1500)
 });
 
 const routinesConfigSchema = z.object({
@@ -156,7 +156,7 @@ export const appConfigSchema = z.object({
     freshnessWindowMinutes: 15,
     pollIntervalSeconds: 30,
     maxCatchUpBatches: 3,
-    maxCatchUpRecords: 500
+    maxCatchUpRecords: 1500
   }),
   routines: routinesConfigSchema.default({ enabled: false }),
   trim: trimConfigSchema.default({ enabled: true, intervalSeconds: 600 }),

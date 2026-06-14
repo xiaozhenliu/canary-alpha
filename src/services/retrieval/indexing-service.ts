@@ -9,13 +9,61 @@ import type {
   IndexedCheckpoint,
   IndexingRunResult,
   IndexingService,
-  VectorStore
+  VectorStore,
+  VectorStoreRecord
 } from './types.js';
 import type { AppConfig, Logger } from '../../types/app-config.js';
-import type { ExtractionRegistry, ExtractionInput } from '../work-activity/extraction/types.js';
+import type { ExtractionRegistry, ExtractionInput, ExtractionResult } from '../work-activity/extraction/types.js';
 import type { ExtractedContentStore } from '../work-activity/extraction/extracted-content-store.js';
 import type { SessionAggregator } from '../work-activity/sessions/aggregator.js';
-import type { EmbeddingService } from '../work-activity/embedding-service.js';
+import type { EmbeddingService, ComputeEmbeddingOutcome, EmbeddingOutcome } from '../work-activity/embedding-service.js';
+import { buildCaptureId } from '../capture/types.js';
+
+// ---------------------------------------------------------------------------
+// Internal record shapes used by the concurrent embedding pipeline
+// ---------------------------------------------------------------------------
+
+/**
+ * Internal return shape used by both the concurrent embedding path and the
+ * serial blocked-records path. Kept as a shared struct so checkpoint-
+ * advancement / error-handling rules are documented in one place.
+ */
+interface ProcessRecordOutcome {
+  /** The record produced a vector-store write (fresh or reused-hash). */
+  indexed: boolean;
+  /** Embedding-provider error, if any — caller assigns to firstEmbeddingError. */
+  error: unknown;
+  /** Should the caller advance the checkpoint past this record? */
+  advanceCheckpoint: boolean;
+}
+
+/**
+ * A record that has passed privacy gating and extraction. Carries both
+ * the original capture record and its extraction result so the concurrent
+ * embedding step can reference both without re-running extraction.
+ */
+interface PreparedRecord {
+  record: CaptureRecord;
+  extraction: ExtractionResult;
+}
+
+/**
+ * Result produced by the concurrent embedding step for a single record.
+ * Carries the computed embedding and hash when a vector-store write is
+ * warranted so the batch upsert step can operate without re-calling the
+ * embedding service.
+ */
+interface EmbedResult {
+  record: CaptureRecord;
+  extraction: ExtractionResult;
+  outcome: ProcessRecordOutcome;
+  embedding?: number[];
+  extractedTextHash?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Public dependency contract
+// ---------------------------------------------------------------------------
 
 export interface IndexingServiceDependencies {
   /**
@@ -78,6 +126,19 @@ export interface IndexingServiceDependencies {
    * stops the checkpoint from moving past it).
    */
   embeddingService: EmbeddingService;
+  /**
+   * Maximum number of concurrent `computeEmbedding()` calls that may be
+   * in-flight at once within a single `runOnce()`. Values <= 1 fall back
+   * to effectively serial execution (one promise at a time). Defaults to
+   * `DEFAULT_EMBEDDING_CONCURRENCY` (2) when wired by `create-app.ts`.
+   */
+  embeddingConcurrency: number;
+  /**
+   * Provider name used to build the neutral `captureId` metadata field
+   * on each `VectorStoreRecord` upserted during the batch write step.
+   * Must match `captureProvider.capabilities.providerName` (e.g. 'screenpipe').
+   */
+  captureProviderName: string;
 }
 
 interface FetchCandidateRecordsResult {
@@ -607,16 +668,54 @@ export class DefaultIndexingService implements IndexingService {
       this.deps.logger
     );
 
-    let refreshedPrivacy: PrivacyState;
+    // -----------------------------------------------------------------------
+    // Step 1 (serial): extraction + content-store + session-aggregation.
+    // Privacy is re-read per record; blocked records are deferred for the
+    // re-check loop below.
+    // -----------------------------------------------------------------------
+    const { prepared, blocked: blockedRecordsList } = await this.extractAll(
+      recordsAfterSecureFilter,
+      this.deps.privacyState
+    );
+    let blockedRecords: CaptureRecord[] = blockedRecordsList;
 
-    /**
-     * Records whose embedding was generated successfully on this pass.
-     * Tracked separately from `processedCount` because a hash-cache hit
-     * (Hash_Dedup) and a fresh embed both count as "indexed", whereas a
-     * `provider-unavailable` outcome leaves the record un-indexed.
-     */
+    // -----------------------------------------------------------------------
+    // Step 2 (concurrent): compute embeddings via a sliding-window pool.
+    // No vector-store writes happen here — only the embedding (and hash-cache
+    // insert) is performed so the pool can overlap I/O-bound HTTP calls.
+    // -----------------------------------------------------------------------
+    const embedResults = await this.embedConcurrently(prepared);
+
+    // -----------------------------------------------------------------------
+    // Step 3 (serial): batch vector-store upsert for all successful embeddings.
+    // A single upsert call keeps the vector-store write atomic from the store's
+    // perspective and matches the pre-refactor one-upsert-per-runOnce contract
+    // that many tests assert on.
+    // -----------------------------------------------------------------------
+    const vectorRecords: VectorStoreRecord[] = [];
+    for (const e of embedResults) {
+      if (e.outcome.indexed && e.embedding !== undefined && e.extractedTextHash !== undefined) {
+        vectorRecords.push(this.buildVectorStoreRecord(e.extraction, e.extractedTextHash, e.embedding));
+      }
+    }
+    if (vectorRecords.length > 0) {
+      try {
+        await this.deps.vectorStore.upsert(vectorRecords);
+      } catch (error) {
+        // All-or-nothing: a batch upsert failure poisons the entire batch because
+        // FileBackedVectorStore does a read-modify-write cycle — partial success is
+        // not possible. All indexed outcomes are reset so the checkpoint does not
+        // advance past records whose embedding was not persisted.
+        for (const e of embedResults) {
+          if (e.outcome.indexed) {
+            e.outcome = { indexed: false, error, advanceCheckpoint: false };
+          }
+        }
+      }
+    }
+
+    // Accumulate checkpoint / error signals from the concurrent embed results.
     let indexedCount = 0;
-    let blockedRecords: CaptureRecord[] = [];
     let firstEmbeddingError: unknown;
     let latestCheckpoint: IndexedCheckpoint | null = checkpointBefore
       ? {
@@ -625,26 +724,20 @@ export class DefaultIndexingService implements IndexingService {
         }
       : null;
 
-    for (const record of recordsAfterSecureFilter) {
-      try {
-        refreshedPrivacy = await readPrivacyState(this.deps.privacyState);
-      } catch {
-        throw new Error('Privacy controls could not be loaded while processing indexing.');
-      }
-
-      if (isBlockedByPrivacy(record, refreshedPrivacy)) {
-        blockedRecords.push(record);
-        continue;
-      }
-
-      const advanced = await this.processRecord(record);
-      if (advanced.indexed) indexedCount += 1;
-      if (advanced.error !== undefined) firstEmbeddingError ??= advanced.error;
-      if (advanced.advanceCheckpoint && isNewerThanCheckpoint(record, latestCheckpoint)) {
-        latestCheckpoint = toCheckpoint(record);
+    for (const e of embedResults) {
+      if (e.outcome.indexed) indexedCount += 1;
+      if (e.outcome.error !== undefined) firstEmbeddingError ??= e.outcome.error;
+      if (e.outcome.advanceCheckpoint && isNewerThanCheckpoint(e.record, latestCheckpoint)) {
+        latestCheckpoint = toCheckpoint(e.record);
       }
     }
 
+    // -----------------------------------------------------------------------
+    // Blocked-records re-check loop (identical semantics to the old loop):
+    // re-reads privacy state each iteration; records that are no longer
+    // blocked are processed via the serial `processRecord` path (which goes
+    // through the old embedExtraction path — vector-store upsert per record).
+    // -----------------------------------------------------------------------
     let finalPrivacy: PrivacyState;
     while (true) {
       try {
@@ -741,35 +834,160 @@ export class DefaultIndexingService implements IndexingService {
   }
 
   /**
-   * Runs the work-activity tail for a single record:
+   * Step 1 — serial extraction loop.
    *
-   *   1. Extract via the registry → `ExtractionResult`.
-   *   2. Persist the extraction row to the derived `extracted_content`
-   *      table (so keyword `find` keeps working even if the embedding
-   *      fails later).
-   *   3. Fold the extraction into the session aggregator (so session
-   *      boundaries are tracked regardless of embedding success).
-   *   4. Hand the extraction to the embedding service. The service is
-   *      responsible for SHA256 dedup, hash-cache lookup, calling the
-   *      embedding provider, and writing the per-frame vector-store row.
+   * For each record, refreshes the privacy state, skips blocked records into
+   * the `blocked` output array, runs the extraction registry, persists the
+   * extracted_content row, and notifies the session aggregator. Records that
+   * pass all checks are collected into `prepared` for the concurrent
+   * embedding step.
    *
-   * The return value mirrors the three signals the legacy loop used to
-   * track inline:
+   * Privacy is re-read per record (not once up-front) so a user can pause /
+   * exclude an app mid-batch and have the change take effect as soon as the
+   * next record is evaluated — matching the semantics of the old serial loop.
+   */
+  private async extractAll(
+    records: CaptureRecord[],
+    privacyReader?: PrivacyStateReader
+  ): Promise<{ prepared: PreparedRecord[]; blocked: CaptureRecord[] }> {
+    const prepared: PreparedRecord[] = [];
+    const blocked: CaptureRecord[] = [];
+    for (const record of records) {
+      let privacy: PrivacyState;
+      try {
+        privacy = await readPrivacyState(privacyReader);
+      } catch {
+        throw new Error('Privacy controls could not be loaded while processing indexing.');
+      }
+      if (isBlockedByPrivacy(record, privacy)) {
+        blocked.push(record);
+        continue;
+      }
+      const extraction = this.deps.extractionRegistry.extract(toExtractionInput(record));
+      await this.deps.extractedContentStore.upsert(extraction);
+      await this.deps.sessionAggregator.handleExtraction(extraction);
+      prepared.push({ record, extraction });
+    }
+    return { prepared, blocked };
+  }
+
+  /**
+   * Step 2 — concurrent embedding via a sliding-window promise pool.
    *
-   *   - `indexed`: did this record produce a vector-store write
-   *     (whether via `embedded` or `reused-hash`)? Used for
-   *     `result.indexed`.
-   *   - `error`: if the embedding service hit a provider-unavailable
-   *     branch, surface it so the caller can populate
-   *     `firstEmbeddingError`.
-   *   - `advanceCheckpoint`: should the caller move the checkpoint
-   *     past this record? `true` for any successful path **and** for
-   *     `skipped-empty` (Empty_Extraction is a deterministic decision,
-   *     not a transient failure — re-fetching the record on the next
-   *     tick won't change the outcome). `false` only when the embedding
-   *     provider returned `provider-unavailable`, matching the
-   *     pre-task-6.1 behavior of holding the checkpoint back on
-   *     embedding error.
+   * Keeps at most `embeddingConcurrency` `computeEmbedding()` calls in-flight
+   * at any time. As each promise settles, the next record is launched so the
+   * window stays full until all records have been submitted. Results are stored
+   * at the same index as the input so the batch upsert step can iterate them
+   * in the original order.
+   *
+   * Only `computeEmbedding` (no vector-store write) is called here; the
+   * returned embedding and hash are carried in `EmbedResult` for Step 3 to
+   * batch-upsert.
+   *
+   * Errors thrown by `computeEmbedding` (unexpected; it should return
+   * `provider-unavailable` instead) are caught and stored as
+   * `provider-unavailable` outcomes so the pool never terminates early.
+   */
+  private async embedConcurrently(prepared: PreparedRecord[]): Promise<EmbedResult[]> {
+    const results: EmbedResult[] = new Array(prepared.length);
+    const inFlight = new Set<Promise<void>>();
+    let nextIndex = 0;
+
+    const launch = (index: number): void => {
+      const { record, extraction } = prepared[index];
+      const promise = this.deps.embeddingService.computeEmbedding(extraction)
+        .then((computeOutcome: ComputeEmbeddingOutcome) => {
+          switch (computeOutcome.kind) {
+            case 'skipped-empty':
+              results[index] = {
+                record, extraction,
+                outcome: { indexed: false, error: undefined, advanceCheckpoint: true }
+              };
+              break;
+            case 'reused-hash':
+            case 'computed':
+              results[index] = {
+                record, extraction,
+                outcome: { indexed: true, error: undefined, advanceCheckpoint: true },
+                embedding: computeOutcome.embedding,
+                extractedTextHash: computeOutcome.extractedTextHash
+              };
+              break;
+            case 'provider-unavailable':
+              results[index] = {
+                record, extraction,
+                outcome: { indexed: false, error: computeOutcome.error, advanceCheckpoint: false }
+              };
+              break;
+          }
+        })
+        .catch((error: unknown) => {
+          results[index] = {
+            record, extraction,
+            outcome: { indexed: false, error, advanceCheckpoint: false }
+          };
+        })
+        .finally(() => { inFlight.delete(promise); });
+      inFlight.add(promise);
+    };
+
+    const concurrency = Math.max(1, this.deps.embeddingConcurrency);
+    while (nextIndex < prepared.length || inFlight.size > 0) {
+      while (nextIndex < prepared.length && inFlight.size < concurrency) {
+        launch(nextIndex);
+        nextIndex += 1;
+      }
+      if (inFlight.size > 0) {
+        await Promise.race(inFlight);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Builds the per-frame `VectorStoreRecord` from an extraction result, the
+   * service-recomputed hash, and the embedding produced by Step 2. The id
+   * is derived from `frameId` (not from the hash) so distinct frames sharing
+   * the same text still produce distinct rows — Cascade_Delete can then
+   * remove evidence by frame without orphaning embeddings.
+   */
+  private buildVectorStoreRecord(
+    e: ExtractionResult,
+    extractedTextHash: string,
+    embedding: number[]
+  ): VectorStoreRecord {
+    return {
+      id: `extracted:${e.frameId}`,
+      text: e.extractedText,
+      timestamp: e.frameTimestamp,
+      appName: e.appName,
+      sourceTypes: e.sourceTypes,
+      embedding,
+      metadata: {
+        sourceTypes: e.sourceTypes,
+        frameId: e.frameId,
+        captureId: buildCaptureId(this.deps.captureProviderName, {
+          frameId: e.frameId,
+          id: String(e.frameId)
+        }),
+        frameTimestamp: e.frameTimestamp,
+        contextKey: e.contextKey,
+        extractedTextHash,
+        appName: e.appName ?? ''
+      }
+    };
+  }
+
+  /**
+   * Serial work-activity tail for a single record — used exclusively by the
+   * blocked-records re-check loop where records arrive after extraction was
+   * already bypassed (they were not part of the Step 1 `extractAll` batch).
+   *
+   * Runs extraction → extracted_content store → session aggregator →
+   * embedExtraction (which includes a vector-store upsert). This mirrors the
+   * pre-refactor per-record path so the blocked-records semantics are
+   * preserved unchanged.
    */
   private async processRecord(record: CaptureRecord): Promise<ProcessRecordOutcome> {
     const extraction = this.deps.extractionRegistry.extract(toExtractionInput(record));
@@ -777,41 +995,26 @@ export class DefaultIndexingService implements IndexingService {
     await this.deps.sessionAggregator.handleExtraction(extraction);
     const outcome = await this.deps.embeddingService.embedExtraction(extraction);
 
-    switch (outcome.kind) {
-      case 'embedded':
-      case 'reused-hash':
-        return { indexed: true, error: undefined, advanceCheckpoint: true };
-      case 'skipped-empty':
-        // Empty_Extraction is a deterministic outcome: the record was
-        // processed correctly, just produced no embedding (R5.5). The
-        // session aggregator still recorded the frame as evidence, the
-        // extracted_content table still has a row — so we advance the
-        // checkpoint past this record.
-        return { indexed: false, error: undefined, advanceCheckpoint: true };
-      case 'provider-unavailable':
-        // Mirror the pre-task-6.1 contract: hold the checkpoint back so
-        // the next tick re-attempts the embedding. The extracted_content
-        // row and session bookkeeping have already been persisted, so
-        // there's no rollback needed — only the embedding will be
-        // retried.
-        return { indexed: false, error: outcome.error, advanceCheckpoint: false };
-    }
+    return mapEmbeddingOutcome(outcome);
   }
 }
 
 /**
- * Internal return shape of {@link DefaultIndexingService.processRecord}.
- * Kept as a private struct (rather than inlining in the loop) so the
- * checkpoint-advancement / error-handling rules are documented in one
- * place.
+ * Converts an `EmbeddingOutcome` (returned by `embedExtraction`, which owns
+ * the vector-store write) to the `ProcessRecordOutcome` shape used by the
+ * blocked-records re-check loop. The mapping mirrors the switch in the old
+ * serial loop and in the concurrent embedding step.
  */
-interface ProcessRecordOutcome {
-  /** The record produced a vector-store write (fresh or reused-hash). */
-  indexed: boolean;
-  /** Embedding-provider error, if any — caller assigns to firstEmbeddingError. */
-  error: unknown;
-  /** Should the caller advance the checkpoint past this record? */
-  advanceCheckpoint: boolean;
+function mapEmbeddingOutcome(outcome: EmbeddingOutcome): ProcessRecordOutcome {
+  switch (outcome.kind) {
+    case 'embedded':
+    case 'reused-hash':
+      return { indexed: true, error: undefined, advanceCheckpoint: true };
+    case 'skipped-empty':
+      return { indexed: false, error: undefined, advanceCheckpoint: true };
+    case 'provider-unavailable':
+      return { indexed: false, error: outcome.error, advanceCheckpoint: false };
+  }
 }
 
 export function createIndexingService(deps: IndexingServiceDependencies): IndexingService {

@@ -66,13 +66,13 @@ describe('evaluateIndexReadiness', () => {
     })).toEqual({ ready: false, reason: 'waiting' });
   });
 
-  it('falls back to stable non-zero window count', () => {
+  it('stable non-zero window count is NOT ready (watermark required)', () => {
     expect(evaluateIndexReadiness({
       lastExtractedAt: null,
       recordEndIso,
       previousWindowCount: 14,
       currentWindowCount: 14
-    })).toEqual({ ready: true, reason: 'stable-count' });
+    })).toEqual({ ready: false, reason: 'waiting' });
   });
 
   it('zero stable count is NOT ready (nothing indexed yet)', () => {
