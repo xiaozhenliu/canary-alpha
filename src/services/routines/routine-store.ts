@@ -101,7 +101,9 @@ function parseRunRecord(value: unknown, filePath: string): RoutineRunRecord {
   const output = normalizeString(value.output);
   const error = value.error;
 
-  if (!runId || !name || !startedAt || !completedAt || !isRoutineRunStatus(status) || !summary || !output) {
+  // Note: `output` may be an empty string for skipped/failed runs; use
+  // `typeof output === 'undefined'` rather than `!output` to allow it.
+  if (!runId || !name || !startedAt || !completedAt || !isRoutineRunStatus(status) || !summary || typeof output === 'undefined') {
     throw new Error(`Invalid routine history at ${filePath}`);
   }
 

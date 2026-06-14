@@ -18,9 +18,11 @@ const CANONICAL_FOCUSED_V1_TOOLS = [
   { name: 'memory-write', title: 'Write Memory' },
   { name: 'privacy-control', title: 'Privacy Control' },
   { name: 'recall', title: 'Recall Screen Activity' },
+  { name: 'routine-create', title: 'Create or Update Routine' },
+  { name: 'routine-history', title: 'Routine Execution History' },
+  { name: 'routine-list', title: 'List Routines' },
   { name: 'screenpipe-control', title: 'Screenpipe Control' }
 ] as const;
-const ROUTINE_TOOL_NAMES = ['routine-list', 'routine-create', 'routine-history'] as const;
 
 describe('focused v1 tool manifest contract', () => {
   const cleanup: Array<() => Promise<void>> = [];
@@ -60,9 +62,6 @@ describe('focused v1 tool manifest contract', () => {
     const expectedNames = CANONICAL_FOCUSED_V1_TOOLS.map((tool) => tool.name).sort();
 
     expect(actualNames).toEqual(expectedNames);
-    for (const routineTool of ROUTINE_TOOL_NAMES) {
-      expect(actualNames).not.toContain(routineTool);
-    }
   });
 
   it('keeps stable manifest metadata aligned with the public registry surface', async () => {

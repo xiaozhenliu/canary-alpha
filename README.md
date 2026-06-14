@@ -1,5 +1,5 @@
 ---
-doc_version: 22
+doc_version: 23
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -74,7 +74,7 @@ For the complete first-run walkthrough, Screenpipe permissions, safer terminal c
 
 ## MCP Tools
 
-The runtime registers nine MCP tools:
+The runtime registers twelve MCP tools:
 
 | Tool | Purpose |
 |------|---------|
@@ -87,6 +87,9 @@ The runtime registers nine MCP tools:
 | `privacy-control` | Check or modify local privacy controls |
 | `screenpipe-control` | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | Inspect runtime health, capture state, and retrieval recovery status |
+| `routine-list` | List configured local routines with schedule, enabled state, and latest run summary |
+| `routine-create` | Create or update a local routine with a name, prompt, and cron schedule |
+| `routine-history` | Retrieve recent execution history for a named routine, newest-first |
 
 See the [MCP tools reference](https://xiaozhenliu.github.io/canary-alpha/reference/tools) for schemas and result contracts.
 

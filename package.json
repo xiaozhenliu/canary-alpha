@@ -1,6 +1,6 @@
 {
   "name": "canary-alpha-mcp",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
@@ -56,11 +56,13 @@
     "@modelcontextprotocol/client": "^2.0.0-alpha.2",
     "@modelcontextprotocol/node": "^2.0.0-alpha.2",
     "@modelcontextprotocol/server": "^2.0.0-alpha.2",
+    "node-cron": "^4.2.1",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
+    "@types/node-cron": "^3.0.11",
     "fast-check": "^3.23.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3",

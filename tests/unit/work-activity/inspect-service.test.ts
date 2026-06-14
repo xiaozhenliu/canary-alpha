@@ -5,7 +5,7 @@
  * The inspect service has two distinct code paths gated on the
  * `target.kind` discriminator. The tests cover both end-to-end
  * against fresh in-memory derived databases plus an in-memory
- * stub for the upstream {@link ScreenpipeFramesReader}, asserting
+ * stub for the upstream {@link CaptureFrameDetailPort}, asserting
  * that:
  *
  *   - `target.kind='session'` returns the session row, the per-frame
@@ -42,9 +42,9 @@ import {
   type InspectSessionResult
 } from '../../../src/services/work-activity/inspect/inspect-service.js';
 import type {
-  ScreenpipeFrameRow,
-  ScreenpipeFramesReader
-} from '../../../src/services/capture/providers/screenpipe/frames-reader.js';
+  CaptureFrameDetailPort,
+  CaptureFrameRow
+} from '../../../src/services/capture/types.js';
 import { SqliteSessionStore } from '../../../src/services/work-activity/sessions/session-store.js';
 import { TemplateSummaryProvider } from '../../../src/services/work-activity/summary/template.js';
 import { SummaryProviderRegistry } from '../../../src/services/work-activity/summary/registry.js';
@@ -90,7 +90,7 @@ beforeEach(() => {
     sessionStore: sessions,
     extractedContentStore: extracted,
     summaryWorker,
-    screenpipeFramesReader: framesReader,
+    captureFramesReader: framesReader,
     now: () => new Date('2026-05-25T11:00:00.000Z')
   });
 });
@@ -136,14 +136,14 @@ function tsAt(secondsAfterEpoch: number): string {
 }
 
 /**
- * In-memory `ScreenpipeFramesReader` stub. Tests register frame rows
+ * In-memory `CaptureFrameDetailPort` stub. Tests register frame rows
  * indexed by ID; missing IDs return `null` (matching the production
- * adapter's "frame not found / ScreenPipe DB unavailable" semantics).
+ * adapter's "frame not found / capture DB unavailable" semantics).
  */
-class StubScreenpipeFramesReader implements ScreenpipeFramesReader {
-  private readonly rows = new Map<number, ScreenpipeFrameRow>();
+class StubScreenpipeFramesReader implements CaptureFrameDetailPort {
+  private readonly rows = new Map<number, CaptureFrameRow>();
 
-  setRow(row: ScreenpipeFrameRow): void {
+  setRow(row: CaptureFrameRow): void {
     this.rows.set(row.id, row);
   }
 
@@ -151,7 +151,7 @@ class StubScreenpipeFramesReader implements ScreenpipeFramesReader {
     this.rows.clear();
   }
 
-  async getFrame(frameId: number | string): Promise<ScreenpipeFrameRow | null> {
+  async getFrame(frameId: number | string): Promise<CaptureFrameRow | null> {
     const key = typeof frameId === 'number' ? frameId : Number(frameId);
     if (!Number.isFinite(key)) return null;
     return this.rows.get(key) ?? null;

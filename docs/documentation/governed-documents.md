@@ -1,5 +1,5 @@
 ---
-doc_version: 18
+doc_version: 19
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -89,8 +89,8 @@ Excluded from governance:
 | `docs/architecture.md` | Maintainers and advanced integrators | Runtime architecture and implementation boundaries | adequate | none |
 | `docs/develop_log.md` | Maintainers | Milestone-oriented development history | adequate | none |
 | `docs/specs/README.md` | Maintainers and contributors | Tool-agnostic backlog index and spec format convention | adequate | none |
-| `docs/specs/routines-mvp.md` | Maintainers and contributors | Remaining Routines MVP requirements and acceptance criteria | adequate | none |
-| `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria | adequate | none |
+| `docs/specs/routines-mvp.md` | Maintainers and contributors | Routines MVP requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
+| `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 | `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
 | `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |

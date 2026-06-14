@@ -2,6 +2,11 @@ import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import { DailySummaryExecutor } from '../services/routines/executor.js';
+import { FileRoutineStore } from '../services/routines/routine-store.js';
+import { RoutineScheduler } from '../services/routines/scheduler.js';
+import { resolveRoutineDefinitionsDirectory, resolveRoutineHistoryDirectory } from '../config/paths.js';
+
 import { loadConfig } from '../config/load-config.js';
 import { DEFAULT_EMBEDDING_CONCURRENCY } from '../config/schema.js';
 import { resolveMemoryFilePath, resolvePrivacyStatePath, resolveRetrievalArtifactsDirectory, resolveScreenpipeDirectory } from '../config/paths.js';
@@ -289,7 +294,7 @@ export async function createApp(overrides?: {
     sessionStore,
     extractedContentStore,
     summaryWorker,
-    screenpipeFramesReader: captureProvider.frameDetail
+    captureFramesReader: captureProvider.frameDetail
       ?? { getFrame: async () => null },  // capability-absent fallback, never throws
     now: () => new Date()
   });
@@ -368,6 +373,44 @@ export async function createApp(overrides?: {
     indexing
   };
 
+  // Routines subsystem — the store is always constructed so the MCP
+  // tools can list / create / query routines regardless of the
+  // `config.routines.enabled` flag. The scheduler is only started when
+  // the flag is true; the tools check `services.routines.scheduler` for
+  // its presence before calling `refresh()`.
+  const routineStore = new FileRoutineStore({
+    definitionsDirectory: config.routines.definitionsPath ?? resolveRoutineDefinitionsDirectory(),
+    historyDirectory: config.routines.historyPath ?? resolveRoutineHistoryDirectory()
+  });
+
+  let routineScheduler: RoutineScheduler | undefined;
+
+  if (config.routines.enabled) {
+    const executor = new DailySummaryExecutor({
+      find: findService,
+      recall: recallService
+    });
+    routineScheduler = new RoutineScheduler({
+      routineStore,
+      executor,
+      logger
+    });
+
+    const scheduler = routineScheduler;
+    void scheduler.start().catch((error: unknown) => {
+      logger.error('RoutineScheduler failed to start', {
+        message: error instanceof Error ? error.message : String(error)
+      });
+    });
+
+    // Register cleanup on process exit signals.
+    const stopScheduler = (): void => {
+      scheduler.stop();
+    };
+    process.once('SIGTERM', stopScheduler);
+    process.once('SIGINT', stopScheduler);
+  }
+
   const app = {
     config,
     logger,
@@ -385,6 +428,10 @@ export async function createApp(overrides?: {
         inspect: inspectService,
         recall: recallService,
         cascadeDelete: cascadeDeleteCoordinator
+      },
+      routines: {
+        store: routineStore,
+        scheduler: routineScheduler
       }
     }
   } satisfies AppContext;

@@ -1,5 +1,5 @@
 ---
-doc_version: 7
+doc_version: 8
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -21,6 +21,54 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-14: Routines MVP Delivery and Tech Debt Resolution (v2.4.0)
+
+**Result**
+
+- Routines MVP Groups B–D delivered in full:
+  - **B (Scheduling)**: `RoutineSchedulerService` runs enabled routines on their
+    configured cron schedule using `node-cron`. Overlap protection is enforced —
+    a trigger that arrives while the previous run is still executing is recorded
+    as `skipped` rather than spawning a concurrent run. Built-in `daily_summary`
+    produces a deterministic report from `recentActivity` data with no new LLM
+    provider dependency.
+  - **C (MCP tools)**: `routine-list`, `routine-create`, and `routine-history`
+    registered and validated through the tool manifest contract.
+  - **D (Delivery & verification)**: `docs/delivery/routines.md` documents tool
+    schemas, config defaults (`routines.enabled`, `routines.storagePath`), storage
+    paths, and MVP scope boundaries. Contract, integration, acceptance, typecheck,
+    and build automation all pass end-to-end.
+- **TD-007 resolved**: `screenpipeFramesReader` renamed to `captureFramesReader`
+  in the retrieval service layer, completing alignment with the capture-provider
+  abstraction. No observable behavior change.
+- **TD-005 resolved**: `AxTreeMaintenanceService` ported to use
+  `CaptureMaintenancePort` internally, removing the last direct Screenpipe
+  service reference from the maintenance layer. No behavior change.
+- `docs/specs/routines-mvp.md` marked deprecated (all groups A–D complete).
+- Bumped version to `2.4.0`.
+
+**Decisions**
+
+- Scheduler bootstrap follows the config-driven provider factory pattern
+  established by capture-provider-decoupling: `RoutineSchedulerService` is
+  wired in `bootstrap.ts` behind the `routines.enabled` capability gate; it is
+  never referenced directly in transport or tool layers.
+- `daily_summary` deliberately avoids any remote LLM call: it aggregates session
+  data from `recentActivity` and formats a structured local summary, keeping the
+  routine execution path deterministic and offline-safe.
+- TD-007 and TD-005 were resolved together in this batch because both are
+  straightforward renames/ports with zero behavior change — combining them keeps
+  the commit history clean without increasing review surface.
+
+**Verification**
+
+- `npx tsc --noEmit` clean. Full Vitest suite passes with new routine unit,
+  contract, integration, and acceptance coverage added.
+- Tool manifest contract updated to include `routine-list`, `routine-create`,
+  `routine-history`.
+- Acceptance criteria 1–12 from `docs/specs/routines-mvp.md` verified by
+  automated tests and typecheck/build.
 
 ## 2026-06-14: Security Audit Remediation (v2.2.0)
 

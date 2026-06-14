@@ -1,5 +1,5 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -12,6 +12,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [2.4.0] - 2026-06-14
+
+### Added
+
+- Routines MVP: three new MCP tools for managing background automation workflows:
+  - `routine-list` — list configured local routines with schedule, enabled state,
+    prompt, recent-activity window, timestamps, and latest run summary.
+  - `routine-create` — create or update a local routine by providing a name,
+    prompt, and cron schedule.
+  - `routine-history` — retrieve recent execution history for a named routine,
+    returned newest-first with structured status and summary fields.
+- Cron scheduler (`RoutineSchedulerService`): enabled routines execute in the
+  background on their configured cron schedule; concurrent runs of the same
+  routine are skipped (recorded as `skipped`) to prevent overlap.
+- Built-in `daily_summary` routine: produces a deterministic activity report
+  from recent screen-activity data without requiring a new LLM provider.
+- Delivery documentation: `docs/delivery/routines.md` describing routine tools,
+  config defaults (`routines.enabled`, `routines.storagePath`), storage paths,
+  and MVP scope boundaries.
+
+### Changed
+
+- `captureFramesReader` replaces the previous internal alias `screenpipeFramesReader`
+  in the retrieval service layer (TD-007). The rename aligns with the
+  capture-provider abstraction; no observable behavior change.
+
+### Fixed
+
+- `AxTreeMaintenanceService` ported to use `CaptureMaintenancePort` internally
+  (TD-005), removing the last direct Screenpipe service reference from the
+  maintenance layer. No behavior change.
 
 ## [2.3.0] - 2026-06-14
 

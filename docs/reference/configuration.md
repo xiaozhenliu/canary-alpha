@@ -1,7 +1,7 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # Configuration
@@ -197,6 +197,43 @@ In other words: pick whichever embedding endpoint you like, but the `remote-llm`
 | `pollIntervalSeconds` | positive integer | `30` | Background retrieval polling cadence. |
 | `maxCatchUpBatches` | positive integer | `3` | Limits catch-up work per cycle. |
 | `maxCatchUpRecords` | positive integer | `500` | Caps records processed during catch-up. |
+
+### `routines`
+
+Controls the local routines engine. Routines are background tasks that run on a cron schedule and produce deterministic summaries from existing recent-activity data — no external LLM provider is required.
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `enabled` | boolean | `false` | When `false`, no routines are scheduled or executed. Set to `true` to activate the scheduler. |
+| `definitionsPath` | string | `~/.canary-alpha-mcp/routines/definitions/` | Directory where routine definition JSON files are persisted. Supports `~/` expansion. If omitted, the default path under the app home is used. |
+| `historyPath` | string | `~/.canary-alpha-mcp/routines/history/` | Directory where routine execution history JSON files are persisted, newest-first per routine. Supports `~/` expansion. If omitted, the default path under the app home is used. |
+
+Default storage layout:
+
+```
+~/.canary-alpha-mcp/
+  routines/
+    definitions/   ← one JSON file per routine (slug-named)
+    history/       ← one JSON file per routine (execution records, newest first)
+```
+
+To enable routines with default paths:
+
+```yaml
+routines:
+  enabled: true
+```
+
+To override storage locations:
+
+```yaml
+routines:
+  enabled: true
+  definitionsPath: ~/my-data/routines/definitions
+  historyPath: ~/my-data/routines/history
+```
+
+**MVP scope boundaries** — the routines MVP does not include: meetings or calendar tools, manual trigger of a routine run, routine outputs as MCP resources, arbitrary LLM-backed prompt execution, or cross-machine sync. See [future-backlog](../specs/future-backlog.md) for post-MVP roadmap items.
 
 ## Environment overrides
 

@@ -10,8 +10,6 @@ import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { writeTestConfig } from '../helpers/test-config.js';
 import { testTempRoot } from '../helpers/test-tmp.js';
 
-const ROUTINE_TOOL_NAMES = ['routine-list', 'routine-create', 'routine-history'] as const;
-
 const cleanup: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
@@ -45,11 +43,11 @@ describe('tool registry visibility', () => {
 
     const result = await connection.client.listTools();
     const actualNames = result.tools.map((tool) => tool.name).sort();
+    // TOOL_MANIFEST includes all registered tools (including routine-list,
+    // routine-create, routine-history) plus screenpipe-control which is
+    // registered directly without appearing in the manifest.
     const expectedNames = [...TOOL_MANIFEST.map((tool) => tool.name), 'screenpipe-control'].sort();
 
     expect(actualNames).toEqual(expectedNames);
-    for (const routineTool of ROUTINE_TOOL_NAMES) {
-      expect(actualNames).not.toContain(routineTool);
-    }
   });
 });

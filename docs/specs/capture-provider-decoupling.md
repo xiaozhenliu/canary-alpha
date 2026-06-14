@@ -1,10 +1,12 @@
 ---
-doc_version: 2
-doc_status: active
-last_updated: 2026-06-12
+doc_version: 3
+doc_status: deprecated
+last_updated: 2026-06-14
 ---
 
 # Spec: Capture Provider 解耦
+
+> **状态：已完成。** 本 spec 的全部需求（CAP-01 ~ CAP-09）与验收标准已于 2026-06-14 前交付。关键 commit 链：`28ee077`（中立端口）→ `89c0163`（Screenpipe 收敛）→ `2eb928b`（config-driven factory）→ `4e9c928`（checkpoint 命名空间）→ `054d597`（capabilities/diagnostics）→ `7741048`（契约测试）→ `94d5511`（文档）→ `2d27a0b`（provider 类名中立化）。迁移产出的过渡期技术债已登记于 `docs/engineering/tech-debt.md`（TD-004 ~ TD-007），按各自触发条件独立收敛。
 
 ## 背景
 
@@ -51,7 +53,7 @@ Screenpipe 收敛为 `src/services/capture/providers/screenpipe/` 目录下的�
 
 ## 实现参考（非规范性）
 
-**未完成的计划文档**（执行时以本 spec 的需求与验收标准为准）：
+**已完成的计划文档**：
 
-- `docs/superpowers/plans/2026-06-12-capture-provider-migration.md` — 完整实施计划：六个 Stage、11 个任务、含逐文件代码草案与验证命令，全部任务未执行。**注意**：`docs/superpowers/**` 在 .gitignore 中，该文件仅存在于本地工作区、不入库；若文件缺失，以本 spec 为唯一规范来源重新生成实施计划。
+- `docs/superpowers/plans/2026-06-12-capture-provider-migration.md` — 完整实施计划：六个 Stage、11 个任务。本地工作区文件（`docs/superpowers/**` 在 .gitignore 中，不入库）。全部任务已执行完毕，checkbox 状态未回勾属文档同步遗漏。
 - `.kiro/specs/accessibility-capture-ingestion/` — AX 主路径修复的历史 spec（解释了现有 dual-query AX/OCR 结构的由来）。
