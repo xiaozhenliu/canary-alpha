@@ -39,7 +39,7 @@ from Git history and keep each entry scoped to:
 **Verification**
 
 - `npx tsc --noEmit` clean; targeted suites green (observability + work-activity internal-status + layering boundary, 30 tests).
-- Full unit + contract + integration suite: 997 passing. One pre-existing, unrelated failure remains (`tool-manifest.contract` — `find` tool title `Find in Screen Memory` vs manifest `Find Evidence`); it predates this work and is out of scope for these TODOs.
+- Full unit + contract + integration suite: 997 passing. One pre-existing, unrelated failure was surfaced (`tool-manifest.contract`) and then fixed as a follow-up: the live `find` tool title is `Find in Screen Memory` (its actual purpose), but the canonical contract snapshot and the runtime `TOOL_MANIFEST` still carried the unrelated legacy name `Find Evidence`. Both stale references were corrected to match the live tool (no behaviour change — the registered title was already correct).
 - Recorder lifecycle verified live earlier: `up -- --detach` detaches (recorder PPID 1), real Screenpipe `/health` 200, `down:all` graceful stop with a recorded `trigger:"final"` maintenance pass, no orphan processes. The recorder graceful-stop test was hardened against a startup signal race (ready handshake) after the full parallel suite exposed flakiness.
 
 ## 2026-06-13: Retrieval Correctness and One-Command Daily Bring-Up
