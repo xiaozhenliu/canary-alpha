@@ -9,7 +9,8 @@ const serverConfigSchema = z.object({
   mode: serverModeSchema.default('http'),
   host: z.string().default('127.0.0.1'),
   port: z.number().int().positive().default(8765),
-  authToken: z.string().min(1).optional()
+  authToken: z.string().min(1).optional(),
+  maxConnections: z.number().int().positive().default(10)
 });
 
 const loggingConfigSchema = z.object({
@@ -135,7 +136,8 @@ export const appConfigSchema = z.object({
   server: serverConfigSchema.default({
     mode: 'http',
     host: '127.0.0.1',
-    port: 8765
+    port: 8765,
+    maxConnections: 10
   }),
   logging: loggingConfigSchema.default({
     level: 'info'

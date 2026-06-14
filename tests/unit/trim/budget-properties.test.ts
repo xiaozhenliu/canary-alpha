@@ -52,7 +52,7 @@ function makeLogger(): Logger {
 /** Build a minimal AppConfig with the given trim interval. */
 function makeConfig(intervalSeconds: number): AppConfig {
   return {
-    server: { mode: 'stdio', host: '127.0.0.1', port: 3000 },
+    server: { mode: 'stdio', host: '127.0.0.1', port: 3000, maxConnections: 10 },
     logging: { level: 'error' },
     screenpipe: {},
     providers: { embeddings: { kind: 'ollama' } },

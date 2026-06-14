@@ -24,7 +24,23 @@ export function registerScreenpipeControlTool(server: McpServer, app: AppContext
       inputSchema
     },
     async (input) => {
+      // Audit log lifecycle actions before execution
+      if (input.action === 'start' || input.action === 'stop') {
+        app.logger.warn('screenpipe-control action requested', { action: input.action });
+      }
+
       const result = await app.services.screenpipeControl.execute(input);
+
+      // Audit log lifecycle actions after execution
+      if (input.action === 'start' || input.action === 'stop') {
+        app.logger.warn('screenpipe-control action completed', {
+          action: input.action,
+          running: result.running,
+          pid: result.pid,
+          error: result.error,
+        });
+      }
+
       return formatResult(result);
     }
   );

@@ -101,6 +101,7 @@ export interface AppConfig {
     host: string;
     port: number;
     authToken?: string;
+    maxConnections: number;
   };
   logging: {
     level: LogLevel;

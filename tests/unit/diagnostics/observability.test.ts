@@ -34,7 +34,7 @@ import type { VectorStore } from '../../../src/services/retrieval/types.js';
 
 function makeConfig(diskBudgetBytes: number | null): AppConfig {
   return {
-    server: { mode: 'stdio', host: 'localhost', port: 3000 },
+    server: { mode: 'stdio', host: 'localhost', port: 3000, maxConnections: 10 },
     logging: { level: 'info' },
     screenpipe: {},
     providers: { embeddings: { kind: 'none' } },
@@ -1306,7 +1306,7 @@ describe('Property 27: capture block structure and default liveness threshold', 
    */
   function makeConfigWithThreshold(livenessThresholdSeconds: number): AppConfig {
     return {
-      server: { mode: 'stdio', host: 'localhost', port: 3000 },
+      server: { mode: 'stdio', host: 'localhost', port: 3000, maxConnections: 10 },
       logging: { level: 'info' },
       screenpipe: {},
       providers: { embeddings: { kind: 'none' } },

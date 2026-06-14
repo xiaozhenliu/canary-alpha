@@ -1,5 +1,5 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -12,6 +12,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [2.2.0] - 2026-06-14
+
+### Added
+
+- Concurrent-connection cap for the HTTP transport (`server.maxConnections`,
+  default 10). Returns `503 Service Unavailable` with `Retry-After: 1` when the
+  cap is reached.
+- Config file permission check on load: warns when the config file is
+  group-readable or world-readable, since it may contain secrets.
+- Audit logging for `screenpipe-control` tool `start`/`stop` actions at `warn`
+  level, capturing action lifecycle and outcome.
+- Pre-send secret redaction for remote-LLM evidence fragments. Common patterns
+  (Bearer tokens, API keys for OpenAI/GitHub/AWS/Slack/Google) are replaced with
+  `[REDACTED_*]` placeholders before the payload leaves the process.
+
+### Changed
+
+- HTTP auth token comparison now uses `crypto.timingSafeEqual` for
+  constant-time comparison, preventing timing-based token guessing.
+- HTTP 500 error responses no longer expose internal error messages to clients.
+  Detailed errors are logged server-side; clients receive a generic
+  `Internal server error` message.
+- HTTP mode now logs a prominent warning at startup when no `authToken` is
+  configured, explaining that all requests will be rejected with 401.
+- The `memory-write` tool content field is now capped at 64 KB (`max(65536)`).
 
 ## [2.1.0] - 2026-06-14
 

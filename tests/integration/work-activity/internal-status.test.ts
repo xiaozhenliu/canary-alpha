@@ -91,7 +91,7 @@ const stubCheckpointStore = {
 /** Build a minimal `AppConfig` matching the production schema defaults. */
 function makeConfig(): AppConfig {
   return {
-    server: { mode: 'stdio', host: '127.0.0.1', port: 8765 },
+    server: { mode: 'stdio', host: '127.0.0.1', port: 8765, maxConnections: 10 },
     logging: { level: 'info' },
     screenpipe: { url: 'http://localhost:3030' },
     providers: { embeddings: { kind: 'openai-compatible' } },

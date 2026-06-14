@@ -12,6 +12,8 @@ server:
   mode: http          # stdio | http
   host: 127.0.0.1
   port: 8765
+  # authToken: ""     # Required for HTTP mode. Without it all requests are rejected with 401.
+  # maxConnections: 10  # Max concurrent HTTP connections before returning 503.
 
 logging:
   level: info         # debug | info | warn | error
@@ -98,3 +100,8 @@ analysis:
 # 默认：~/.canary-alpha-mcp/derived.sqlite。一般无需覆盖。
 # paths:
 #   derivedDatabase: ~/.canary-alpha-mcp/derived.sqlite
+
+# Security note: the file-analyze MCP tool reads files within the server's
+# working directory by default. Symlink traversal and path escape are blocked
+# (realpath + isPathWithinRoot + extension whitelist). To further restrict,
+# narrow the working directory when starting the server.

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import YAML from 'yaml';
 
 import {
@@ -43,6 +43,19 @@ export async function loadConfig(overrides?: {
   try {
     const raw = await readFile(configFile, 'utf8');
     parsedFileConfig = YAML.parse(raw) ?? {};
+
+    try {
+      const fileStat = await stat(configFile);
+      const mode = fileStat.mode & 0o777;
+      if (mode & 0o044) {
+        console.warn(
+          `[config] ${configFile} has loose permissions (0o${mode.toString(8)}). ` +
+          'Config may contain secrets; consider restricting to owner-only (chmod 600).'
+        );
+      }
+    } catch {
+      // stat() failure should not block config loading
+    }
   } catch (error) {
     const nodeError = error as NodeJS.ErrnoException;
     if (nodeError.code !== 'ENOENT') {
@@ -97,7 +110,8 @@ export async function loadConfig(overrides?: {
       port,
       authToken: envHttpAuthToken && envHttpAuthToken.length > 0
         ? envHttpAuthToken
-        : parsed.data.server.authToken
+        : parsed.data.server.authToken,
+      maxConnections: parsed.data.server.maxConnections
     },
     logging: {
       level: logLevel

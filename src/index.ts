@@ -151,7 +151,8 @@ function resolveManagedServiceServer(server: AppContext['config']['server'], env
   return {
     host: environment.CANARY_ALPHA_MCP_SERVER_HOST || server.host,
     port: managedPort ?? server.port,
-    mode: 'http'
+    mode: 'http',
+    maxConnections: server.maxConnections
   };
 }
 

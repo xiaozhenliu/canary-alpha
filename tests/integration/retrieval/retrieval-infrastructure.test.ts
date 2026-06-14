@@ -70,7 +70,8 @@ describe('retrieval infrastructure correctness', () => {
       server: {
         mode: 'stdio',
         host: '127.0.0.1',
-        port: 8765
+        port: 8765,
+        maxConnections: 10
       },
       logging: {
         level: 'info'

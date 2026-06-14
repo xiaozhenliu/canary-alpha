@@ -58,7 +58,7 @@ async function createSqliteDb(dir: string, rows: Array<{ id: number; timestamp: 
 /** Builds a minimal AppConfig for testing. */
 function makeConfig(diskBudgetBytes: number | null = null): AppConfig {
   return {
-    server: { mode: 'stdio', host: '127.0.0.1', port: 8765 },
+    server: { mode: 'stdio', host: '127.0.0.1', port: 8765, maxConnections: 10 },
     logging: { level: 'info' },
     screenpipe: { url: 'http://localhost:3030' },
     providers: { embeddings: { kind: 'none' } },

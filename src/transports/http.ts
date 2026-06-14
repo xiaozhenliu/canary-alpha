@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 
@@ -14,6 +15,16 @@ export interface StartedHttpTransport {
 }
 
 export async function startHttpTransport(app: AppContext): Promise<StartedHttpTransport> {
+  if (!app.config.server.authToken) {
+    app.logger.warn(
+      'HTTP mode started without authToken — all requests will be rejected with 401. ' +
+      'Set server.authToken in config.yaml or CANARY_ALPHA_MCP_AUTH_TOKEN env var.'
+    );
+  }
+
+  const maxConnections = app.config.server.maxConnections;
+  let activeConnections = 0;
+
   const server = createServer(async (request, response) => {
     if (!request.url || !request.url.startsWith('/mcp')) {
       response.statusCode = 404;
@@ -22,8 +33,10 @@ export async function startHttpTransport(app: AppContext): Promise<StartedHttpTr
     }
 
     const expectedToken = app.config.server.authToken;
-    const authorization = request.headers.authorization;
-    if (!expectedToken || authorization !== `Bearer ${expectedToken}`) {
+    const authorization = request.headers.authorization ?? '';
+    const expected = Buffer.from(`Bearer ${expectedToken ?? ''}`);
+    const actual = Buffer.from(authorization);
+    if (!expectedToken || expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
       response.statusCode = 401;
       response.setHeader('content-type', 'application/json');
       response.setHeader('www-authenticate', 'Bearer');
@@ -31,6 +44,15 @@ export async function startHttpTransport(app: AppContext): Promise<StartedHttpTr
       return;
     }
 
+    if (activeConnections >= maxConnections) {
+      response.statusCode = 503;
+      response.setHeader('content-type', 'application/json');
+      response.setHeader('retry-after', '1');
+      response.end(JSON.stringify({ error: 'Service Unavailable' }));
+      return;
+    }
+
+    activeConnections++;
     try {
       const transport = new NodeStreamableHTTPServerTransport({
         sessionIdGenerator: undefined
@@ -46,7 +68,9 @@ export async function startHttpTransport(app: AppContext): Promise<StartedHttpTr
         response.statusCode = 500;
         response.setHeader('content-type', 'application/json');
       }
-      response.end(JSON.stringify({ error: message }));
+      response.end(JSON.stringify({ error: 'Internal server error' }));
+    } finally {
+      activeConnections--;
     }
   });
 

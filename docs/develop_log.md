@@ -1,5 +1,5 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
 last_updated: 2026-06-14
 ---
@@ -21,6 +21,30 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-14: Security Audit Remediation (v2.2.0)
+
+**Result**
+
+- Remediated all 9 findings from `docs/security/audit-2026-06-14.md` (2 High, 4 Medium, 2 Low, 1 informational).
+- HTTP transport hardened: timing-safe auth comparison (H1), concurrent-connection cap with `server.maxConnections` (H2), startup warning when no authToken (H3), internal error redaction from 500 responses (M1).
+- Config file permission check warns on group/world-readable files at load time (M3).
+- Screenpipe-control `start`/`stop` actions now emit audit logs at `warn` level (M4).
+- `memory-write` content capped at 64 KB via Zod schema (L2).
+- Remote-LLM evidence fragments are pre-filtered through `redactSecrets()` before outbound calls (L1).
+- M2 (file-analyze root scope) deferred: no `config.yaml.example` exists; existing code-level mitigations (realpath, isPathWithinRoot, extension whitelist) are sufficient.
+
+**Decisions**
+
+- `maxConnections` is a required field on `AppConfig.server` (not optional) to ensure all code paths are aware of the cap. The default of 10 is conservative for a localhost-only server.
+- The stat()-based permission check is isolated in its own try/catch so a race between readFile and stat cannot block config loading.
+- `redactSecrets()` is exported from `remote-llm.ts` for direct unit testing.
+
+**Verification**
+
+- TypeScript: 0 errors. Full test suite: 1064 pass, 0 fail.
+- Independent code review (subagent) approved with 0 critical/important findings, 3 low-priority suggestions (2 adopted: stat isolation, warning message completeness).
+- New unit tests: http-auth (6), http-connection-cap (6), config-permissions (4), memory-write-schema (4), remote-llm-redaction (7).
 
 ## 2026-06-14: Background Recorder Lifecycle, Layering Guardrail (TD-003), and internal-status Test Isolation (TD-009)
 
