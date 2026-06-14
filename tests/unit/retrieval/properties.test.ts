@@ -28,7 +28,7 @@ import { buildScreenpipeSafeRecordArgs } from '../../../scripts/screenpipe-safe-
 import { appConfigSchema } from '../../../src/config/schema.js';
 import { createFreshnessPolicy } from '../../../src/services/retrieval/freshness-policy.js';
 import { createLegacyIndexingService as createIndexingService } from '../../helpers/indexing-test-doubles.js';
-import { createScreenpipeClient, mergeByFrameId } from '../../../src/services/retrieval/screenpipe-client.js';
+import { createScreenpipeClient, mergeByFrameId } from '../../../src/services/capture/providers/screenpipe/http-client.js';
 import type {
   CheckpointStore,
   EmbeddingProvider,
@@ -1025,11 +1025,11 @@ describe('Task 5.2: metadata 持久化 — sourceTypes persisted to VectorStoreR
 
       const vectorStore = new MetadataRecordingVectorStore();
       const checkpointStore = new MetadataTestCheckpointStore();
-      const screenpipeClient = new MetadataTestScreenpipeClient(axRecords);
+      const captureClient = new MetadataTestScreenpipeClient(axRecords);
 
       const service = createIndexingService({
         embeddingProvider: new MetadataTestEmbeddingProvider(),
-        screenpipeClient,
+        captureClient,
         vectorStore,
         checkpointStore,
         freshnessWindowMinutes: 60,
@@ -1083,11 +1083,11 @@ describe('Task 5.2: metadata 持久化 — sourceTypes persisted to VectorStoreR
 
       const vectorStore = new MetadataRecordingVectorStore();
       const checkpointStore = new MetadataTestCheckpointStore();
-      const screenpipeClient = new MetadataTestScreenpipeClient([record]);
+      const captureClient = new MetadataTestScreenpipeClient([record]);
 
       const service = createIndexingService({
         embeddingProvider: new MetadataTestEmbeddingProvider(),
-        screenpipeClient,
+        captureClient,
         vectorStore,
         checkpointStore,
         freshnessWindowMinutes: 60,
@@ -1122,11 +1122,11 @@ describe('Task 5.2: metadata 持久化 — sourceTypes persisted to VectorStoreR
 
       const vectorStore = new MetadataRecordingVectorStore();
       const checkpointStore = new MetadataTestCheckpointStore();
-      const screenpipeClient = new MetadataTestScreenpipeClient([ocrRecord]);
+      const captureClient = new MetadataTestScreenpipeClient([ocrRecord]);
 
       const service = createIndexingService({
         embeddingProvider: new MetadataTestEmbeddingProvider(),
-        screenpipeClient,
+        captureClient,
         vectorStore,
         checkpointStore,
         freshnessWindowMinutes: 60,

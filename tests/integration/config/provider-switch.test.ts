@@ -16,7 +16,8 @@ describe('embedding provider factory', () => {
         server: {
           mode: 'stdio',
           host: '127.0.0.1',
-          port: 8765
+          port: 8765,
+          maxConnections: 10
         },
         logging: {
           level: 'info'
@@ -53,7 +54,7 @@ describe('embedding provider factory', () => {
           historyPath: join(testTempRoot(), 'provider-switch-openai-routines', 'history')
         },
         trim: { enabled: true, intervalSeconds: 600 },
-        capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
         storage: { diskBudgetBytes: null, retentionDays: 7 },
         privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
         analysis: {
@@ -68,7 +69,8 @@ describe('embedding provider factory', () => {
         server: {
           mode: 'stdio',
           host: '127.0.0.1',
-          port: 8765
+          port: 8765,
+          maxConnections: 10
         },
         logging: {
           level: 'info'
@@ -105,7 +107,7 @@ describe('embedding provider factory', () => {
           historyPath: join(testTempRoot(), 'provider-switch-ollama-routines', 'history')
         },
         trim: { enabled: true, intervalSeconds: 600 },
-        capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
         storage: { diskBudgetBytes: null, retentionDays: 7 },
         privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
         analysis: {

@@ -35,6 +35,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DefaultEmbeddingService,
   computeExtractedTextHash,
+  type ComputeEmbeddingOutcome,
   type EmbeddingOutcome
 } from '../../../src/services/work-activity/embedding-service.js';
 import type {
@@ -173,7 +174,8 @@ beforeEach(() => {
     embeddingProvider: provider,
     vectorStore,
     hashIndex,
-    now: () => new Date('2026-05-25T10:00:00.000Z')
+    now: () => new Date('2026-05-25T10:00:00.000Z'),
+    captureProviderName: 'screenpipe'
   });
 });
 
@@ -296,7 +298,8 @@ describe('DefaultEmbeddingService.embedExtraction — Hash_Dedup (W13)', () => {
             embeddingProvider: localProvider,
             vectorStore: localVectorStore,
             hashIndex: localHashIndex,
-            now: () => new Date('2026-05-25T10:00:00.000Z')
+            now: () => new Date('2026-05-25T10:00:00.000Z'),
+            captureProviderName: 'screenpipe'
           });
 
           for (let i = 0; i < n; i++) {
@@ -393,6 +396,20 @@ describe('DefaultEmbeddingService.embedExtraction — fresh embed', () => {
       appName: 'Cursor',
       sourceTypes: ['accessibility', 'ocr']
     });
+  });
+
+  it('dual-writes metadata.captureId and keeps legacy metadata.frameId (Task 5)', async () => {
+    // After the captureId migration, each new vector-store record MUST
+    // carry BOTH the legacy `frameId` key (for backward-compat Cascade_Delete
+    // during the retention window) AND the neutral `captureId` key.
+    const result = buildExtraction({ frameId: 42, extractedText: 'dual-write check' });
+
+    await service.embedExtraction(result);
+
+    const [row] = vectorStore.records;
+    expect(row).toBeDefined();
+    expect(row.metadata?.frameId).toBe(42);
+    expect(row.metadata?.captureId).toBe('screenpipe:frame:42');
   });
 
   it('coerces metadata.appName to "" when the extraction has no appName so JSON-backed stores keep the key (R5.2)', async () => {
@@ -556,5 +573,98 @@ describe('DefaultEmbeddingService.embedExtraction — collaborator failures', ()
     }
     // The reused-hash branch did not call the provider.
     expect(provider.embed).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeEmbedding — embedding without vector-store writes
+// ---------------------------------------------------------------------------
+
+describe('DefaultEmbeddingService.computeEmbedding', () => {
+  it('returns skipped-empty for an Empty_Extraction without touching any collaborator', async () => {
+    const empty = buildExtraction({ extractedText: '', extractedTextHash: null });
+
+    const outcome = await service.computeEmbedding(empty);
+
+    expect(outcome).toEqual<ComputeEmbeddingOutcome>({ kind: 'skipped-empty' });
+    expect(provider.embed).not.toHaveBeenCalled();
+    expect(hashIndex.lookups).toEqual([]);
+    expect(hashIndex.inserts).toEqual([]);
+    expect(vectorStore.records).toEqual([]);
+  });
+
+  it('returns reused-hash with embedding and hash on a cache hit, without writing to vector store', async () => {
+    // Pre-seed the hash cache directly so computeEmbedding takes the
+    // reused-hash branch on its first call.
+    const text = 'already cached text';
+    const hash = computeExtractedTextHash(text);
+    const cachedEmbedding = [1, 2, 3];
+    await hashIndex.insert(hash, cachedEmbedding);
+
+    const e = buildExtraction({ frameId: 5, extractedText: text });
+    const outcome = await service.computeEmbedding(e);
+
+    expect(outcome.kind).toBe('reused-hash');
+    if (outcome.kind === 'reused-hash') {
+      expect(outcome.embedding).toEqual(cachedEmbedding);
+      expect(outcome.extractedTextHash).toBe(hash);
+    }
+    // The provider must not have been called — we reused the cache.
+    expect(provider.embed).not.toHaveBeenCalled();
+    // No vector-store writes: computeEmbedding never touches the store.
+    expect(vectorStore.records).toEqual([]);
+  });
+
+  it('returns computed with embedding and hash on a cache miss, without writing to vector store', async () => {
+    const text = 'brand new text';
+    const expectedHash = computeExtractedTextHash(text);
+    const e = buildExtraction({ frameId: 10, extractedText: text });
+
+    const outcome = await service.computeEmbedding(e);
+
+    expect(outcome.kind).toBe('computed');
+    if (outcome.kind === 'computed') {
+      expect(outcome.embedding).toEqual(await provider.embed(text));
+      expect(outcome.extractedTextHash).toBe(expectedHash);
+    }
+    // The hash cache receives the new entry (best-effort).
+    expect(hashIndex.inserts).toHaveLength(1);
+    expect(hashIndex.inserts[0].hash).toBe(expectedHash);
+    // Vector store must remain untouched — computeEmbedding does not persist rows.
+    expect(vectorStore.records).toEqual([]);
+  });
+
+  it('returns provider-unavailable when the embedding provider throws', async () => {
+    const thrown = new Error('provider down');
+    provider.embed.mockRejectedValueOnce(thrown);
+    const e = buildExtraction({ frameId: 20, extractedText: 'will fail' });
+
+    const outcome = await service.computeEmbedding(e);
+
+    expect(outcome.kind).toBe('provider-unavailable');
+    if (outcome.kind === 'provider-unavailable') {
+      expect(outcome.error).toBe(thrown);
+    }
+    // On provider failure the hash cache and vector store must be untouched.
+    expect(hashIndex.inserts).toEqual([]);
+    expect(hashIndex.store.size).toBe(0);
+    expect(vectorStore.records).toEqual([]);
+  });
+
+  it('treats hashIndex.lookup throw as a cache miss and still computes the embedding', async () => {
+    // `HashIndex.lookup` failure is a perf-only degradation — the
+    // service must fall through to the provider rather than surfacing
+    // the cache error to the caller.
+    hashIndex.lookup = vi.fn(async () => {
+      throw new Error('sqlite locked');
+    }) as unknown as HashIndex['lookup'];
+
+    const e = buildExtraction({ frameId: 25, extractedText: 'lookup fails in compute' });
+    const outcome = await service.computeEmbedding(e);
+
+    expect(outcome.kind).toBe('computed');
+    expect(provider.embed).toHaveBeenCalledTimes(1);
+    // Vector store must still be untouched.
+    expect(vectorStore.records).toEqual([]);
   });
 });

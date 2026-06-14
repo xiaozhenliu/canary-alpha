@@ -151,7 +151,8 @@ function resolveManagedServiceServer(server: AppContext['config']['server'], env
   return {
     host: environment.CANARY_ALPHA_MCP_SERVER_HOST || server.host,
     port: managedPort ?? server.port,
-    mode: 'http'
+    mode: 'http',
+    maxConnections: server.maxConnections
   };
 }
 
@@ -581,11 +582,15 @@ async function runRebuildIndex(): Promise<void> {
     await ensureRecoveryTargetIsOffline(primaryApp.config);
     const vectorStoreDirectory = resolveVectorStoreDirectory(primaryApp.config.vectorStore);
     const targetVectorStorePath = resolveVectorStoreFilePath(primaryApp.config.vectorStore);
-    const targetCheckpointPath = join(vectorStoreDirectory, 'retrieval-checkpoint.json');
+    // Use the provider-namespaced checkpoint filename to match what createApp
+    // writes; the provider name is stable for the lifetime of the rebuild run.
+    const captureProviderName = primaryApp.config.capture.provider;
+    const checkpointFileName = `retrieval-checkpoint.${captureProviderName}.json`;
+    const targetCheckpointPath = join(vectorStoreDirectory, checkpointFileName);
 
     const rebuildPath = join(vectorStoreDirectory, `.rebuild-index-${process.pid}-${Date.now()}`);
     const rebuiltVectorStorePath = join(rebuildPath, 'vector-store.json');
-    const rebuiltCheckpointPath = join(rebuildPath, 'retrieval-checkpoint.json');
+    const rebuiltCheckpointPath = join(rebuildPath, checkpointFileName);
     const vectorStoreBackupPath = `${targetVectorStorePath}.bak`;
     const checkpointBackupPath = `${targetCheckpointPath}.bak`;
 
@@ -692,7 +697,7 @@ async function runRebuildIndex(): Promise<void> {
 
       process.stdout.write(`${JSON.stringify({
         command: 'rebuild-index',
-        reset: ['vector-store.json', 'retrieval-checkpoint.json'],
+        reset: ['vector-store.json', checkpointFileName],
         fetched: totalFetched,
         indexed: totalIndexed,
         checkpointBefore: formatCheckpoint(firstCheckpointBefore),

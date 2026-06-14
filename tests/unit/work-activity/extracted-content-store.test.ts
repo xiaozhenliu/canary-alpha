@@ -277,6 +277,20 @@ describe('SqliteExtractedContentStore.listByTimeWindow', () => {
     expect(rows.map((r) => r.frameId)).toEqual([1, 2, 3]);
   });
 
+  it('matches rows stored with a local offset against UTC-Z window bounds', async () => {
+    // Regression (find path): frame_timestamp is stored with a local offset
+    // (+08:00) while find passes UTC `Z` bounds. A raw BETWEEN compares them
+    // lexicographically and returns nothing; datetime() normalization fixes it.
+    await store.upsert(
+      makeExtraction({ frameId: 42, frameTimestamp: '2026-05-25T18:01:00.000+08:00' })
+    ); // == 2026-05-25T10:01:00Z
+    const rows = await store.listByTimeWindow(
+      '2026-05-25T10:00:00.000Z',
+      '2026-05-25T10:02:00.000Z'
+    );
+    expect(rows.map((r) => r.frameId)).toEqual([42]);
+  });
+
   it('returns an empty array when the window contains no rows', async () => {
     await store.upsert(makeExtraction({ frameId: 1, frameTimestamp: tsAt(10) }));
     const rows = await store.listByTimeWindow(tsAt(50), tsAt(100));

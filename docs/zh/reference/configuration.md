@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 4
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -8,7 +8,7 @@ last_updated: 2026-06-12
 
 `canary-alpha-mcp` 从 `~/.canary-alpha-mcp/config.yaml` 读取运行时配置。
 
-本地 Screenpipe API 已健康后，使用 `npm run onboard` 完成 MCP 层首次运行。它会使用标准 v1 默认值创建或替换应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `canary-alpha-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用。
+本地 Screenpipe API 已健康后，使用 `npm run onboard` 完成 MCP 层首次运行。它会使用标准 Crimson 默认值创建或替换应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `canary-alpha-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用。
 
 ## 配置文件位置
 
@@ -19,7 +19,7 @@ last_updated: 2026-06-12
 - `npm run onboard` 创建的自动配置备份：`~/.canary-alpha-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
 - `npm run onboard` 更新的 Hermes 配置：`~/.hermes/config.yaml`
 
-如果已完成 onboarding 并想稍后修改嵌入设置，直接编辑 `~/.canary-alpha-mcp/config.yaml`，然后用 `npm run service:stop && npm run service:start` 重启托管服务。
+如果已完成 onboarding 并想稍后修改设置，使用 [`config` CLI](#用-config-cli-管理配置)（或直接编辑 `~/.canary-alpha-mcp/config.yaml`），然后用 `npm run service:stop && npm run service:start` 重启托管服务。
 
 ## 首次运行默认行为
 
@@ -88,13 +88,49 @@ mcp_servers:
 
 `npm run setup` 写入相同的默认配置结构和日志目录，但不启动服务。
 
+## 用 config CLI 管理配置
+
+无需手动编辑 `config.yaml`，你可以用内置的 `config` 子命令管理每一个字段。它在写入前按类型强制转换并校验取值、保留你的注释与格式、对密钥脱敏，并提示环境变量覆盖。它不会启动完整服务（不初始化 vector store 或运行时），因此速度快，即使其余配置已损坏也能继续工作。
+
+从已构建的服务运行：
+
+```bash
+npm run build            # 首次构建出 dist/
+node dist/src/index.js config <命令> ...
+```
+
+| 命令 | 作用 |
+|------|------|
+| `config list [--reveal]` | 打印所有生效字段。回落到 schema 默认值的标注 `(default)`，被环境变量覆盖的标注 `(overridden by env <VAR>)`。 |
+| `config get <path> [--reveal]` | 读取单个点路径，例如 `config get providers.embeddings.model`。 |
+| `config set <path> <value>` | 写入单个字段。取值会按类型强制转换，并在写入前对整个文件重新校验；配置文件不存在时自动创建。 |
+| `config set <path> -- <value>` | 同上，用 `--` 终止符让以 `-` 开头的取值（例如负数 `analysis.embeddings.minScore`）不被当作 flag。 |
+| `config unset <path>` | 删除一个可选字段，使其回落到 schema 默认值。必填字段不可 unset。 |
+| `config add <path> <item>` | 向数组字段就地追加一项，保留注释。 |
+| `config remove <path> <item>` | 从数组字段移除一项。 |
+| `config validate` | 用 schema 校验当前 `config.yaml`，逐字段打印错误，失败时退出码非零。 |
+| `config path` | 打印 `config.yaml` 的绝对路径。 |
+
+标志：
+
+- `--reveal` —— 以明文显示密钥字段（`providers.embeddings.apiKey`、`llm.api_key`、`screenpipe.apiKey`、`server.authToken`），而非 `***`。会打印警告，因为密钥会进入终端历史。
+- `--` —— 终止符，其后的所有 token 都按字面值处理；用于以 `-` 开头的取值。
+
+说明：
+
+- **默认脱敏**：`list` 和 `get` 默认遮蔽密钥，仅 `--reveal` 显示。
+- **运行时以环境变量为准**：若某字段当前被环境变量（例如 `MCP_PORT`）覆盖，CLI 会提示你，因此看似"没生效"的 `set` 会被解释，而不是静默。
+- **计算路径只读**：`paths.*` 等派生值不是文件字段，不能 `set`。
+
+执行 `set`、`unset`、`add`、`remove` 之后，重启托管服务使改动生效：`npm run service:stop && npm run service:start`。
+
 ## 配置字段
 
 ### `server`
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `mode` | `stdio` \| `http` | `http` | 官方 v1 交付使用 `http`。 |
+| `mode` | `stdio` \| `http` | `http` | 官方 Crimson 交付使用 `http`。 |
 | `host` | string | `127.0.0.1` | `service:start` 拒绝非本地主机。 |
 | `port` | 正整数 | `8765` | schema 默认值为 `8765`，但官方 setup/onboarding 路径写入 `18765` 以使托管本地 HTTP 服务使用可预测的端点。 |
 
@@ -104,11 +140,28 @@ mcp_servers:
 |------|------|--------|------|
 | `level` | `debug` \| `info` \| `warn` \| `error` | `info` | 控制服务日志详细程度。 |
 
-### `screenpipe`
+### `capture`
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `url` | string | schema 中未设置；onboarding 写入 `http://localhost:3030` | 正常 v1 流程中必须指向可达的本地 Screenpipe 服务。 |
+| `provider` | `screenpipe` | `screenpipe` | 屏幕记忆采集、inspect、trim 与录制进程控制由哪个 capture provider 支撑。当前仅支持 `screenpipe`；新增 provider 需要在 `src/services/capture/providers/` 下新建目录并增加 enum 成员。 |
+| `livenessThresholdSeconds` | 正整数 | `120` | 最新帧在该阈值内视为采集存活（`ok`），超过则采集状态判定为 `idle`。 |
+| `permissionsGracePeriodSeconds` | 非负整数 | `60` | 录制进程启动后的宽限期，超过该时间仍无帧才报告 `permissions-missing`。 |
+
+```yaml
+capture:
+  # Which capture provider backs screen-memory ingestion.
+  # Currently supported: screenpipe (default).
+  provider: screenpipe
+```
+
+### `screenpipe`
+
+`screenpipe` capture provider 的专属配置块（类比 `providers.embeddings` 之于 embedding provider），仅在 `capture.provider` 为 `screenpipe` 时生效。
+
+| 字段 | 类型 | 默认值 | 备注 |
+|------|------|--------|------|
+| `url` | string | schema 中未设置；onboarding 写入 `http://localhost:3030` | 正常 Crimson 流程中必须指向可达的本地 Screenpipe 服务。 |
 
 ### `providers.embeddings`
 
@@ -133,7 +186,7 @@ mcp_servers:
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
-| `kind` | string | `chroma` | 当前 v1 存储契约假设 Chroma 风格的本地持久化。 |
+| `kind` | string | `chroma` | 当前 Crimson 存储契约假设 Chroma 风格的本地持久化。 |
 | `path` | string | 未设置 | 可选的自定义检索制品路径。省略时检索制品存放在应用主目录下。 |
 
 ### `retrieval`

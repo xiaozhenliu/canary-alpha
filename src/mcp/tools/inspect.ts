@@ -105,9 +105,12 @@ export function registerInspectTool(server: McpServer, app: AppContext): void {
   server.registerTool(
     'inspect',
     {
-      title: 'Inspect Session or Frame',
+      title: 'Inspect Screen Session or Frame',
       description:
-        'Deep-dive into a single work-activity session or a single ScreenPipe frame. Returns the row plus per-frame evidence (session) or the raw AX tree plus derived extraction (frame).',
+        'Deep-dive into one screen-activity session or one captured screen frame from local screen-capture ' +
+        'memory, identified by an id you already obtained from `recall` or `find`. Returns the session row ' +
+        'plus per-frame evidence (session), or the raw accessibility tree plus derived extraction (frame). ' +
+        'This is a drill-down on already-captured screen data, not a search or an external lookup.',
       inputSchema,
       outputSchema,
       annotations: {

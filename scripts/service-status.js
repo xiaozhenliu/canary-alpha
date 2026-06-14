@@ -61,11 +61,8 @@ function createClient() {
   });
 }
 
-async function probeManagedService(host, port, expectedConfigFile, expectedPid) {
+async function probeManagedService(host, port, expectedConfigFile, expectedPid, authToken) {
   const client = createClient();
-  const authToken = typeof process.env.CANARY_ALPHA_MCP_AUTH_TOKEN === 'string' && process.env.CANARY_ALPHA_MCP_AUTH_TOKEN.length > 0
-    ? process.env.CANARY_ALPHA_MCP_AUTH_TOKEN
-    : undefined;
   const transport = new StreamableHTTPClientTransport(new URL(`http://${host}:${port}/mcp`), authToken
     ? {
         authProvider: {
@@ -158,7 +155,10 @@ const launchctlError = !launchctlLoaded && !launchctlMissing
 const launchctlRunning = launchctlLoaded && /\bstate = running\b/.test(launchctlPrint.stdout ?? '');
 const launchctlPid = launchctlRunning ? readLaunchctlPid(launchctlPrint.stdout ?? '') : undefined;
 const endpointHealthy = launchctlRunning && launchctlPid
-  ? await probeManagedService(server.host, server.port, configPath, launchctlPid)
+  // `server.authToken` already encodes env-override-then-config precedence via
+  // resolveManagedServiceServer, so the status probe authenticates correctly
+  // even when the token lives only in config.yaml (not the environment).
+  ? await probeManagedService(server.host, server.port, configPath, launchctlPid, server.authToken)
   : false;
 const healthy = launchctlRunning && endpointHealthy;
 

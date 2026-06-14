@@ -34,7 +34,7 @@ import type { VectorStore } from '../../../src/services/retrieval/types.js';
 
 function makeConfig(diskBudgetBytes: number | null): AppConfig {
   return {
-    server: { mode: 'stdio', host: 'localhost', port: 3000 },
+    server: { mode: 'stdio', host: 'localhost', port: 3000, maxConnections: 10 },
     logging: { level: 'info' },
     screenpipe: {},
     providers: { embeddings: { kind: 'none' } },
@@ -48,7 +48,7 @@ function makeConfig(diskBudgetBytes: number | null): AppConfig {
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: false, intervalSeconds: 3600 },
-    capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
     storage: { diskBudgetBytes, retentionDays: 7 },
     privacy: { excludeApps: [], secureAxRoles: [] },
     analysis: {
@@ -1306,7 +1306,7 @@ describe('Property 27: capture block structure and default liveness threshold', 
    */
   function makeConfigWithThreshold(livenessThresholdSeconds: number): AppConfig {
     return {
-      server: { mode: 'stdio', host: 'localhost', port: 3000 },
+      server: { mode: 'stdio', host: 'localhost', port: 3000, maxConnections: 10 },
       logging: { level: 'info' },
       screenpipe: {},
       providers: { embeddings: { kind: 'none' } },
@@ -1320,7 +1320,7 @@ describe('Property 27: capture block structure and default liveness threshold', 
       routines: { enabled: false, definitionsPath: '', historyPath: '' },
       paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
       trim: { enabled: false, intervalSeconds: 3600 },
-      capture: { livenessThresholdSeconds, permissionsGracePeriodSeconds: 60 },
+      capture: { provider: 'screenpipe' as const, livenessThresholdSeconds, permissionsGracePeriodSeconds: 60 },
       storage: { diskBudgetBytes: null, retentionDays: 7 },
       privacy: { excludeApps: [], secureAxRoles: [] },
       analysis: {

@@ -31,6 +31,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { buildCaptureId } from '../capture/types.js';
 import type {
   EmbeddingProvider,
   VectorStore,
@@ -67,6 +68,25 @@ export type EmbeddingOutcome =
   | { kind: 'provider-unavailable'; error: unknown };
 
 /**
+ * Outcome of `EmbeddingService.computeEmbedding`. Mirrors
+ * `EmbeddingOutcome` but omits any vector-store interaction — the
+ * hash and embedding are returned so callers can decide whether and
+ * where to persist them.
+ *
+ *   - `skipped-empty`: the extraction was an `Empty_Extraction`.
+ *   - `reused-hash`: the SHA256 hash was already in the cache; the
+ *     cached embedding and its hash are returned.
+ *   - `computed`: a brand-new embedding was generated and persisted to
+ *     the hash cache only (no vector-store write).
+ *   - `provider-unavailable`: the embedding provider threw.
+ */
+export type ComputeEmbeddingOutcome =
+  | { kind: 'skipped-empty' }
+  | { kind: 'reused-hash'; embedding: number[]; extractedTextHash: string }
+  | { kind: 'computed'; embedding: number[]; extractedTextHash: string }
+  | { kind: 'provider-unavailable'; error: unknown };
+
+/**
  * Public surface of the embedding service. The interface stays small
  * — `embedExtraction` is the only verb the indexing service calls per
  * frame. Pulling it out of the concrete class makes testing the
@@ -76,6 +96,7 @@ export type EmbeddingOutcome =
  */
 export interface EmbeddingService {
   embedExtraction(e: ExtractionResult): Promise<EmbeddingOutcome>;
+  computeEmbedding(e: ExtractionResult): Promise<ComputeEmbeddingOutcome>;
 }
 
 /**
@@ -90,6 +111,8 @@ export interface EmbeddingServiceDependencies {
   vectorStore: VectorStore;
   hashIndex: HashIndex;
   now: () => Date;
+  /** Provider name used to build the neutral captureId metadata field. */
+  captureProviderName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +142,39 @@ export class DefaultEmbeddingService implements EmbeddingService {
   constructor(private readonly deps: EmbeddingServiceDependencies) {}
 
   async embedExtraction(e: ExtractionResult): Promise<EmbeddingOutcome> {
+    // Delegate the embedding computation to `computeEmbedding` and
+    // then write the result to the vector store. This keeps the two
+    // concerns (embedding vs. persistence) separated and avoids
+    // duplicating the hash-dedup / provider-unavailable logic.
+    const result = await this.computeEmbedding(e);
+    switch (result.kind) {
+      case 'skipped-empty':
+        return { kind: 'skipped-empty' };
+      case 'provider-unavailable':
+        return { kind: 'provider-unavailable', error: result.error };
+      case 'reused-hash':
+      case 'computed': {
+        // Both branches produce an embedding that must be upserted to
+        // the vector store so Cascade_Delete can later remove the row
+        // by frameId (R9). A write failure is treated as
+        // provider-unavailable from the indexer's perspective —
+        // identical to a fresh-embed provider failure (design §3).
+        try {
+          await this.deps.vectorStore.upsert([
+            this.toRecord(e, result.extractedTextHash, result.embedding)
+          ]);
+        } catch (error) {
+          return { kind: 'provider-unavailable', error };
+        }
+        return {
+          kind: result.kind === 'reused-hash' ? 'reused-hash' : 'embedded',
+          embedding: result.embedding
+        };
+      }
+    }
+  }
+
+  async computeEmbedding(e: ExtractionResult): Promise<ComputeEmbeddingOutcome> {
     // Branch 1 — Empty_Extraction (R5.5 / W14).
     //
     // Empty-skip is decided **solely** by `extractedText === ''` —
@@ -143,11 +199,8 @@ export class DefaultEmbeddingService implements EmbeddingService {
     // Branch 2 — Hash_Dedup (R5.1 / W13).
     //
     // Cache hit: a previous frame already paid the embedding cost for
-    // this exact text. Reuse the cached vector but **still** upsert a
-    // per-frame row in the vector store so Cascade_Delete can remove
-    // it by frameId. The vector value is identical across frames
-    // sharing the hash — the redundancy is in the row, not the
-    // payload.
+    // this exact text. Return the cached vector and hash without
+    // touching the vector store — callers decide whether to persist.
     //
     // Per design §3 "Embedding 层" error handling: `HashIndex.lookup`
     // failures are caught and treated as a miss (the hash cache is a
@@ -159,18 +212,7 @@ export class DefaultEmbeddingService implements EmbeddingService {
       cached = null;
     }
     if (cached !== null) {
-      try {
-        await this.deps.vectorStore.upsert([
-          this.toRecord(e, extractedTextHash, cached)
-        ]);
-      } catch (error) {
-        // Per design §3: vector-store write failure is mapped to the
-        // same `provider-unavailable` outcome as a provider throw.
-        // The hash cache already had this entry (we just read it),
-        // so no rollback is needed.
-        return { kind: 'provider-unavailable', error };
-      }
-      return { kind: 'reused-hash', embedding: cached };
+      return { kind: 'reused-hash', embedding: cached, extractedTextHash };
     }
 
     // Branch 3 — fresh embed.
@@ -179,9 +221,9 @@ export class DefaultEmbeddingService implements EmbeddingService {
     // indexer must observe (network / quota / process down). Wrap it
     // in try/catch and translate to `provider-unavailable` (R5.6) so
     // the caller can surface the failure via observability without
-    // tearing down `runOnce()`. The hash cache and vector store calls
-    // happen *after* the provider succeeds, so a provider failure
-    // leaves the cache untouched and the next frame retries cleanly.
+    // tearing down `runOnce()`. The hash cache write happens after
+    // the provider succeeds, so a provider failure leaves the cache
+    // untouched and the next frame retries cleanly.
     let embedding: number[];
     try {
       embedding = await this.deps.embeddingProvider.embed(e.extractedText);
@@ -192,26 +234,14 @@ export class DefaultEmbeddingService implements EmbeddingService {
     // Per design §3: `HashIndex.insert` failures do not block the
     // pipeline — the next frame will simply re-embed (a perf
     // regression, not a correctness one). Swallow the error and
-    // continue to the vector-store write.
+    // return the computed embedding so the caller can still persist it.
     try {
       await this.deps.hashIndex.insert(extractedTextHash, embedding);
     } catch {
       /* hash cache write best-effort — ignore */
     }
 
-    try {
-      await this.deps.vectorStore.upsert([
-        this.toRecord(e, extractedTextHash, embedding)
-      ]);
-    } catch (error) {
-      // Same reasoning as the reused-hash branch — vector-store
-      // failure is provider-unavailable from the indexer's view. The
-      // hash cache may already hold this hash (best-effort insert
-      // above), which is fine: a future frame with the same text
-      // will hit the cache and try the upsert again.
-      return { kind: 'provider-unavailable', error };
-    }
-    return { kind: 'embedded', embedding };
+    return { kind: 'computed', embedding, extractedTextHash };
   }
 
   /**
@@ -248,7 +278,7 @@ export class DefaultEmbeddingService implements EmbeddingService {
       id: `extracted:${e.frameId}`,
       text: e.extractedText,
       timestamp: e.frameTimestamp,
-      // The top-level `appName` follows the upstream `ScreenpipeRecord`
+      // The top-level `appName` follows the upstream `CaptureRecord`
       // convention where the field is optional — leave it `undefined`
       // when the extraction did not have one. R5.2 names `appName` as
       // *metadata*-required, which is what the next block enforces.
@@ -257,7 +287,16 @@ export class DefaultEmbeddingService implements EmbeddingService {
       embedding,
       metadata: {
         sourceTypes: e.sourceTypes,
+        // Legacy key: kept for one retention cycle so Cascade_Delete
+        // still matches records written before the captureId migration.
         frameId: e.frameId,
+        // Neutral key: the provider-namespaced identifier written from
+        // this migration onward (Task 5 dual-write). Both keys are
+        // matched by deleteByFrameIds during the transition window.
+        captureId: buildCaptureId(this.deps.captureProviderName, {
+          frameId: e.frameId,
+          id: String(e.frameId)
+        }),
         frameTimestamp: e.frameTimestamp,
         contextKey: e.contextKey,
         extractedTextHash,

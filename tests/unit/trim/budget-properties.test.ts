@@ -23,7 +23,7 @@ import type { AppConfig, Logger } from '../../../src/types/app-config.js';
 // Module-level mock for runTrimOnce — must be hoisted before any imports
 // ---------------------------------------------------------------------------
 
-vi.mock('../../../src/services/trim/screenpipe-trim-service.js', () => ({
+vi.mock('../../../src/services/capture/providers/screenpipe/trim-service.js', () => ({
   runTrimOnce: vi.fn().mockResolvedValue({
     framesDeleted: 0,
     elementsDeleted: 0,
@@ -33,7 +33,7 @@ vi.mock('../../../src/services/trim/screenpipe-trim-service.js', () => ({
 }));
 
 // Import the mocked module at the top level so we can reference it in tests
-import { runTrimOnce as mockRunTrimOnce } from '../../../src/services/trim/screenpipe-trim-service.js';
+import { runTrimOnce as mockRunTrimOnce } from '../../../src/services/capture/providers/screenpipe/trim-service.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,7 +52,7 @@ function makeLogger(): Logger {
 /** Build a minimal AppConfig with the given trim interval. */
 function makeConfig(intervalSeconds: number): AppConfig {
   return {
-    server: { mode: 'stdio', host: '127.0.0.1', port: 3000 },
+    server: { mode: 'stdio', host: '127.0.0.1', port: 3000, maxConnections: 10 },
     logging: { level: 'error' },
     screenpipe: {},
     providers: { embeddings: { kind: 'ollama' } },
@@ -66,7 +66,7 @@ function makeConfig(intervalSeconds: number): AppConfig {
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: true, intervalSeconds },
-    capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
     storage: { diskBudgetBytes: null, retentionDays: 7 },
     privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
     analysis: {

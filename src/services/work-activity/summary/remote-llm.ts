@@ -66,6 +66,32 @@ import type {
 } from './types.js';
 
 // ---------------------------------------------------------------------------
+// Secret redaction
+// ---------------------------------------------------------------------------
+
+const SECRET_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, replacement: 'Bearer [REDACTED]' },
+  { pattern: /\bsk-[A-Za-z0-9]{20,}/g, replacement: '[REDACTED_API_KEY]' },
+  { pattern: /\bghp_[A-Za-z0-9]{36,}/g, replacement: '[REDACTED_GH_TOKEN]' },
+  { pattern: /\bgho_[A-Za-z0-9]{36,}/g, replacement: '[REDACTED_GH_TOKEN]' },
+  { pattern: /\bghu_[A-Za-z0-9]{36,}/g, replacement: '[REDACTED_GH_TOKEN]' },
+  { pattern: /\bghs_[A-Za-z0-9]{36,}/g, replacement: '[REDACTED_GH_TOKEN]' },
+  { pattern: /\bghr_[A-Za-z0-9]{36,}/g, replacement: '[REDACTED_GH_TOKEN]' },
+  { pattern: /\bxoxb-[A-Za-z0-9\-]+/g, replacement: '[REDACTED_SLACK_TOKEN]' },
+  { pattern: /\bxoxp-[A-Za-z0-9\-]+/g, replacement: '[REDACTED_SLACK_TOKEN]' },
+  { pattern: /\bAIza[A-Za-z0-9\-_]{35}/g, replacement: '[REDACTED_GOOGLE_KEY]' },
+  { pattern: /\bAKIA[A-Z0-9]{16}/g, replacement: '[REDACTED_AWS_KEY]' },
+];
+
+export function redactSecrets(text: string): string {
+  let result = text;
+  for (const { pattern, replacement } of SECRET_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
@@ -306,7 +332,7 @@ export class RemoteLlmSummaryProvider implements SummaryProvider {
     max_tokens: 200;
   } {
     const evidenceJoined = input.evidenceFragments
-      .map((fragment) => `- [${fragment.timestamp}] ${fragment.extractedText}`)
+      .map((fragment) => `- [${fragment.timestamp}] ${redactSecrets(fragment.extractedText)}`)
       .join('\n');
 
     const minutes = Math.round(input.activeSeconds / 60);

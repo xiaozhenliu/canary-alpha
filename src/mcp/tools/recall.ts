@@ -119,11 +119,13 @@ export function registerRecallTool(server: McpServer, app: AppContext): void {
   server.registerTool(
     'recall',
     {
-      title: 'Recall Time Window',
+      title: 'Recall Screen Activity',
       description:
-        'Recall captured work-activity sessions or aggregated time blocks for a window. ' +
-        'Use granularity="session" to list individual sessions, "hour" / "day" to bucket sessions ' +
-        'by time. With includeSummary=true (default), each session item carries a summary block.',
+        "Recall what the user did on THIS MACHINE'S screen during a time window, reconstructed from local " +
+        'screen-capture memory (work sessions grouped by app/window). Use this to answer "what was I doing ' +
+        'or what was on my screen between X and Y"; it reads only locally captured screen activity, not the ' +
+        'web or filesystem. granularity="session" lists individual sessions, "hour" / "day" bucket them by ' +
+        'time. With includeSummary=true (default), each session carries a summary block.',
       inputSchema,
       outputSchema,
       annotations: {

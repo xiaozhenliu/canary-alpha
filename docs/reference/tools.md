@@ -1,7 +1,7 @@
 ---
-doc_version: 6
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 ---
 
 # MCP Tools
@@ -18,6 +18,8 @@ Most tools return both:
 Some failure paths also set `isError: true`.
 
 Work-activity retrieval tools (`find`, `recall`, `inspect`) always emit a `narrativeText` string field in the structured payload — even on degraded paths — so callers never have to branch on `null` for the natural-language summary. They surface degraded state through an explicit `degraded` block when fallback behavior occurred.
+
+The `from` / `to` time-window bounds on `find` and `recall` are interpreted as **absolute instants and compared in UTC**. A UTC `Z` bound (e.g. `2026-04-16T00:00:00Z`) therefore matches captured records correctly regardless of the recorder's local timezone offset; you may also pass an offset form (`+08:00`) and it resolves to the same instant.
 
 ## Tool inventory
 
@@ -97,8 +99,8 @@ Recall captured work-activity sessions or aggregated time blocks for a window. `
 
 - `content[0].text` carries the `narrativeText` summary
 - `structuredContent.granularity` echoes the resolved granularity
-- `structuredContent.sessions` is present when `granularity="session"`. Each session item exposes `sessionId`, `appName`, `contextLabel`, `startedAt`, `endedAt`, `activeSeconds`, `evidenceFrameIds`, `sourceTypes`, and optional `summary` (`text`, `status` ∈ `pending` | `ready` | `failed` | `degraded` | `not_applicable`, `providerKind` ∈ `template` | `remote-llm`)
-- `structuredContent.blocks` is present when `granularity="hour"` or `"day"`. Each block exposes `start`, `end`, `sessionCount`, `totalActiveSeconds`, `byApp` (record of `appName -> seconds`), `narrativeText`
+- `structuredContent.sessions` is present when `granularity="session"`. Each session item exposes `sessionId`, `appName`, `contextLabel`, `startedAt`, `endedAt`, `activeSeconds` (integer whole seconds), `evidenceFrameIds`, `sourceTypes`, and optional `summary` (`text`, `status` ∈ `pending` | `ready` | `failed` | `degraded` | `not_applicable`, `providerKind` ∈ `template` | `remote-llm`)
+- `structuredContent.blocks` is present when `granularity="hour"` or `"day"`. Each block exposes `start`, `end`, `sessionCount`, `totalActiveSeconds` (integer whole seconds), `byApp` (record of `appName -> integer seconds`), `narrativeText`
 - `structuredContent.narrativeText` is always present
 
 ## `inspect`

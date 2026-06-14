@@ -44,7 +44,7 @@ import {
 import type {
   ScreenpipeFrameRow,
   ScreenpipeFramesReader
-} from '../../../src/services/work-activity/inspect/screenpipe-frames-reader.js';
+} from '../../../src/services/capture/providers/screenpipe/frames-reader.js';
 import { SqliteSessionStore } from '../../../src/services/work-activity/sessions/session-store.js';
 import { TemplateSummaryProvider } from '../../../src/services/work-activity/summary/template.js';
 import { SummaryProviderRegistry } from '../../../src/services/work-activity/summary/registry.js';

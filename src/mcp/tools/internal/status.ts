@@ -2,6 +2,7 @@ import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod';
 
 import type { AppContext } from '../../../types/app-config.js';
+import type { CaptureCapabilities } from '../../../services/capture/types.js';
 
 const inputSchema = z.object({});
 
@@ -241,6 +242,19 @@ const observabilityDegradedSchema = z.object({
   providers: z.string().optional()
 });
 
+/** Schema for the active capture provider identity and capability flags. */
+const captureProviderSchema = z.object({
+  provider: z.string(),
+  capabilities: z.object({
+    providerName: z.string(),
+    ocrText: z.boolean(),
+    accessibilityTree: z.boolean(),
+    frameDetail: z.boolean(),
+    retentionTrim: z.boolean(),
+    processLifecycle: z.boolean()
+  })
+});
+
 const outputSchema = z.object({
   status: z.literal('ok'),
   mode: z.enum(['stdio', 'http']),
@@ -248,6 +262,8 @@ const outputSchema = z.object({
   port: z.number().int().positive(),
   pid: z.number().int().positive(),
   configFile: z.string(),
+  /** Active capture provider identity and capabilities. Always present. */
+  captureProvider: captureProviderSchema,
   capture: captureStatusSchema.optional(),
   ingestionMix: ingestionMixSchema.optional(),
   diskBudget: diskBudgetSchema.optional(),
@@ -294,6 +310,7 @@ export function registerInternalStatusTool(server: McpServer, app: AppContext): 
     },
     async (): Promise<CallToolResult> => {
       const status = await app.services.bootstrapStatus.getStatus();
+      const caps: CaptureCapabilities = app.services.captureCapabilities;
       const structuredStatus: Record<string, unknown> = {
         status: status.status,
         mode: status.mode,
@@ -301,6 +318,11 @@ export function registerInternalStatusTool(server: McpServer, app: AppContext): 
         port: status.port,
         pid: status.pid,
         configFile: status.configFile,
+        // Capture provider identity and capabilities (always present, not a liveness signal).
+        captureProvider: {
+          provider: caps.providerName,
+          capabilities: caps
+        },
         retrieval: status.retrieval,
         screenpipeStorage: status.screenpipeStorage
       };

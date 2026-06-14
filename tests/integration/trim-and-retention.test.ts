@@ -17,7 +17,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runRetentionIfOverBudget, runTrimOnce } from '../../src/services/trim/screenpipe-trim-service.js';
+import { runRetentionIfOverBudget, runTrimOnce } from '../../src/services/capture/providers/screenpipe/trim-service.js';
 import { testTempRoot } from '../helpers/test-tmp.js';
 
 const execFileAsync = promisify(execFile);

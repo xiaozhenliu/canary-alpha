@@ -496,11 +496,12 @@ async function runEval(): Promise<WorkActivityEvalResult> {
     embeddingProvider,
     vectorStore,
     hashIndex,
-    now: () => new Date()
+    now: () => new Date(),
+    captureProviderName: 'screenpipe'
   });
 
   // Step 3: Build ScreenpipeClient stub and load fixture frames
-  const screenpipeClient = new FixtureScreenpipeClient();
+  const captureClient = new FixtureScreenpipeClient();
 
   // Determine time range for the eval (use fixture timestamps)
   const timestamps = fixtures.map((f) => f.frame.timestamp).sort();
@@ -519,13 +520,13 @@ async function runEval(): Promise<WorkActivityEvalResult> {
       sourceTypes: ['accessibility'],
       accessibilityTreeJson: frame.accessibility_tree_json
     };
-    screenpipeClient.addRecord(record);
+    captureClient.addRecord(record);
   }
 
   // Step 4: Run IndexingService.runOnce()
   const indexingService = createIndexingService({
     embeddingProvider,
-    screenpipeClient,
+    captureClient,
     vectorStore,
     checkpointStore: checkpointStore as import('../../../src/services/retrieval/types.js').CheckpointStore,
     freshnessWindowMinutes: 60 * 24 * 7,  // 7 days — wide enough to catch all fixtures
@@ -534,7 +535,9 @@ async function runEval(): Promise<WorkActivityEvalResult> {
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
-    embeddingService
+    embeddingService,
+    embeddingConcurrency: 1,
+    captureProviderName: 'screenpipe'
   });
 
   // Use a fixed "now" slightly after the latest fixture timestamp

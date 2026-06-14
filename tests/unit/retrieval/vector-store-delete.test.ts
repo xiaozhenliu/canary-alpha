@@ -155,6 +155,23 @@ describe('InMemoryVectorStore.deleteByFrameIds', () => {
 
     expect(deleted).toBe(0);
   });
+
+  it('deleteByFrameIds matches records that only carry metadata.captureId', async () => {
+    // Records written after the Task 5 dual-write migration carry
+    // `captureId: 'screenpipe:frame:<id>'` instead of (or in addition
+    // to) the legacy `frameId` key. The store MUST match on the neutral
+    // key so Cascade_Delete works for post-migration records.
+    const store = new InMemoryVectorStore(VECTOR_CONFIG);
+    await store.upsert([{
+      id: 'r1',
+      text: 't',
+      timestamp: '2026-06-12T00:00:00Z',
+      sourceTypes: ['accessibility'],
+      metadata: { captureId: 'screenpipe:frame:42' }
+    }]);
+    const deleted = await store.deleteByFrameIds([42]);
+    expect(deleted).toBe(1);
+  });
 });
 
 describe('InMemoryVectorStore.deleteByTimestampRange', () => {

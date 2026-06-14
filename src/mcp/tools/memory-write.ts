@@ -6,7 +6,7 @@ import { formatMemoryWriteToolResult } from './shared.js';
 
 const inputSchema = z.object({
   scope: z.enum(['memory', 'user']).default('memory'),
-  content: z.string().min(1),
+  content: z.string().min(1).max(65536),
   mode: z.enum(['append', 'replace']).default('append')
 });
 

@@ -1,7 +1,7 @@
 ---
-doc_version: 14
+doc_version: 18
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # Governed Documents
@@ -56,7 +56,7 @@ Excluded from governance:
 | `docs/guide/operations.md` | Operators | Day-to-day management | Service management, diagnostics, index maintenance, e2e check, disk layout | adequate | none |
 | `docs/guide/troubleshooting.md` | Operators and maintainers | Operational diagnosis and recovery | Service unreachable, provider errors, rebuild path, log inspection, capture observability | adequate | none |
 | `docs/reference/tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input schema, output expectations | adequate | none |
-| `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, validation rules | adequate | none |
+| `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, config CLI commands, validation rules | adequate | none |
 | `docs/reference/privacy.md` | All users | Privacy and data locality | Data storage, capture defaults, runtime controls, log rotation | adequate | none |
 
 ### Documentation site — Simplified Chinese (docs/zh/)
@@ -88,6 +88,12 @@ Excluded from governance:
 | `docs/delivery/hermes.md` | Operators validating Hermes interoperability | Hermes-specific verification boundary | adequate | none |
 | `docs/architecture.md` | Maintainers and advanced integrators | Runtime architecture and implementation boundaries | adequate | none |
 | `docs/develop_log.md` | Maintainers | Milestone-oriented development history | adequate | none |
+| `docs/specs/README.md` | Maintainers and contributors | Tool-agnostic backlog index and spec format convention | adequate | none |
+| `docs/specs/routines-mvp.md` | Maintainers and contributors | Remaining Routines MVP requirements and acceptance criteria | adequate | none |
+| `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria | adequate | none |
+| `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
+| `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
+| `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |
 
 ## State Vocabulary
 

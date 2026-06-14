@@ -11,13 +11,13 @@ import { testTempRoot } from '../helpers/test-tmp.js';
 
 const CANONICAL_FOCUSED_V1_TOOLS = [
   { name: 'file-analyze', title: 'Analyze File' },
-  { name: 'find', title: 'Find Evidence' },
-  { name: 'inspect', title: 'Inspect Session or Frame' },
+  { name: 'find', title: 'Find in Screen Memory' },
+  { name: 'inspect', title: 'Inspect Screen Session or Frame' },
   { name: 'internal-status', title: 'Internal Status' },
   { name: 'memory-read', title: 'Read Memory' },
   { name: 'memory-write', title: 'Write Memory' },
   { name: 'privacy-control', title: 'Privacy Control' },
-  { name: 'recall', title: 'Recall Time Window' },
+  { name: 'recall', title: 'Recall Screen Activity' },
   { name: 'screenpipe-control', title: 'Screenpipe Control' }
 ] as const;
 const ROUTINE_TOOL_NAMES = ['routine-list', 'routine-create', 'routine-history'] as const;

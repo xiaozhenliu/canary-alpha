@@ -50,12 +50,27 @@ describe('http MCP initialization', () => {
       port: number;
       pid: number;
       configFile: string;
+      captureProvider: {
+        provider: string;
+        capabilities: {
+          providerName: string;
+          ocrText: boolean;
+          accessibilityTree: boolean;
+          frameDetail: boolean;
+          retentionTrim: boolean;
+          processLifecycle: boolean;
+        };
+      };
     };
 
     expect(structured.status).toBe('ok');
     expect(structured.mode).toBe('http');
     expect(structured.port).toBe(server.port);
     expect(structured.pid).toBe(server.pid);
+
+    // Capture provider capabilities exposed via status (Task 8, Stage 4).
+    expect(structured.captureProvider.provider).toBe('screenpipe');
+    expect(structured.captureProvider.capabilities.accessibilityTree).toBe(true);
   });
 
   it('rejects unauthenticated HTTP requests', async () => {

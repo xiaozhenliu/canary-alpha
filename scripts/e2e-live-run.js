@@ -4,7 +4,7 @@
 // One-command live verification on this machine:
 //   npm run e2e:live -- --duration 10m [--index-timeout 120s]
 //
-// Phase 0  preflight (hermes CLI, app config, args)
+// Phase 0  preflight (build current source, hermes CLI, app config, args)
 // Phase 1  Screenpipe: reuse healthy instance or start CLI daemon
 // Phase 2  MCP service: reuse reachable endpoint or `npm run service:start`
 // Phase 3  recording window with frame-count progress
@@ -44,6 +44,7 @@ const appDirectory = join(homedir(), '.canary-alpha-mcp');
 const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
 
 const SCREENPIPE_BASE_URL = 'http://localhost:3030';
+const BUILD_TIMEOUT_MS = 180_000;
 const SCREENPIPE_START_TIMEOUT_MS = 60_000;
 const MCP_START_TIMEOUT_MS = 60_000;
 const PROGRESS_INTERVAL_MS = 30_000;
@@ -232,6 +233,57 @@ async function readExtractionWatermark(server) {
   }
 }
 
+/**
+ * Ground-truth retrieval probe over the recorded window.
+ *
+ * Calls the `recall` tool directly (session granularity) so the harness has
+ * an objective count of how much of the window is actually retrievable,
+ * independent of how the hermes agent phrases its answer or whether it falls
+ * back to other tools' metadata. `recall` is used rather than `find` because
+ * it is query-independent — a `find` keyword returning zero does not prove
+ * the window is empty, whereas a session count is a direct measure.
+ *
+ * Returns `{ ok, recallSessions }`. `ok` is false when the probe itself could
+ * not run (connection/tool error); callers must treat `ok === false` as
+ * "no ground truth available" and fall back to transcript heuristics rather
+ * than as an empty window.
+ */
+async function probeRetrieval(server, fromIso, toIso) {
+  const client = new Client({ name: 'e2e-live-run-probe', version: '1.0.0' });
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`http://${server.host}:${server.port}/mcp`),
+    server.authToken !== undefined
+      ? { authProvider: { token: async () => server.authToken } }
+      : undefined
+  );
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({
+      name: 'recall',
+      arguments: { from: fromIso, to: toIso, granularity: 'session', includeSummary: false }
+    });
+    const text = result?.content?.find((entry) => entry.type === 'text')?.text;
+    if (result?.isError === true) {
+      // The recall tool itself errored (e.g. output-schema validation). That
+      // is a real failure, not "no ground truth" — report it as a failed probe
+      // with the detail so it is not silently swallowed.
+      const detail = typeof text === 'string' ? text.slice(0, 200) : 'unknown error';
+      console.warn(`[phase5] retrieval probe: recall returned an error result: ${detail}`);
+      return { ok: false, recallSessions: null };
+    }
+    const parsed = result?.structuredContent ?? (typeof text === 'string' ? JSON.parse(text) : null);
+    const recallSessions = Array.isArray(parsed?.sessions) ? parsed.sessions.length : 0;
+    // `hasContent` is what classifyHermesOutcome gates on; derive it here so a
+    // non-empty window is recognised as a pass (and an empty one as a fail).
+    return { ok: true, recallSessions, hasContent: recallSessions > 0 };
+  } catch (error) {
+    console.warn(`[phase5] retrieval probe failed: ${error instanceof Error ? error.message : String(error)}`);
+    return { ok: false, recallSessions: null };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -265,6 +317,23 @@ async function main() {
   }
 
   log('phase0', `duration=${options.durationMs / 1_000}s indexTimeout=${options.indexTimeoutMs / 1_000}s hermes=${hermesVersion}`);
+
+  // Build the current source before anything runs the service. `service:start`
+  // launches the prebuilt `dist/` entrypoint and never rebuilds, so without
+  // this step e2e:live can validate a stale build — silently defeating the
+  // point of a live end-to-end check (the harness would "pass" code that is
+  // not what is on disk). Building here guarantees a service WE start reflects
+  // HEAD; the reuse branch in phase 2 warns when it cannot make that promise.
+  log('phase0', 'Building current source (npm run build) so the service under test reflects HEAD.');
+  try {
+    await execFileAsync('npm', ['run', 'build'], { cwd: repositoryRoot, timeout: BUILD_TIMEOUT_MS });
+  } catch (error) {
+    fail('build-failed', { hermesVersion }, [
+      `npm run build failed: ${error instanceof Error ? error.message : String(error)}`,
+      'Fix the TypeScript build before running e2e:live.'
+    ]);
+    return;
+  }
 
   screenpipeSettings = await loadScreenpipeSettings();
 
@@ -316,6 +385,11 @@ async function main() {
 
   if (await isMcpReachable(server)) {
     log('phase2', `Reusing reachable MCP service at ${endpoint}.`);
+    // The phase-0 build refreshed dist/ on disk, but an already-running
+    // service loaded its code into memory at its own start time — we cannot
+    // prove it is the freshly-built code. Surface this so a "pass" against a
+    // stale reused service is never mistaken for validation of HEAD.
+    console.warn('[phase2] WARNING: reusing an already-running MCP service; e2e:live cannot guarantee it runs the just-built code. For a guaranteed-fresh run, stop it first: npm run service:stop.');
   } else {
     log('phase2', `MCP service not reachable — running npm run service:start.`);
     try {
@@ -443,7 +517,16 @@ async function main() {
     return;
   }
 
-  // Phase 5: hermes content verification
+  // Phase 5: ground-truth retrieval probe + hermes content verification.
+  // The probe runs first so the harness has an objective measure of window
+  // retrievability before — and independent of — the model's narrative.
+  const retrievalProbe = await probeRetrieval(server, recordStartIso, recordEndIso);
+  if (retrievalProbe.ok) {
+    log('phase5', `retrieval probe: recall.sessions=${retrievalProbe.recallSessions} over the recorded window.`);
+  } else {
+    log('phase5', 'retrieval probe could not run; falling back to transcript heuristics for pass/fail.');
+  }
+
   const query = `调用 recall（from=${recordStartIso}，to=${recordEndIso}，granularity 自选）查询这段时间的屏幕活动；如果 recall 没有返回会话，就改用 find 在同一时间窗内检索屏幕内容。最后总结这段时间屏幕上实际出现的内容，引用具体的应用或文本。`;
   log('phase5', 'Running hermes chat content verification.');
   let chatTranscript = '';
@@ -472,7 +555,7 @@ async function main() {
   const transcriptPath = join(tmpdir(), `e2e-live-run-transcript-${recordEnd.getTime()}.txt`);
   await writeFile(transcriptPath, chatTranscript, 'utf8');
 
-  const verdict = classifyHermesOutcome({ transcript: chatTranscript, chatFailed });
+  const verdict = classifyHermesOutcome({ transcript: chatTranscript, chatFailed, retrievalProbe });
 
   // Phase 6: cleanup + summary
   await cleanup();
@@ -484,6 +567,9 @@ async function main() {
     mcpEndpoint: endpoint,
     recordWindow: `${recordStartIso} .. ${recordEndIso}`,
     framesInWindow: lastWindowCount,
+    // Ground-truth retrieval count over the window (independent of the model's
+    // narrative); 'probe-failed' means the harness could not measure it.
+    recallSessionsInWindow: retrievalProbe.ok ? retrievalProbe.recallSessions : 'probe-failed',
     transcriptPath
   });
 
@@ -491,7 +577,7 @@ async function main() {
     if (verdict.failureMode === 'llm-not-configured') {
       console.error('Configure a model/provider in ~/.hermes/config.yaml (credentials are user responsibility).');
     } else if (verdict.failureMode === 'empty-recall') {
-      console.error('Tool ran but returned no content for the window — inspect the transcript and storage diagnostics.');
+      console.error('recall returned no sessions for the recorded window (see recallSessionsInWindow above) — the window was captured but is not retrievable. Inspect the indexer/embedding health: npm run service:logs / npm run storage:diagnostics.');
     } else if (verdict.failureMode === 'tool-call-failed') {
       console.error('Hermes did not call recall/find successfully — inspect the transcript.');
     }

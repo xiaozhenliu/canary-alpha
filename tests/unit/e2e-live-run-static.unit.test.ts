@@ -6,6 +6,7 @@ const REPO_ROOT = join(import.meta.dirname, '..', '..');
 const SCRIPT = readFileSync(join(REPO_ROOT, 'scripts', 'e2e-live-run.js'), 'utf8');
 
 const VALID_FAILURE_MODES = [
+  'build-failed',
   'hermes-missing',
   'config-missing',
   'screenpipe-unhealthy',
@@ -18,7 +19,7 @@ const VALID_FAILURE_MODES = [
 ] as const;
 
 describe('e2e-live-run.js failure mode partition', () => {
-  it('handles all 9 failure modes', () => {
+  it('handles all 10 failure modes', () => {
     for (const mode of VALID_FAILURE_MODES) {
       expect(SCRIPT, `failure mode '${mode}' must appear in e2e-live-run.js`).toContain(`'${mode}'`);
     }

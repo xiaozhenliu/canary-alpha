@@ -1,5 +1,5 @@
 ---
-doc_version: 8
+doc_version: 10
 doc_status: active
 last_updated: 2026-06-12
 ---
@@ -19,7 +19,7 @@ Use `npm run onboard` for the MCP-layer first-run path after your local Screenpi
 - Automatic app-config backups created by `npm run onboard`: `~/.canary-alpha-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
 - Hermes config updated by `npm run onboard`: `~/.hermes/config.yaml`
 
-If you have already finished onboarding and want to change embedding settings later, edit `~/.canary-alpha-mcp/config.yaml` directly, then restart the managed service with `npm run service:stop && npm run service:start`.
+If you have already finished onboarding and want to change settings later, use the [`config` CLI](#managing-configuration-with-the-config-cli) (or edit `~/.canary-alpha-mcp/config.yaml` directly), then restart the managed service with `npm run service:stop && npm run service:start`.
 
 ## Default first-run behavior
 
@@ -88,6 +88,42 @@ The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the 
 
 `npm run setup` writes the same default config shape and log directory without starting the service.
 
+## Managing configuration with the config CLI
+
+Instead of hand-editing `config.yaml`, you can manage every field with the built-in `config` subcommand. It type-checks and validates values before writing, preserves your comments and formatting, masks secrets, and surfaces environment overrides. It never starts the full server (no vector store or runtime bootstrap), so it stays fast and keeps working even when the rest of the config is broken.
+
+Run it from the built server:
+
+```bash
+npm run build            # produces dist/ once
+node dist/src/index.js config <command> ...
+```
+
+| Command | What it does |
+|---------|--------------|
+| `config list [--reveal]` | Print every effective field. Schema-default fallbacks are tagged `(default)`; environment overrides are tagged `(overridden by env <VAR>)`. |
+| `config get <path> [--reveal]` | Read one dotted path, e.g. `config get providers.embeddings.model`. |
+| `config set <path> <value>` | Set one field. The value is type-coerced and the whole file is re-validated before the write; the config file is created if it does not exist yet. |
+| `config set <path> -- <value>` | Same, with a `--` terminator so a value that starts with `-` (for example a negative `analysis.embeddings.minScore`) is not parsed as a flag. |
+| `config unset <path>` | Remove an optional field so it falls back to its schema default. Required fields cannot be unset. |
+| `config add <path> <item>` | Append one item to an array field, in place, with comments preserved. |
+| `config remove <path> <item>` | Remove one item from an array field. |
+| `config validate` | Validate the current `config.yaml` against the schema and print per-field errors. Exits non-zero on failure. |
+| `config path` | Print the absolute path of `config.yaml`. |
+
+Flags:
+
+- `--reveal` — show secret values (`providers.embeddings.apiKey`, `llm.api_key`, `screenpipe.apiKey`, `server.authToken`) in cleartext instead of `***`. A warning is printed because the secret then lands in your terminal history.
+- `--` — terminator after which all following tokens are taken literally; use it for values that begin with `-`.
+
+Notes:
+
+- **Secrets are masked by default** in `list` and `get`; only `--reveal` shows them.
+- **Environment overrides win at runtime.** If a field is currently overridden by an environment variable (for example `MCP_PORT`), the CLI says so, so a `set` that appears to have no effect is explained rather than silent.
+- **Computed paths are read-only.** Derived values such as `paths.*` are not file fields and cannot be `set`.
+
+After a `set`, `unset`, `add`, or `remove`, restart the managed service for changes to take effect: `npm run service:stop && npm run service:start`.
+
 ## Configuration fields
 
 ### `server`
@@ -104,7 +140,24 @@ The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the 
 |-------|------|---------|-------|
 | `level` | `debug` \| `info` \| `warn` \| `error` | `info` | Controls service log verbosity. |
 
+### `capture`
+
+| Field | Type | Default | Notes |
+|-------|------|---------|-------|
+| `provider` | `screenpipe` | `screenpipe` | Which capture provider backs screen-memory ingestion, inspect, trim, and recorder control. Currently `screenpipe` is the only supported value; adding a new provider means a new directory under `src/services/capture/providers/` plus a new enum member. |
+| `livenessThresholdSeconds` | positive integer | `120` | Frames newer than this count as live capture (`ok`); older frames classify the capture state as `idle`. |
+| `permissionsGracePeriodSeconds` | non-negative integer | `60` | Grace period after the recorder process starts before a frameless state is reported as `permissions-missing`. |
+
+```yaml
+capture:
+  # Which capture provider backs screen-memory ingestion.
+  # Currently supported: screenpipe (default).
+  provider: screenpipe
+```
+
 ### `screenpipe`
+
+Provider-specific configuration block for the `screenpipe` capture provider (the same way `providers.embeddings` configures the embedding provider). It is only consulted when `capture.provider` is `screenpipe`.
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|

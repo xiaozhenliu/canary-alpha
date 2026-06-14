@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-14
 ---
 
 # Development Log
@@ -21,6 +21,96 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-14: Security Audit Remediation (v2.2.0)
+
+**Result**
+
+- Remediated all 9 findings from `docs/security/audit-2026-06-14.md` (2 High, 4 Medium, 2 Low, 1 informational).
+- HTTP transport hardened: timing-safe auth comparison (H1), concurrent-connection cap with `server.maxConnections` (H2), startup warning when no authToken (H3), internal error redaction from 500 responses (M1).
+- Config file permission check warns on group/world-readable files at load time (M3).
+- Screenpipe-control `start`/`stop` actions now emit audit logs at `warn` level (M4).
+- `memory-write` content capped at 64 KB via Zod schema (L2).
+- Remote-LLM evidence fragments are pre-filtered through `redactSecrets()` before outbound calls (L1).
+- M2 (file-analyze root scope) deferred: no `config.yaml.example` exists; existing code-level mitigations (realpath, isPathWithinRoot, extension whitelist) are sufficient.
+
+**Decisions**
+
+- `maxConnections` is a required field on `AppConfig.server` (not optional) to ensure all code paths are aware of the cap. The default of 10 is conservative for a localhost-only server.
+- The stat()-based permission check is isolated in its own try/catch so a race between readFile and stat cannot block config loading.
+- `redactSecrets()` is exported from `remote-llm.ts` for direct unit testing.
+
+**Verification**
+
+- TypeScript: 0 errors. Full test suite: 1064 pass, 0 fail.
+- Independent code review (subagent) approved with 0 critical/important findings, 3 low-priority suggestions (2 adopted: stat isolation, warning message completeness).
+- New unit tests: http-auth (6), http-connection-cap (6), config-permissions (4), memory-write-schema (4), remote-llm-redaction (7).
+
+## 2026-06-14: Background Recorder Lifecycle, Layering Guardrail (TD-003), and internal-status Test Isolation (TD-009)
+
+**Result**
+
+- The Screenpipe recorder can now run detached from the terminal. Added `npm run recorder:start` / `recorder:stop` / `recorder:status` / `recorder:logs`, the `npm run up -- --detach` opt-in, and `npm run down:all` for a one-command graceful teardown. Default `npm run up` stays foreground (unchanged). Released as `2.1.0`.
+- TD-003 resolved: the "service layer must not depend upward" rule is now an automated contract test (`tests/contract/layering-boundary.test.ts`) instead of a convention.
+- TD-009 resolved: `BootstrapStatusService.getStatus()` no longer forces inspection of the real `~/.screenpipe`. `BootstrapStatusDependencies` gained an optional `screenpipeDirectory` injection seam, so the `internal-status` integration tests read a fixture instead of the developer's real multi-gigabyte capture database.
+
+**Decisions**
+
+- Recorder backgrounding uses lightweight detach (`detached` + `unref` + log redirect + PID file), not a second launchd agent — a terminal-launched process inherits the session's screen-recording (TCC) grant, which a launchd daemon may not. `down:all` stops the recorder before the service so the recorder's final maintenance pass flushes first.
+- TD-003 landed as a `git`-free, resolution-based contract test rather than `dependency-cruiser`/ESLint, to match the repo's existing boundary-test convention and add zero toolchain dependencies. Path resolution (not substring matching) prevents false positives like `bootstrap-status-service.ts`.
+- TD-009 used dependency injection with a `?? resolveScreenpipeDirectory()` fallback so production behaviour is byte-for-byte unchanged; only the test seam is new. The fix also removed `makeConfig`'s never-wired `screenpipeDir` parameter — the fossil of the original broken wiring.
+
+**Verification**
+
+- `npx tsc --noEmit` clean; targeted suites green (observability + work-activity internal-status + layering boundary, 30 tests).
+- Full unit + contract + integration suite: 997 passing. One pre-existing, unrelated failure was surfaced (`tool-manifest.contract`) and then fixed as a follow-up: the live `find` tool title is `Find in Screen Memory` (its actual purpose), but the canonical contract snapshot and the runtime `TOOL_MANIFEST` still carried the unrelated legacy name `Find Evidence`. Both stale references were corrected to match the live tool (no behaviour change — the registered title was already correct).
+- Recorder lifecycle verified live earlier: `up -- --detach` detaches (recorder PPID 1), real Screenpipe `/health` 200, `down:all` graceful stop with a recorded `trigger:"final"` maintenance pass, no orphan processes. The recorder graceful-stop test was hardened against a startup signal race (ready handshake) after the full parallel suite exposed flakiness.
+
+## 2026-06-13: Retrieval Correctness and One-Command Daily Bring-Up
+
+**Result**
+
+- `recall` and `find` now return results for time-window queries that mix timezone representations. Time-window bounds are compared as absolute UTC instants instead of by raw string ordering, so a UTC `Z` query bound matches capture data stored with a local offset.
+- `recall` no longer fails MCP output validation on real data: `activeSeconds` / `totalActiveSeconds` / `byApp` are rounded to integer whole seconds to match the tool's output schema.
+- `npm run e2e:live` builds the current source before starting the service (no longer validating a stale `dist/`), runs a direct ground-truth `recall` probe over the recorded window, and fails (`build-failed` / `empty-recall`) instead of falsely passing.
+- `npm run service:start` and `npm run service:status` work when the auth token lives in `config.yaml` (not the environment); their readiness/health probes previously timed out or misreported a healthy service.
+- Added `npm run up` (build → start managed service → ensure Screenpipe recording) and `npm run down` as the one-command daily bring-up / teardown.
+- Registered TD-008 (time-window queries depend on runtime `datetime()` normalization; canonical-UTC storage deferred).
+
+**Decisions**
+
+- Fix the timezone-window bug query-side with SQLite `datetime()` on both bounds (the existing `ax-tree-maintenance-service` pattern); no on-disk data migration. Accept the index-bypass cost at local-first scale; defer canonical-UTC storage to TD-008.
+- Keep keyset-pagination cursor comparisons as raw string compares — their bound is a stored timestamp of the same representation, and `datetime()` would truncate the sub-second tiebreak.
+- Preserve `recall`'s integer-seconds output contract by rounding at the service boundary rather than relaxing the schema.
+- These were pre-existing defects, independent of the capture-provider migration; two pairs of them masked each other (the timezone bug kept `recall` empty, which hid the integer-validation bug; the auth-token env-only probe was hidden because `e2e:live` injected the token from config).
+
+**Verification**
+
+- Full Vitest suite green (1019 tests) with new regression coverage: cross-timezone window matching (session store + extracted-content store), `recall` fractional→integer rounding, and the `up` orchestration contract.
+- Live `npm run e2e:live` end-to-end pass: `recall.sessions > 0` over a freshly recorded window, ground-truth probe satisfied.
+- Live `npm run up` brings the full stack up and `npm run service:status` reports `healthy`; clean teardown via `npm run down` leaves no orphan processes.
+
+## 2026-06-13: Screen-Memory `db.sqlite` Growth Diagnosis and Maintenance Throughput Fix
+
+**Result**
+
+- Diagnosed why a live `~/.screenpipe/db.sqlite` had reached 4.55 GB while captured frames spanned only ~3 days (06-10 .. 06-13) and `--retention-days 7` was working (zero rows older than 7 days). It was neither a retention bug nor un-reclaimed deleted space (freelist was ~0; the file was almost entirely live data).
+- Located the cost driver via `dbstat` + per-column length sums: the `frames` table was 3.85 GB, of which the per-frame `accessibility_tree_json` blob alone was 2.6 GB across ~2,400 frames (avg 1.1 MB/frame, max 3 MB). Event-driven capture under `--use-all-monitors` snapshots a full accessibility tree on every keypress / visual change (2,034 `key_press` + 1,746 `visual_change` triggers), so the blobs accumulate quickly.
+- Confirmed the reduction mechanism works but could not keep up: `AxTreeMaintenanceService.sweepOnce()` converts each frame's tree JSON into the compact `elements` table after 15 minutes and nulls the blob, then `reclaimOnce()` returns pages via `incremental_vacuum`. At `DEFAULT_BATCH_SIZE=100` and reclaim `maxPages=2000` (~8 MB/run) it fell behind the capture inflow and never drained the backlog, and the file never shrank.
+- Fix (commit `897a964`): raised `DEFAULT_BATCH_SIZE` 100 → 500 and the reclaim page ceiling 2000 → 20000 (~80 MB/run). Sweep/convert logic unchanged. Because the scheduled maintenance runs via `tsx` against `src/` (spawned by `screenpipe-safe-record.js` every 10 min), the new defaults take effect on the next cycle without a rebuild.
+- One-time lossless cleanup of the live database: drained the backlog (`maintain:run` ×7, ~2,257 frames swept) then `PRAGMA incremental_vacuum` + `PRAGMA wal_checkpoint(TRUNCATE)`. Result: 4.55 GB → 0.93 GB.
+
+**Decisions**
+
+- Use `incremental_vacuum` + a TRUNCATE checkpoint for the live reclaim rather than a full `VACUUM` / `maintain:init`. `auto_vacuum` was already INCREMENTAL, so this returns space in place with no downtime and no extra disk — important because only ~13 GB was free, and `maintain:init` would back up the DB and `VACUUM` under an exclusive lock (needs Screenpipe stopped + ~2× DB size free).
+- In WAL mode `incremental_vacuum` reduces `page_count` immediately but only truncates the main file after a checkpoint; the cleanup must pair it with `wal_checkpoint(TRUNCATE)`.
+- Keep routine reclaim on `incremental_vacuum` (steady, lock-friendly) instead of adding a periodic full `VACUUM` to the maintenance loop. `maintain:init` remains the manual defrag path.
+- Did not change capture volume (`--use-all-monitors` / per-keypress AX snapshots) — deferred per the user; the throughput fix makes the DB self-bounding regardless.
+
+**Verification**
+
+- Maintenance unit tests green (33) and `tsc --noEmit` clean. Existing reclaim/sweep tests pass explicit overrides, so the new defaults do not affect them.
+- Live cleanup verified: `page_count` 951,171 → 226,500, file 4.55 GB → 0.93 GB, `PRAGMA quick_check = ok`, 247,413 accessibility `elements` rows preserved, `framesWithTreeJson` down to ~180 (only the <15-min working set), and Screenpipe kept recording with `/health` OK throughout.
 
 ## 2026-06-11: Screenpipe Maintenance Observability
 

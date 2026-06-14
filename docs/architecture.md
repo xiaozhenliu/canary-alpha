@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-14
 ---
 
 # canary-alpha-mcp 架构文档
@@ -47,14 +47,15 @@ last_updated: 2026-06-11
 
 ### 2.4 领域服务层（`src/services/`）
 
-- 检索/索引：`src/services/retrieval/`（screenpipe client、embedding provider 工厂、vector store、hybrid ranker、checkpoint、freshness policy、indexing service）。
+- 屏幕采集（capture provider 边界）：`src/services/capture/`——`types.ts` 定义中立领域模型与端口（`CaptureRecord`、`CaptureClient`、`CaptureFrameDetailPort`、`CaptureLifecyclePort`、`CaptureCapabilities`、`buildCaptureId`/`parseCaptureId`），`provider-factory.ts` 按 `capture.provider` 配置装配 provider；Screenpipe 专属实现（HTTP client、frames reader、trim service、control service）全部收敛在 `src/services/capture/providers/screenpipe/`。上层服务只依赖中立端口，**禁止按 provider 名分支，必须按 capabilities 分支**；该边界由契约测试 `tests/contract/capture-boundary.test.ts` 守卫（白名单层：config、diagnostics、privacy、maintenance、screenpipe-control 工具）。
+- 检索/索引：`src/services/retrieval/`（embedding provider 工厂、vector store、hybrid ranker、checkpoint、freshness policy、indexing service；capture client 经 provider factory 注入）。
 - 工作活动：`src/services/work-activity/`（extraction 规则注册表、sessions 聚合、summary、embedding-service、find/recall/inspect、cascade-delete、observability、derived-database、hash-index）。
-- 数据控制与可观测：`src/services/memory/`、`src/services/privacy/`、`src/services/file-analysis/`、`src/services/screenpipe-control/`、`src/services/trim/`、`src/services/diagnostics/`、`src/services/runtime-process-registry.ts`、`src/services/bootstrap-status-service.ts`。
+- 数据控制与可观测：`src/services/memory/`、`src/services/privacy/`、`src/services/file-analysis/`、`src/services/diagnostics/`、`src/services/runtime-process-registry.ts`、`src/services/bootstrap-status-service.ts`。
 - 已定义但未接线：`src/services/routines/`（见第 7 节）。
 
 ### 2.5 基础设施适配层
 
-- Screenpipe HTTP 适配：`src/services/retrieval/screenpipe-client.ts`（`/search` 双查询 accessibility + ocr）。
+- Screenpipe HTTP 适配：`src/services/capture/providers/screenpipe/http-client.ts`（`/search` 双查询 accessibility + ocr）。
 - Embedding provider 工厂：`src/services/retrieval/provider-factory.ts`（统一走 OpenAI-compatible client + 并发限制装饰器）。
 - 向量持久化：`src/services/retrieval/vector-store.ts` 的 **`FileBackedVectorStore`**，持久化到 `vector-store.json`，内存内 dot-product 暴力检索。**不是 Chroma**——`createVectorStore` 始终返回它并忽略 `config.vectorStore.kind`。
 - Derived SQLite：`src/services/work-activity/derived-database.ts`（`node:sqlite` 的 `DatabaseSync`，承载 `sessions`、`extracted_content`、`embedding_hash_index`）。
@@ -64,7 +65,7 @@ last_updated: 2026-06-11
 ### 2.6 后台处理
 
 - 索引轮询：`startIndexingPoller` → `DefaultIndexingService.runOnce()`。
-- Trim/retention 轮询：`startTrimPoller` → `src/services/trim/screenpipe-trim-service.ts`。
+- Trim/retention 轮询：`startTrimPoller` → `src/services/capture/providers/screenpipe/trim-service.ts`（仅当 provider 的 `capabilities.retentionTrim` 为 true 时调度，上游 db 路径经 `CaptureProvider.upstreamDatabasePath` 注入）。
 - CLI safe-record 维护：`scripts/screenpipe-safe-record.js` 在 `screenpipe@latest record` 旁路启动 `scripts/screenpipe-db-maintain.ts run`，默认每 10 分钟执行一次，并在 recorder 退出后执行一次 final pass。维护运行结果写入 `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`，该 JSONL 日志保留 7 天且超过 1 MB 时轮转到 `.1`。周期性维护不阻塞 recorder 生命周期；final pass 会等待维护日志落盘后再结束 wrapper。
 - 会话聚合 / 摘要 / cascade-delete：均在 work-activity 子系统内，由索引循环与工具调用驱动。
 
@@ -79,7 +80,7 @@ last_updated: 2026-06-11
 
 **Managed 服务与绑定守卫**：当 `CANARY_ALPHA_MCP_MANAGED_SERVICE === '1'` 时，`create-app.ts` 的守卫强制 host 必须为 `127.0.0.1`，否则启动失败；logger 同时改为写文件并静默 stderr。launchd 集成解析 `~/Library/LaunchAgents/com.canary-alpha-mcp.plist`。
 
-**rebuild-index 离线恢复路径**：与传输层独立。它先 `acquireRebuildLock` 取文件锁，再 `ensureRecoveryTargetIsOffline`——通过 `@modelcontextprotocol/client` 探测 `http://host:port/mcp` 并调用 `internal-status`（匹配 `status==ok && mode==http && configFile`），同时用 `ps` 扫描 legacy 进程，确认没有 live/managed/legacy server 仍持有检索 artifacts；随后用临时 `vectorStorePath` 重放全量 backlog，最后把重建的 `vector-store.json` / `retrieval-checkpoint.json` 原子换入（带 `.bak` 回滚），打印 JSON 恢复报告。
+**rebuild-index 离线恢复路径**：与传输层独立。它先 `acquireRebuildLock` 取文件锁，再 `ensureRecoveryTargetIsOffline`——通过 `@modelcontextprotocol/client` 探测 `http://host:port/mcp` 并调用 `internal-status`（匹配 `status==ok && mode==http && configFile`），同时用 `ps` 扫描 legacy 进程，确认没有 live/managed/legacy server 仍持有检索 artifacts；随后用临时 `vectorStorePath` 重放全量 backlog，最后把重建的 `vector-store.json` / `retrieval-checkpoint.<provider>.json` 原子换入（带 `.bak` 回滚），打印 JSON 恢复报告。
 
 **并发安全**：`src/services/runtime-process-registry.ts` 用每进程 `<pid>.json` marker（`process.kill(pid,0)` + `ps lstart=/etime=` 身份校验）做跨进程注册，并用 hardlink 的 `rebuild-index.lock` 保证 rebuild 单持有者，防止并发 writer 损坏检索状态（单 writer 风险是 FileBackedVectorStore / SQLite 的关键约束）。
 
@@ -116,13 +117,13 @@ v1 在 `src/mcp/register-tools.ts` 中实际注册 **9 个工具**。`src/mcp/to
 
 ### (b) 索引路径
 
-1. `startIndexingPoller` 周期触发 `DefaultIndexingService.runOnce()`：读 checkpoint、flush 空闲 session。
+1. `startIndexingPoller` 周期触发 `DefaultIndexingService.runOnce()`：读 checkpoint、flush 空闲 session。首次启动时执行 priority catch-up（最多 10 轮连续 `runOnce`）快速清理积压。
 2. `fetchCandidateRecords` 在稳态用 `screenpipe-client.recent(windowMinutes)`、在 backlog 追赶时分页 `search()`。Screenpipe client 对 `/search` 双查询（accessibility 主 + ocr 兜底），`mergeByFrameId`（AX 优先）合并。
-3. 过滤晚于 checkpoint 的记录 → 剪除 secure-AX 子树 → 隐私过滤。
-4. 逐帧 `extraction 规则注册表`（`TerminalRefinementRule → GenericHeuristicRule`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**）。
-5. 逐条 embed：`embed(input: string)` 单条处理，`embedExtraction` 每次一个 extraction，仅受并发限制器约束（默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`，**不批处理**）。
-6. 写 derived SQLite（`extracted_content`）+ `vector-store.json`（id=`extracted:${frameId}`）+ 按 SHA256 在 `embedding_hash_index` 去重（命中复用向量、仍写每帧向量行）。
-7. 推进 checkpoint（provider-unavailable 时回退保持，extraction/session 行仍持久化，embedding 稍后重试）。
+3. 过滤晚于 checkpoint 的记录 → 剪除 secure-AX 子树。
+4. **Step 1（串行）**：逐帧 `extraction 规则注册表`（`TerminalRefinementRule → GenericHeuristicRule`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**），同时写 derived SQLite（`extracted_content`）并折叠到 `SessionAggregator`。隐私状态逐帧刷新，被阻断的记录进入 blocked 队列。
+5. **Step 2（并发）**：通过 `computeEmbedding()` 发起并发 embedding 调用（滑动窗口 promise 池，并发度由 `providers.embeddings.concurrency` 控制，默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`），仅计算 embedding 向量，不写 vector store。按 SHA256 在 `embedding_hash_index` 去重（命中复用向量）。
+6. **Step 3（串行）**：将所有成功的 embedding 批量写入 `vector-store.json`（id=`extracted:${frameId}`，单次 `upsert` 调用）。
+7. 推进 checkpoint（provider-unavailable 时回退保持，extraction/session 行仍持久化，embedding 稍后重试）。blocked 记录释放后走串行 `embedExtraction` 路径。
 
 ### (c) work-activity 端到端
 
@@ -153,22 +154,26 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 
 ### 6.2 zod schema 结构（`src/config/schema.ts`）
 
-`appConfigSchema` 聚合：`server`（`mode` 默认 `http`、`host` 默认 `127.0.0.1`、`port` 默认 `8765`）、`logging.level`（默认 `info`）、`screenpipe`（`url` / `apiKey` 可选）、`providers.embeddings`、`vectorStore`、`trim`（`enabled` 默认 true、`intervalSeconds` 默认 600）、`capture`、`storage`（`diskBudgetBytes` 默认 `null` 即不限、`retentionDays` 默认 7）、`privacy`（`excludeApps` 默认 `['1Password','Keychain Access']`、`secureAxRoles` 默认 `['AXSecureTextField']`）。
+`appConfigSchema` 聚合：`server`（`mode` 默认 `http`、`host` 默认 `127.0.0.1`、`port` 默认 `8765`）、`logging.level`（默认 `info`）、`screenpipe`（`url` / `apiKey` 可选）、`providers.embeddings`、`vectorStore`、`trim`（`enabled` 默认 true、`intervalSeconds` 默认 600）、`capture`（`provider` 默认 `screenpipe`，枚举驱动 capture provider 工厂；另含 liveness/permissions 阈值）、`storage`（`diskBudgetBytes` 默认 `null` 即不限、`retentionDays` 默认 7）、`privacy`（`excludeApps` 默认 `['1Password','Keychain Access']`、`secureAxRoles` 默认 `['AXSecureTextField']`）。
 
 ### 6.3 embedding provider 抽象（切换不改代码）
 
 `embeddingsProviderSchema`：`kind`（默认 `openai-compatible`）、`baseUrl`、`model`、`apiKey`、`concurrency`（默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`）。`src/services/retrieval/provider-factory.ts` 统一构造 OpenAI-compatible client 并套并发限制装饰器，因此切换 dashscope / openai / ollama / azure **只需改 `config.yaml` 的 `providers.embeddings`，无需改业务代码**。
 
+### 6.4 capture provider 抽象（接入新采集工具只加目录 + 一行配置）
+
+`capture.provider`（枚举，默认 `screenpipe`）选择采集 provider，`src/services/capture/provider-factory.ts` 的 `createCaptureProvider(config)` 负责装配：返回 `CaptureProvider`（capabilities + client + 可选 frameDetail / lifecycle / upstreamDatabasePath）。`screenpipe:` 顶层配置段从此定义为 screenpipe provider 的专属配置块。持久化关联键使用中立 `captureId`（`<provider>:frame:<id>`），过渡期与遗留裸 `frameId` 双写、删除路径双键匹配；检索 checkpoint 按 provider 命名空间隔离（`retrieval-checkpoint.<provider>.json`，升级时无损接管旧文件）；对外错误码中立化为 `CAPTURE_SOURCE_UNAVAILABLE`（error 对象保留 `screenpipeCode` 兼容属性）。`internal-status` 输出 `captureProvider.provider` 与 capabilities。
+
 > **装饰性配置警示**：`vectorStoreConfigSchema.kind` 默认值为 `'chroma'`，但 `createVectorStore` 完全忽略它、始终返回 `FileBackedVectorStore`。该字段当前无运行时效果，保留仅为向后兼容/未来扩展。
 
-### 6.4 数据与存储目录布局
+### 6.5 数据与存储目录布局
 
 | 路径 | 内容 |
 |------|------|
 | `~/.canary-alpha-mcp/config.yaml` | 用户配置（`CONFIG_PATH_SEGMENT`） |
 | `~/.canary-alpha-mcp/derived.sqlite` | derived DB：`sessions` / `extracted_content` / `embedding_hash_index`（可经 `paths.derivedDatabase` 覆盖） |
 | `~/.canary-alpha-mcp/vector-store.json` | `FileBackedVectorStore` 持久化（可经 `vectorStore.path` 覆盖，支持 `~/` 展开） |
-| `~/.canary-alpha-mcp/retrieval-checkpoint.json` | 索引 checkpoint |
+| `~/.canary-alpha-mcp/retrieval-checkpoint.<provider>.json` | 索引 checkpoint（按 capture provider 命名空间，如 `retrieval-checkpoint.screenpipe.json`；旧的 `retrieval-checkpoint.json` 升级时被一次性接管） |
 | `~/.canary-alpha-mcp/privacy-state.json` | 隐私状态 / suppressed-range tombstone |
 | `~/.canary-alpha-mcp/memory/{memory,user}.md` | 长期记忆（每 scope 一文件） |
 | `~/.canary-alpha-mcp/logs/service.log` | 结构化日志（大小轮转） |

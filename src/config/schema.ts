@@ -9,7 +9,8 @@ const serverConfigSchema = z.object({
   mode: serverModeSchema.default('http'),
   host: z.string().default('127.0.0.1'),
   port: z.number().int().positive().default(8765),
-  authToken: z.string().min(1).optional()
+  authToken: z.string().min(1).optional(),
+  maxConnections: z.number().int().positive().default(10)
 });
 
 const loggingConfigSchema = z.object({
@@ -47,6 +48,10 @@ const trimConfigSchema = z.object({
 });
 
 export const captureConfigSchema = z.object({
+  // Which capture provider backs the ingest / inspect / trim / control
+  // paths. Adding a new provider = new directory under
+  // src/services/capture/providers/ + a new enum member here.
+  provider: z.enum(['screenpipe']).default('screenpipe'),
   livenessThresholdSeconds: z.number().int().positive().default(120),
   permissionsGracePeriodSeconds: z.number().int().nonnegative().default(60)
 });
@@ -65,7 +70,7 @@ const retrievalConfigSchema = z.object({
   freshnessWindowMinutes: z.number().int().positive().default(15),
   pollIntervalSeconds: z.number().int().positive().default(30),
   maxCatchUpBatches: z.number().int().positive().default(3),
-  maxCatchUpRecords: z.number().int().positive().default(500)
+  maxCatchUpRecords: z.number().int().positive().default(1500)
 });
 
 const routinesConfigSchema = z.object({
@@ -131,7 +136,8 @@ export const appConfigSchema = z.object({
   server: serverConfigSchema.default({
     mode: 'http',
     host: '127.0.0.1',
-    port: 8765
+    port: 8765,
+    maxConnections: 10
   }),
   logging: loggingConfigSchema.default({
     level: 'info'
@@ -150,11 +156,12 @@ export const appConfigSchema = z.object({
     freshnessWindowMinutes: 15,
     pollIntervalSeconds: 30,
     maxCatchUpBatches: 3,
-    maxCatchUpRecords: 500
+    maxCatchUpRecords: 1500
   }),
   routines: routinesConfigSchema.default({ enabled: false }),
   trim: trimConfigSchema.default({ enabled: true, intervalSeconds: 600 }),
   capture: captureConfigSchema.default({
+    provider: 'screenpipe',
     livenessThresholdSeconds: 120,
     permissionsGracePeriodSeconds: 60
   }),

@@ -56,9 +56,9 @@ async function createSqliteDb(dir: string, rows: Array<{ id: number; timestamp: 
 
 
 /** Builds a minimal AppConfig for testing. */
-function makeConfig(screenpipeDir: string, diskBudgetBytes: number | null = null): AppConfig {
+function makeConfig(diskBudgetBytes: number | null = null): AppConfig {
   return {
-    server: { mode: 'stdio', host: '127.0.0.1', port: 8765 },
+    server: { mode: 'stdio', host: '127.0.0.1', port: 8765, maxConnections: 10 },
     logging: { level: 'info' },
     screenpipe: { url: 'http://localhost:3030' },
     providers: { embeddings: { kind: 'none' } },
@@ -72,7 +72,7 @@ function makeConfig(screenpipeDir: string, diskBudgetBytes: number | null = null
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: false, intervalSeconds: 3600 },
-    capture: { livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
     storage: { diskBudgetBytes, retentionDays: 7 },
     privacy: { excludeApps: [], secureAxRoles: [] },
     analysis: {
@@ -105,9 +105,11 @@ function makeVectorRecord(id: string, sourceTypes: string[], timestamp: string):
 
 // ---------------------------------------------------------------------------
 // Scenario A: budget=null, no db.sqlite (ENOENT path)
-// Note: BootstrapStatusService uses resolveScreenpipeDirectory() (hardcoded to
-// ~/.screenpipe), so capture.state depends on the real system state.
-// We test the ENOENT path directly via IngestionObservabilityService.
+// Note: BootstrapStatusService now reads the injected `screenpipeDirectory`
+// (a per-test fixture dir), so these cases exercise the real ENOENT path
+// against an isolated empty directory rather than the developer's real
+// ~/.screenpipe. We also keep the direct IngestionObservabilityService cases
+// below for the lowest-level ENOENT contract.
 // ---------------------------------------------------------------------------
 
 import {
@@ -128,7 +130,7 @@ describe('IngestionObservabilityService: ENOENT path (no db.sqlite)', () => {
       screenpipeDirectory: dir,
       vectorStore: new InMemoryVectorStore({ kind: 'memory' }),
       runtimeRegistry: stubRuntimeRegistry,
-      config: makeConfig(dir, null),
+      config: makeConfig(null),
       now: () => new Date()
     };
     const svc = new IngestionObservabilityService(deps);
@@ -145,7 +147,7 @@ describe('IngestionObservabilityService: ENOENT path (no db.sqlite)', () => {
       screenpipeDirectory: dir,
       vectorStore: new InMemoryVectorStore({ kind: 'memory' }),
       runtimeRegistry: stubRuntimeRegistry,
-      config: makeConfig(dir, null),
+      config: makeConfig(null),
       now: () => new Date()
     };
     const svc = new IngestionObservabilityService(deps);
@@ -161,11 +163,12 @@ describe('internal-status: budget=null, no db.sqlite (ENOENT)', () => {
   it('capture block: state is one of the five valid values and livenessThresholdSeconds is set', async () => {
     const dir = await createTempDir();
     // No db.sqlite created in dir
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -183,11 +186,12 @@ describe('internal-status: budget=null, no db.sqlite (ENOENT)', () => {
 
   it('capture block: livenessThresholdSeconds equals config value (120)', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -197,11 +201,12 @@ describe('internal-status: budget=null, no db.sqlite (ENOENT)', () => {
 
   it('ingestionMix block: windowSeconds == 86400, counts are non-negative', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -216,11 +221,12 @@ describe('internal-status: budget=null, no db.sqlite (ENOENT)', () => {
 
   it('diskBudget block: budgetBytes=null, headroomBytes=null when budget is not configured', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -245,11 +251,12 @@ describe('internal-status: db.sqlite with recent frames + vector store records',
     const recentTs = new Date(now.getTime() - 30_000).toISOString(); // 30s ago
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -263,11 +270,12 @@ describe('internal-status: db.sqlite with recent frames + vector store records',
     const recentTs = new Date(Date.now() - 30_000).toISOString();
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -281,7 +289,7 @@ describe('internal-status: db.sqlite with recent frames + vector store records',
     const recentTs = new Date(Date.now() - 30_000).toISOString();
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
 
     // Insert 3 accessibility records and 2 OCR-only records within the 24h window
@@ -297,7 +305,8 @@ describe('internal-status: db.sqlite with recent frames + vector store records',
 
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -312,11 +321,12 @@ describe('internal-status: db.sqlite with recent frames + vector store records',
     const recentTs = new Date(Date.now() - 30_000).toISOString();
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -337,11 +347,12 @@ describe('internal-status: budget=some_value with db.sqlite', () => {
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
     const budget = 50 * 1024 * 1024; // 50 MB
-    const config = makeConfig(dir, budget);
+    const config = makeConfig(budget);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -358,11 +369,12 @@ describe('internal-status: budget=some_value with db.sqlite', () => {
     await createSqliteDb(dir, [{ id: 1, timestamp: recentTs }]);
 
     const budget = 50 * 1024 * 1024; // 50 MB
-    const config = makeConfig(dir, budget);
+    const config = makeConfig(budget);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -378,11 +390,12 @@ describe('internal-status: budget=some_value with db.sqlite', () => {
 
     // Use a very large budget so the tiny test db is well under 90%
     const budget = 1024 * 1024 * 1024; // 1 GB
-    const config = makeConfig(dir, budget);
+    const config = makeConfig(budget);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -399,11 +412,12 @@ describe('internal-status: budget=some_value with db.sqlite', () => {
 
     // Budget of 1000 bytes → 950/1000 = 95% → should trigger warning
     const budget = 1000;
-    const config = makeConfig(dir, budget);
+    const config = makeConfig(budget);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -421,12 +435,13 @@ describe('internal-status: budget=some_value with db.sqlite', () => {
 describe('internal-status: ingestionMix ratio edge cases', () => {
   it('ratio == 0.0 when vector store is empty (no records)', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     // No records upserted
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -439,7 +454,7 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
   it('ratio == 1.0 when all records are accessibility', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
 
     const now = new Date();
@@ -451,7 +466,8 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -463,7 +479,7 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
   it('ratio == 0.0 when all records are OCR-only', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
 
     const now = new Date();
@@ -475,7 +491,8 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -487,7 +504,7 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
   it('records outside the 24h window are excluded from ingestionMix counts', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
 
     const now = new Date();
@@ -502,7 +519,8 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -520,11 +538,12 @@ describe('internal-status: ingestionMix ratio edge cases', () => {
 describe('internal-status: all three new blocks are present in response', () => {
   it('status response contains capture, ingestionMix, and diskBudget blocks', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -557,11 +576,12 @@ describe('internal-status: all three new blocks are present in response', () => 
 
   it('existing screenpipeStorage field is still present (backward compatibility)', async () => {
     const dir = await createTempDir();
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const vectorStore = new InMemoryVectorStore({ kind: 'memory' });
     const svc = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore
+      vectorStore,
+      screenpipeDirectory: dir
     });
 
     const status = await svc.getStatus();
@@ -613,7 +633,7 @@ describe('Property 26: AX 接通后 internal-status 三联立 (Requirements 7.1)
       getProcessStartedAt: async () => new Date(now.getTime() - 300_000).toISOString() // started 5 min ago
     };
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const deps: IngestionObservabilityServiceDeps = {
       screenpipeDirectory: dir,
       vectorStore,
@@ -660,7 +680,7 @@ describe('Property 26: AX 接通后 internal-status 三联立 (Requirements 7.1)
       getProcessStartedAt: async () => new Date(now.getTime() - 600_000).toISOString() // started 10 min ago
     };
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const deps: IngestionObservabilityServiceDeps = {
       screenpipeDirectory: dir,
       vectorStore,
@@ -709,7 +729,7 @@ describe('Property 26: AX 接通后 internal-status 三联立 (Requirements 7.1)
       getProcessStartedAt: async () => null as string | null
     };
 
-    const config = makeConfig(dir, null);
+    const config = makeConfig(null);
     const deps: IngestionObservabilityServiceDeps = {
       screenpipeDirectory: dir,
       vectorStore,

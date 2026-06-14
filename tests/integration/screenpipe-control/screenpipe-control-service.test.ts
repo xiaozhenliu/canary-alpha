@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DefaultScreenpipeControlService } from '../../../src/services/screenpipe-control/screenpipe-control-service.js';
+import { DefaultScreenpipeControlService } from '../../../src/services/capture/providers/screenpipe/control-service.js';
 
 describe('screenpipe-control service', () => {
   it('status returns running=false when Screenpipe is not reachable', async () => {

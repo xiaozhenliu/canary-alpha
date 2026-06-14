@@ -1,7 +1,7 @@
 ---
-doc_version: 19
+doc_version: 22
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # canary-alpha-mcp
@@ -160,6 +160,12 @@ Useful local commands:
 | `npm run onboard` | Configure, build, start, and validate the managed local service |
 | `npm run service:status` | Check managed service and MCP endpoint health |
 | `npm run service:logs` | Tail managed service logs |
+| `npm run up -- --detach` | Bring up the stack with the recorder running in the background |
+| `npm run down:all` | Gracefully stop the recorder and the managed service in one command |
+| `npm run recorder:start` | Start the Screenpipe recorder detached (logs to `recorder.log`) |
+| `npm run recorder:status` | Report whether the background recorder is running |
+| `npm run recorder:stop` | Gracefully stop the background recorder |
+| `npm run recorder:logs` | Tail the background recorder log |
 | `npm run rebuild-index` | Rebuild retrieval artifacts from local Screenpipe data |
 | `npm run dev:stdio` | Run the MCP server over stdio |
 | `npm run dev:http` | Run the MCP server over HTTP |
