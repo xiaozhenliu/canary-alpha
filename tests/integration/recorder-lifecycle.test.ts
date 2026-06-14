@@ -56,14 +56,40 @@ function env(homeDir: string): NodeJS.ProcessEnv {
   return { ...process.env, HOME: homeDir };
 }
 
-/** Spawn a long-lived dummy process that exits cleanly on SIGTERM. */
+/**
+ * Spawn a long-lived dummy process that exits cleanly (code 0) on SIGTERM.
+ * It writes "ready" once the SIGTERM handler is installed so a test can wait
+ * for the handler before signalling — otherwise a signal delivered during the
+ * sub-millisecond startup window terminates it via the default action
+ * (exitCode null / signalCode SIGTERM), making the graceful-stop assertion
+ * flaky under parallel load.
+ */
 function spawnDummy(): ChildProcess {
   const child = spawn(process.execPath, [
     '-e',
-    'process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 1_000_000_000);'
-  ], { stdio: 'ignore' });
+    'process.on("SIGTERM", () => process.exit(0)); process.stdout.write("ready\\n"); setInterval(() => {}, 1_000_000_000);'
+  ], { stdio: ['ignore', 'pipe', 'ignore'] });
   children.push(child);
   return child;
+}
+
+/** Resolve once the dummy reports that its SIGTERM handler is installed. */
+function waitForReady(child: ChildProcess): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let buffer = '';
+    child.stdout?.on('data', (chunk) => {
+      buffer += String(chunk);
+      if (buffer.includes('ready')) {
+        resolve();
+      }
+    });
+    // Fail fast with a clear message instead of degrading to a Vitest timeout
+    // if the dummy dies before reporting ready.
+    child.once('error', reject);
+    child.once('exit', (code, signal) => {
+      reject(new Error(`dummy exited before ready (code=${code}, signal=${signal})`));
+    });
+  });
 }
 
 function waitForExit(child: ChildProcess): Promise<void> {
@@ -104,6 +130,7 @@ describe('recorder:stop script', () => {
   it('gracefully stops a running recorder via SIGTERM and removes the PID file', async () => {
     const homeDir = await makeHome();
     const dummy = spawnDummy();
+    await waitForReady(dummy); // ensure the SIGTERM handler is installed before signalling
     await writeFile(pidFilePath(homeDir), `${dummy.pid}\n`, 'utf8');
 
     const { stdout } = await execFileAsync(process.execPath, [STOP_SCRIPT], { env: env(homeDir) });

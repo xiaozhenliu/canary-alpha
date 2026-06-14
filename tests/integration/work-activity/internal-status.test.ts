@@ -29,8 +29,12 @@
  * **Validates: Requirements 2.1, 4.1, 8.1, 8.6**
  */
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { testTempRoot } from '../../helpers/test-tmp.js';
 import { BootstrapStatusService } from '../../../src/services/bootstrap-status-service.js';
 import { InMemoryVectorStore } from '../../../src/services/retrieval/vector-store.js';
 import {
@@ -56,6 +60,26 @@ const cleanups: Array<() => void> = [];
 afterEach(() => {
   for (const fn of cleanups.splice(0)) fn();
 });
+
+/**
+ * Lazily create an isolated, empty upstream-capture directory for the current
+ * test and inject it into BootstrapStatusService. Without this the service
+ * would inspect the developer's real `~/.screenpipe`; an empty fixture dir
+ * keeps `screenpipeStorage` deterministic (ENOENT) without coupling to the
+ * real machine. Recreated per test (cleaned up in `afterEach`). See TD-009.
+ */
+let cachedScreenpipeDir: string | undefined;
+function isolatedScreenpipeDirectory(): string {
+  if (cachedScreenpipeDir === undefined) {
+    const dir = mkdtempSync(join(testTempRoot(), 'wa-internal-status-sp-'));
+    cachedScreenpipeDir = dir;
+    cleanups.push(() => {
+      rmSync(dir, { recursive: true, force: true });
+      cachedScreenpipeDir = undefined;
+    });
+  }
+  return cachedScreenpipeDir;
+}
 
 /** Stub CheckpointStore that returns null (no recovery state). */
 const stubCheckpointStore = {
@@ -142,7 +166,8 @@ function buildHarness(now: Date = new Date('2026-04-13T11:00:00.000Z')): Harness
   const service = new BootstrapStatusService(config, {
     checkpointStore: stubCheckpointStore,
     vectorStore,
-    workActivityObservability: observability
+    workActivityObservability: observability,
+    screenpipeDirectory: isolatedScreenpipeDirectory()
   });
 
   return { service, db, extractedStore, sessionStore };
@@ -365,7 +390,8 @@ describe('internal-status: work-activity blocks present and structured (task 9.2
     const service = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
       vectorStore: new InMemoryVectorStore({ kind: 'memory' } as never),
-      workActivityObservability: observability
+      workActivityObservability: observability,
+      screenpipeDirectory: isolatedScreenpipeDirectory()
     });
 
     const status = await service.getStatus();
@@ -395,7 +421,8 @@ describe('internal-status: work-activity blocks omitted when observability dep i
     const config = makeConfig();
     const service = new BootstrapStatusService(config, {
       checkpointStore: stubCheckpointStore,
-      vectorStore: new InMemoryVectorStore({ kind: 'memory' } as never)
+      vectorStore: new InMemoryVectorStore({ kind: 'memory' } as never),
+      screenpipeDirectory: isolatedScreenpipeDirectory()
     });
 
     const status = await service.getStatus();

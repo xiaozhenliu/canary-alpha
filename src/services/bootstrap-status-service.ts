@@ -27,6 +27,18 @@ interface BootstrapStatusDependencies {
    * upstream observability service follows when its collection fails.
    */
   workActivityObservability?: WorkActivityObservabilityService;
+  /**
+   * Upstream capture data directory (the Screenpipe home capture folder).
+   * Optional injection point: production omits it and falls back to
+   * {@link resolveScreenpipeDirectory} (the real home-relative path), while
+   * integration tests pass a fixture directory so `screenpipeStorage` and the
+   * disk-budget / capture observability blocks read the test's SQLite fixture
+   * instead of the developer's real multi-gigabyte capture database. Without
+   * this seam `getStatus()` always inspected the real directory, which made the
+   * disk-budget assertions non-deterministic (they compared a hard-coded budget
+   * against the real db size). See tech-debt TD-009.
+   */
+  screenpipeDirectory?: string;
 }
 
 /**
@@ -118,7 +130,10 @@ export class BootstrapStatusService {
   ) {}
 
   async getStatus(address?: AddressInfo | null): Promise<BootstrapStatus> {
-    const screenpipeStorage = await inspectScreenpipeSqlite(resolveScreenpipeDirectory());
+    // Prefer the injected upstream directory (tests point this at a fixture);
+    // fall back to the real home-relative capture directory in production.
+    const screenpipeDirectory = this.deps.screenpipeDirectory ?? resolveScreenpipeDirectory();
+    const screenpipeStorage = await inspectScreenpipeSqlite(screenpipeDirectory);
 
     // Collect ingestion observability signals (capture, ingestionMix, diskBudget).
     // Failures here are non-fatal: the three blocks are simply omitted from the response.
@@ -128,7 +143,7 @@ export class BootstrapStatusService {
 
     try {
       const observabilityService = new IngestionObservabilityService({
-        screenpipeDirectory: resolveScreenpipeDirectory(),
+        screenpipeDirectory,
         vectorStore: this.deps.vectorStore,
         runtimeRegistry: new RuntimeProcessRegistryAdapter(this.config),
         config: this.config,

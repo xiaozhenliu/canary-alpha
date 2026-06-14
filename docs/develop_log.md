@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 ---
 
 # Development Log
@@ -21,6 +21,26 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-14: Background Recorder Lifecycle, Layering Guardrail (TD-003), and internal-status Test Isolation (TD-009)
+
+**Result**
+
+- The Screenpipe recorder can now run detached from the terminal. Added `npm run recorder:start` / `recorder:stop` / `recorder:status` / `recorder:logs`, the `npm run up -- --detach` opt-in, and `npm run down:all` for a one-command graceful teardown. Default `npm run up` stays foreground (unchanged). Released as `2.1.0`.
+- TD-003 resolved: the "service layer must not depend upward" rule is now an automated contract test (`tests/contract/layering-boundary.test.ts`) instead of a convention.
+- TD-009 resolved: `BootstrapStatusService.getStatus()` no longer forces inspection of the real `~/.screenpipe`. `BootstrapStatusDependencies` gained an optional `screenpipeDirectory` injection seam, so the `internal-status` integration tests read a fixture instead of the developer's real multi-gigabyte capture database.
+
+**Decisions**
+
+- Recorder backgrounding uses lightweight detach (`detached` + `unref` + log redirect + PID file), not a second launchd agent — a terminal-launched process inherits the session's screen-recording (TCC) grant, which a launchd daemon may not. `down:all` stops the recorder before the service so the recorder's final maintenance pass flushes first.
+- TD-003 landed as a `git`-free, resolution-based contract test rather than `dependency-cruiser`/ESLint, to match the repo's existing boundary-test convention and add zero toolchain dependencies. Path resolution (not substring matching) prevents false positives like `bootstrap-status-service.ts`.
+- TD-009 used dependency injection with a `?? resolveScreenpipeDirectory()` fallback so production behaviour is byte-for-byte unchanged; only the test seam is new. The fix also removed `makeConfig`'s never-wired `screenpipeDir` parameter — the fossil of the original broken wiring.
+
+**Verification**
+
+- `npx tsc --noEmit` clean; targeted suites green (observability + work-activity internal-status + layering boundary, 30 tests).
+- Full unit + contract + integration suite: 997 passing. One pre-existing, unrelated failure remains (`tool-manifest.contract` — `find` tool title `Find in Screen Memory` vs manifest `Find Evidence`); it predates this work and is out of scope for these TODOs.
+- Recorder lifecycle verified live earlier: `up -- --detach` detaches (recorder PPID 1), real Screenpipe `/health` 200, `down:all` graceful stop with a recorded `trigger:"final"` maintenance pass, no orphan processes. The recorder graceful-stop test was hardened against a startup signal race (ready handshake) after the full parallel suite exposed flakiness.
 
 ## 2026-06-13: Retrieval Correctness and One-Command Daily Bring-Up
 

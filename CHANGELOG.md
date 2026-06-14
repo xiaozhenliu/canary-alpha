@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-11
+last_updated: 2026-06-14
 ---
 
 # Changelog
@@ -12,6 +12,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [2.1.0] - 2026-06-14
+
+### Added
+
+- Background Screenpipe recorder so the launching terminal can be closed:
+  `npm run recorder:start` / `recorder:stop` / `recorder:status` /
+  `recorder:logs`, plus `npm run up -- --detach` to bring the stack up with the
+  recorder detached. Output is written to
+  `~/.canary-alpha-mcp/logs/recorder.log` and the PID to
+  `~/.canary-alpha-mcp/recorder.pid`.
+- `npm run down:all` for a one-command graceful teardown that stops the recorder
+  (SIGTERM with a final maintenance pass) and then the managed MCP service.
+
+### Changed
+
+- `npm run up` is unchanged by default — the recorder still runs in the
+  foreground unless `--detach` is passed.
 
 ## [2.0.2] - 2026-06-11
 
