@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile, mkdir, rename, rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, normalize } from 'node:path';
 import { promisify } from 'node:util';
@@ -16,7 +16,7 @@ import {
   findActiveRuntimeProcesses,
   registerRuntimeProcess
 } from './services/runtime-process-registry.js';
-import { resolveVectorStoreDirectory, resolveVectorStoreFilePath } from './services/retrieval/vector-store.js';
+import { resolveVectorStoreDirectory } from './services/retrieval/vector-store.js';
 import { startHttpTransport } from './transports/http.js';
 import { startStdioTransport } from './transports/stdio.js';
 import type { AppContext, ServerMode } from './types/app-config.js';
@@ -540,68 +540,24 @@ async function ensureRecoveryTargetIsOffline(config: AppContext['config']): Prom
   }
 }
 
-async function replaceRecoveryArtifact(
-  sourcePath: string,
-  targetPath: string,
-  backupPath: string
-): Promise<{ replacedExisting: boolean; }> {
-  await rm(backupPath, { force: true });
-
-  let targetMoved = false;
-  try {
-    await rename(targetPath, backupPath);
-    targetMoved = true;
-  } catch (error) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code !== 'ENOENT') {
-      throw error;
-    }
-  }
-
-  try {
-    await rename(sourcePath, targetPath);
-    return {
-      replacedExisting: targetMoved
-    };
-  } catch (error) {
-    if (targetMoved) {
-      await rm(targetPath, { force: true }).catch(() => undefined);
-      await rename(backupPath, targetPath).catch(() => undefined);
-    }
-    throw error;
-  }
-}
 
 async function runRebuildIndex(): Promise<void> {
-  const primaryApp = await createApp({
+  const app = await createApp({
     startIndexingPoller: false
   });
-  const rebuildLock = await acquireRebuildLock(primaryApp.config);
+  const rebuildLock = await acquireRebuildLock(app.config);
 
   try {
-    await ensureRecoveryTargetIsOffline(primaryApp.config);
-    const vectorStoreDirectory = resolveVectorStoreDirectory(primaryApp.config.vectorStore);
-    const targetVectorStorePath = resolveVectorStoreFilePath(primaryApp.config.vectorStore);
-    // Use the provider-namespaced checkpoint filename to match what createApp
-    // writes; the provider name is stable for the lifetime of the rebuild run.
-    const captureProviderName = primaryApp.config.capture.provider;
+    await ensureRecoveryTargetIsOffline(app.config);
+    const vectorStoreDirectory = resolveVectorStoreDirectory(app.config.vectorStore);
+    const captureProviderName = app.config.capture.provider;
     const checkpointFileName = `retrieval-checkpoint.${captureProviderName}.json`;
     const targetCheckpointPath = join(vectorStoreDirectory, checkpointFileName);
 
-    const rebuildPath = join(vectorStoreDirectory, `.rebuild-index-${process.pid}-${Date.now()}`);
-    const rebuiltVectorStorePath = join(rebuildPath, 'vector-store.json');
-    const rebuiltCheckpointPath = join(rebuildPath, checkpointFileName);
-    const vectorStoreBackupPath = `${targetVectorStorePath}.bak`;
-    const checkpointBackupPath = `${targetCheckpointPath}.bak`;
-
-    await mkdir(rebuildPath, { recursive: true });
-
-    const app = await createApp({
-      mode: 'stdio',
-      startIndexingPoller: false,
-      vectorStorePath: rebuildPath
-    });
-
+    // With SqliteVectorStore, reset() clears the vectors table directly —
+    // no temp directory or JSON file swap needed. SQLite transactions
+    // provide atomicity. For FileBackedVectorStore (kind='file'), the
+    // legacy JSON swap path still works through the same reset() call.
     await app.services.retrieval.vectorStore.reset();
     await app.services.retrieval.checkpointStore.reset();
 
@@ -618,98 +574,69 @@ async function runRebuildIndex(): Promise<void> {
     let totalIndexed = 0;
     let nextForcedBacklog: typeof fullHistoryBacklog | null = fullHistoryBacklog;
 
-    try {
-      while (nextForcedBacklog) {
-        const previousOffset = nextForcedBacklog.nextOffset;
-        const runResult = await app.services.retrieval.indexing.runOnce(
-          rebuildStartedAt,
-          nextForcedBacklog
-        );
-        if (runResult.hadEmbeddingFailures) {
-          throw new Error(`rebuild-index detected embedding failures while rebuilding backlog page at offset ${previousOffset}. Resolve provider/data issues before retrying recovery.`);
-        }
-        if (!recordedCheckpointBefore) {
-          firstCheckpointBefore = runResult.checkpointBefore;
-          recordedCheckpointBefore = true;
-        }
-        finalResult = runResult;
-        totalFetched += runResult.fetched;
-        totalIndexed += runResult.indexed;
-
-        const backlogAfter = runResult.checkpointAfter?.backlog ?? null;
-        if (!backlogAfter) {
-          nextForcedBacklog = null;
-          break;
-        }
-
-        if (backlogAfter.nextOffset <= previousOffset) {
-          throw new Error(`rebuild-index could not make progress beyond backlog offset ${previousOffset}.`);
-        }
-
-        nextForcedBacklog = backlogAfter;
-      }
-
-      if (!finalResult) {
-        finalResult = await app.services.retrieval.indexing.runOnce(rebuildStartedAt, fullHistoryBacklog);
-        if (!recordedCheckpointBefore) {
-          firstCheckpointBefore = finalResult.checkpointBefore;
-          recordedCheckpointBefore = true;
-        }
-        totalFetched += finalResult.fetched;
-        totalIndexed += finalResult.indexed;
-      }
-
-      const rebuiltInspection = await app.services.retrieval.vectorStore.inspect?.();
-      const rebuiltVectorStoreState = {
-        persisted: rebuiltInspection?.persisted ?? false,
-        readable: rebuiltInspection?.readable ?? true,
-        recordCount: rebuiltInspection?.recordCount
-      };
-
-      await ensureRecoveryTargetIsOffline(primaryApp.config);
-
-      const { replacedExisting: replacedExistingVectorStore } = await replaceRecoveryArtifact(
-        rebuiltVectorStorePath,
-        targetVectorStorePath,
-        vectorStoreBackupPath
+    while (nextForcedBacklog) {
+      const previousOffset = nextForcedBacklog.nextOffset;
+      const runResult = await app.services.retrieval.indexing.runOnce(
+        rebuildStartedAt,
+        nextForcedBacklog
       );
+      if (runResult.hadEmbeddingFailures) {
+        throw new Error(`rebuild-index detected embedding failures while rebuilding backlog page at offset ${previousOffset}. Resolve provider/data issues before retrying recovery.`);
+      }
+      if (!recordedCheckpointBefore) {
+        firstCheckpointBefore = runResult.checkpointBefore;
+        recordedCheckpointBefore = true;
+      }
+      finalResult = runResult;
+      totalFetched += runResult.fetched;
+      totalIndexed += runResult.indexed;
 
-      try {
-        if (finalResult.checkpointAfter) {
-          await replaceRecoveryArtifact(rebuiltCheckpointPath, targetCheckpointPath, checkpointBackupPath);
-        } else {
-          await rm(targetCheckpointPath, { force: true });
-          await rm(rebuiltCheckpointPath, { force: true });
-        }
-      } catch (error) {
-        if (replacedExistingVectorStore) {
-          await replaceRecoveryArtifact(vectorStoreBackupPath, targetVectorStorePath, rebuiltVectorStorePath).catch(() => undefined);
-        } else {
-          await rm(targetVectorStorePath, { force: true }).catch(() => undefined);
-          await rm(rebuiltVectorStorePath, { force: true }).catch(() => undefined);
-          await rm(vectorStoreBackupPath, { force: true }).catch(() => undefined);
-        }
-        throw error;
+      const backlogAfter = runResult.checkpointAfter?.backlog ?? null;
+      if (!backlogAfter) {
+        nextForcedBacklog = null;
+        break;
       }
 
-      await rm(vectorStoreBackupPath, { force: true }).catch(() => undefined);
-      await rm(checkpointBackupPath, { force: true }).catch(() => undefined);
+      if (backlogAfter.nextOffset <= previousOffset) {
+        throw new Error(`rebuild-index could not make progress beyond backlog offset ${previousOffset}.`);
+      }
 
-      process.stdout.write(`${JSON.stringify({
-        command: 'rebuild-index',
-        reset: ['vector-store.json', checkpointFileName],
-        fetched: totalFetched,
-        indexed: totalIndexed,
-        checkpointBefore: formatCheckpoint(firstCheckpointBefore),
-        checkpointAfter: formatCheckpoint(finalResult.checkpointAfter),
-        recoveryStatus: getRecoveryStatus(finalResult.checkpointAfter, rebuiltVectorStoreState)
-      }, null, 2)}\n`);
-    } catch (error) {
-      await rm(rebuildPath, { recursive: true, force: true }).catch(() => undefined);
-      throw error;
+      nextForcedBacklog = backlogAfter;
     }
 
-    await rm(rebuildPath, { recursive: true, force: true }).catch(() => undefined);
+    if (!finalResult) {
+      finalResult = await app.services.retrieval.indexing.runOnce(rebuildStartedAt, fullHistoryBacklog);
+      if (!recordedCheckpointBefore) {
+        firstCheckpointBefore = finalResult.checkpointBefore;
+        recordedCheckpointBefore = true;
+      }
+      totalFetched += finalResult.fetched;
+      totalIndexed += finalResult.indexed;
+    }
+
+    const rebuiltInspection = await app.services.retrieval.vectorStore.inspect?.();
+    const rebuiltVectorStoreState = {
+      persisted: rebuiltInspection?.persisted ?? false,
+      readable: rebuiltInspection?.readable ?? true,
+      recordCount: rebuiltInspection?.recordCount
+    };
+
+    // The checkpoint is written directly by the checkpointStore during
+    // the indexing loop. No file swap needed — it's already at the
+    // target path. If no checkpoint was produced (empty history), clean up.
+    if (!finalResult.checkpointAfter) {
+      await rm(targetCheckpointPath, { force: true });
+    }
+
+    process.stdout.write(`${JSON.stringify({
+      command: 'rebuild-index',
+      reset: ['vectors-table', checkpointFileName],
+      fetched: totalFetched,
+      indexed: totalIndexed,
+      checkpointBefore: formatCheckpoint(firstCheckpointBefore),
+      checkpointAfter: formatCheckpoint(finalResult.checkpointAfter),
+      recoveryStatus: getRecoveryStatus(finalResult.checkpointAfter, rebuiltVectorStoreState)
+    }, null, 2)}\n`);
   } finally {
     await rebuildLock.release().catch(() => undefined);
   }

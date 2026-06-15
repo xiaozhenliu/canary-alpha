@@ -1,5 +1,5 @@
 ---
-doc_version: 14
+doc_version: 15
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -12,6 +12,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Performance
+
+- **Retrieval & storage performance overhaul** (BUG-004): All time-windowed queries
+  on derived storage are now index-served. Timestamps in `extracted_content` and
+  `sessions` tables are normalized to canonical UTC (`Z`-suffix) on write and
+  migrated once on startup (`PRAGMA user_version = 1`), eliminating the
+  `datetime()` SQL wrapping that defeated B-tree indexes on every read path.
+- **Vector store migrated from JSON to SQLite**: `vector-store.json` is replaced
+  by a `vectors` table in `derived.sqlite` with covering indexes
+  `(timestamp, id)` and `(app_name, timestamp, id)`. Embeddings are stored as
+  raw `Float32Array` BLOBs (4× smaller than JSON). Two-phase query: filter phase
+  uses covering index (no BLOB read), score phase loads only matching embeddings.
+  One-time JSON→SQLite migration runs automatically; the original file is renamed
+  to `vector-store.json.migrated` as backup.
+- **Recall batch frame query**: The per-session `getByFrameIds` loop in
+  `recall-service.ts` is replaced with a single batch call, reducing SQL
+  round-trips from N to 1 for time-block granularity.
+- `FileBackedVectorStore.persist()` no longer pretty-prints JSON (removes
+  indentation overhead from the legacy code path).
+- `rebuild-index` simplified: operates directly on `SqliteVectorStore`
+  (reset + replay), eliminating the temp-directory / atomic-file-swap dance.
+
+### Changed
+
+- Default `vectorStore.kind` changed from `'chroma'` to `'sqlite'`. Existing
+  configs with `kind: 'chroma'` are treated as `'sqlite'` (any non-`'file'`
+  value maps to the SQLite backend). Use `kind: 'file'` to opt into the legacy
+  `FileBackedVectorStore` JSON path.
+- Shared BLOB alignment utility (`src/lib/blob.ts`) extracted from
+  `hash-index.ts` — reused by both the embedding hash cache and the new
+  `SqliteVectorStore`.
 
 ### Security
 

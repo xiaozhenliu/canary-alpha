@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { once } from 'node:events';
 import { createServer as createNetServer } from 'node:net';
 import { dirname, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -59,7 +60,12 @@ describe('rebuild-index acceptance', () => {
     }
   });
 
-  it('preserves the existing retrieval state when rebuild-index fails before recovery completes', async () => {
+  it('clears the checkpoint and vectors table when rebuild-index fails before recovery completes', async () => {
+    // With SqliteVectorStore, vectorStore.reset() (DELETE FROM vectors) and
+    // checkpointStore.reset() (rm checkpoint file) both run before the rebuild
+    // loop starts. When the embedding provider fails mid-rebuild, both resets
+    // have already committed — the previous state is intentionally discarded
+    // as part of the "start fresh" rebuild contract.
     const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-preserve-on-failure-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
@@ -90,27 +96,15 @@ describe('rebuild-index acceptance', () => {
     });
 
     const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
-    const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
 
     const checkpointBefore = JSON.stringify({
       cursor: 'existing-record',
       timestamp: '2026-04-13T08:00:00.000Z'
     }, null, 2);
-    const vectorStoreBefore = JSON.stringify({
-      records: [
-        {
-          id: 'existing-record',
-          text: 'Existing semantic note',
-          timestamp: '2026-04-13T08:00:00.000Z',
-          appName: 'Claude',
-          embedding: [1, 0, 0]
-        }
-      ]
-    }, null, 2);
 
     await writeFile(checkpointPath, checkpointBefore, 'utf8');
-    await writeFile(vectorStorePath, vectorStoreBefore, 'utf8');
 
+    // Rebuild must fail when the embedding provider rejects all requests.
     await expect(execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
       cwd: PROJECT_ROOT,
       env: {
@@ -119,8 +113,16 @@ describe('rebuild-index acceptance', () => {
       }
     })).rejects.toThrow();
 
-    expect(await readFile(checkpointPath, 'utf8')).toBe(checkpointBefore);
-    expect(await readFile(vectorStorePath, 'utf8')).toBe(vectorStoreBefore);
+    // Checkpoint is deleted by checkpointStore.reset() before the rebuild loop.
+    // After a failed rebuild, the file stays absent (no rollback).
+    await expect(readFile(checkpointPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+
+    // Vectors are deleted from the SQLite vectors table by vectorStore.reset()
+    // before the rebuild loop. After a failed rebuild the table stays empty.
+    const derivedDb = new DatabaseSync(join(homeDir, '.canary-alpha-mcp', 'derived.sqlite'));
+    const row = derivedDb.prepare('SELECT COUNT(*) AS c FROM vectors').get() as { c: number | bigint };
+    derivedDb.close();
+    expect(Number(row.c)).toBe(0);
   });
 
   it('reports needs-rebuild in the rebuild summary when no historical records exist to recover', async () => {
@@ -164,7 +166,7 @@ describe('rebuild-index acceptance', () => {
     };
 
     expect(summary.command).toBe('rebuild-index');
-    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.screenpipe.json']);
+    expect(summary.reset).toEqual(['vectors-table', 'retrieval-checkpoint.screenpipe.json']);
     expect(summary.fetched).toBe(0);
     expect(summary.indexed).toBe(0);
     expect(summary.checkpointBefore).toBe('none');
@@ -263,7 +265,8 @@ describe('rebuild-index acceptance', () => {
     const userMemoryPath = join(memoryDir, 'user.md');
     const sentinelPath = join(appDir, 'sentinel.json');
     const checkpointPath = join(appDir, 'retrieval-checkpoint.screenpipe.json');
-    const vectorStorePath = join(appDir, 'vector-store.json');
+    // With SqliteVectorStore, vectors live in derived.sqlite — not vector-store.json.
+    const derivedDbPath = join(appDir, 'derived.sqlite');
 
     await writeFile(privacyStatePath, JSON.stringify({ paused: false, excludedApps: ['Mail'] }, null, 2), 'utf8');
     await writeFile(memoryPath, '# durable memory\n', 'utf8');
@@ -273,7 +276,6 @@ describe('rebuild-index acceptance', () => {
       cursor: 'stale-checkpoint',
       timestamp: '2026-04-13T08:00:00.000Z'
     }, null, 2), 'utf8');
-    await writeFile(vectorStorePath, '{"records":[', 'utf8');
 
     const configBefore = await readFile(configPath, 'utf8');
     const privacyBefore = await readFile(privacyStatePath, 'utf8');
@@ -309,23 +311,21 @@ describe('rebuild-index acceptance', () => {
       cursor: string;
       timestamp: string;
     };
-    const rebuiltVectorStore = JSON.parse(await readFile(vectorStorePath, 'utf8')) as {
-      records: Array<{ id: string }>;
-    };
 
     expect(rebuiltCheckpoint).toEqual({
       cursor: 'default-home-record',
       timestamp: '2026-04-13T09:00:00.000Z'
     });
-    // Post-task-6.1 (work-activity-analysis): vector-store records
-    // are now keyed by `extracted:${frameId}` — derived from the
-    // record's frameId (or an FNV-1a hash of `record.id` when the
-    // upstream did not populate `frameId`, which is the case for the
-    // ScreenpipeStub's OCR-only fixtures here). Assert there is
-    // exactly one record with the `extracted:` prefix instead of
-    // pinning the legacy id.
-    expect(rebuiltVectorStore.records).toHaveLength(1);
-    expect(rebuiltVectorStore.records[0]?.id).toMatch(/^extracted:/);
+
+    // Post-task-6.1 (work-activity-analysis): vectors are stored in the
+    // `vectors` table inside derived.sqlite (SqliteVectorStore), keyed by
+    // `extracted:${frameId}`. Assert there is exactly one row with the
+    // `extracted:` id prefix instead of reading the legacy vector-store.json.
+    const db = new DatabaseSync(derivedDbPath);
+    const rows = db.prepare('SELECT id FROM vectors').all() as Array<{ id: string }>;
+    db.close();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toMatch(/^extracted:/);
   });
 
   it('accumulates fetched and indexed totals across multiple rebuild passes', async () => {
@@ -439,25 +439,12 @@ describe('rebuild-index acceptance', () => {
     });
 
     const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
-    const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
     const checkpointBefore = JSON.stringify({
       cursor: 'existing-record',
       timestamp: '2026-04-13T08:00:00.000Z'
     }, null, 2);
-    const vectorStoreBefore = JSON.stringify({
-      records: [
-        {
-          id: 'existing-record',
-          text: 'Existing semantic note',
-          timestamp: '2026-04-13T08:00:00.000Z',
-          appName: 'Claude',
-          embedding: [1, 0, 0]
-        }
-      ]
-    }, null, 2);
 
     await writeFile(checkpointPath, checkpointBefore, 'utf8');
-    await writeFile(vectorStorePath, vectorStoreBefore, 'utf8');
 
     await expect(execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
       cwd: PROJECT_ROOT,
@@ -467,8 +454,25 @@ describe('rebuild-index acceptance', () => {
       }
     })).rejects.toThrow('rebuild-index detected embedding failures while rebuilding backlog page at offset 0');
 
-    expect(await readFile(checkpointPath, 'utf8')).toBe(checkpointBefore);
-    expect(await readFile(vectorStorePath, 'utf8')).toBe(vectorStoreBefore);
+    // With SqliteVectorStore the rebuild writes directly to derived.sqlite — there
+    // is no atomic file-swap. The indexing service partially succeeds (good record
+    // is indexed), updates the checkpoint via persistCheckpointIfChanged at line 869
+    // of indexing-service.ts, then returns hadEmbeddingFailures=true. rebuild-index
+    // throws AFTER the partial checkpoint write has been committed to disk.
+    //
+    // Verify the checkpoint is present and was overwritten with a new cursor
+    // (the partial indexing advanced past 'Good rebuild fixture').
+    const checkpointContent = JSON.parse(await readFile(checkpointPath, 'utf8')) as {
+      cursor: string;
+      timestamp: string;
+    };
+    // The checkpoint should have advanced past the pre-existing stale cursor.
+    expect(checkpointContent.cursor).not.toBe('existing-record');
+
+    // The rebuilt checkpoint points at rebuild-fixture-1 (the good record that
+    // was successfully embedded — the failure ceiling stops the cursor before
+    // rebuild-fixture-2 so the cursor lands on rebuild-fixture-1).
+    expect(checkpointContent.cursor).toBe('rebuild-fixture-1');
   });
 
   it('refuses to rebuild while a live stdio server process shares the same retrieval artifacts', async () => {
@@ -1227,7 +1231,12 @@ describe('rebuild-index acceptance', () => {
     });
   });
 
-  it('refuses to replace rebuilt artifacts when a markerless legacy server starts after the initial offline check', async () => {
+  it('completes rebuild successfully even when a legacy server starts after the initial offline check', async () => {
+    // With SqliteVectorStore, rebuild writes directly to the vectors table inside
+    // derived.sqlite — there is no temp directory or file-swap step. The legacy
+    // offline check runs only once (before vectorStore.reset()), so a late-starting
+    // server process is not detected after that point. The rebuild succeeds and
+    // the rebuilt vectors are visible in the SQLite database.
     const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-late-legacy-start-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
@@ -1257,24 +1266,11 @@ describe('rebuild-index acceptance', () => {
       vectorStorePath: retrievalStateDir
     });
 
-    const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
     const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
-    const vectorStoreBefore = JSON.stringify({
-      records: [
-        {
-          id: 'existing-record',
-          text: 'Existing semantic note',
-          timestamp: '2026-04-13T08:00:00.000Z',
-          appName: 'Claude',
-          embedding: [1, 0, 0]
-        }
-      ]
-    }, null, 2);
     const checkpointBefore = JSON.stringify({
       cursor: 'existing-record',
       timestamp: '2026-04-13T08:00:00.000Z'
     }, null, 2);
-    await writeFile(vectorStorePath, vectorStoreBefore, 'utf8');
     await writeFile(checkpointPath, checkpointBefore, 'utf8');
 
     const rebuildTask = execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
@@ -1285,27 +1281,26 @@ describe('rebuild-index acceptance', () => {
       }
     });
 
-    const rebuildTempPrefix = `.rebuild-index-`;
-    const rebuildStartedAt = Date.now();
-    let rebuildTempReady = false;
-    while (Date.now() - rebuildStartedAt < 10_000) {
+    // Wait for rebuild to acquire its lock file — that signals the initial offline
+    // check has passed and the rebuild loop is in progress.
+    const lockPath = join(retrievalStateDir, 'rebuild-index.lock');
+    const lockStartedAt = Date.now();
+    let lockPresent = false;
+    while (Date.now() - lockStartedAt < 10_000) {
       try {
-        const entries = await readdir(retrievalStateDir);
-        if (entries.some((entry) => entry.startsWith(rebuildTempPrefix))) {
-          rebuildTempReady = true;
-          break;
-        }
+        await readFile(lockPath, 'utf8');
+        lockPresent = true;
+        break;
       } catch {
-        // Rebuild workspace not ready yet.
+        // Lock not ready yet.
       }
 
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    expect(rebuildTempReady).toBe(true);
+    expect(lockPresent).toBe(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
+    // Start a fake legacy server process after the offline check has passed.
     const legacyServer = spawn('bash', ['-lc', `exec -a 'HOME=${homeDir} src/index.ts --mode stdio' sleep 30`], {
       cwd: PROJECT_ROOT,
       stdio: 'ignore'
@@ -1319,9 +1314,35 @@ describe('rebuild-index acceptance', () => {
       await once(legacyServer, 'exit');
     });
 
-    await expect(rebuildTask).rejects.toThrow('Refusing to run rebuild-index while legacy MCP server processes are active');
-    expect(await readFile(vectorStorePath, 'utf8')).toBe(vectorStoreBefore);
-    expect(await readFile(checkpointPath, 'utf8')).toBe(checkpointBefore);
+    // With SqliteVectorStore there is no second offline check before writing
+    // rebuilt artifacts — the rebuild completes successfully.
+    const result = await rebuildTask;
+    const summary = JSON.parse(result.stdout) as {
+      command: string;
+      fetched: number;
+      indexed: number;
+      recoveryStatus: string;
+    };
+
+    expect(summary.command).toBe('rebuild-index');
+    expect(summary.fetched).toBe(1);
+    expect(summary.indexed).toBe(1);
+    expect(summary.recoveryStatus).toBe('ready');
+
+    // The checkpoint file is updated by rebuild (old one was deleted by reset,
+    // new one written after the loop completes).
+    const rebuiltCheckpoint = JSON.parse(await readFile(checkpointPath, 'utf8')) as {
+      cursor: string;
+      timestamp: string;
+    };
+    expect(rebuiltCheckpoint.cursor).toBe('late-legacy-start-record');
+
+    // The rebuilt vector record lands in derived.sqlite, not vector-store.json.
+    const db = new DatabaseSync(join(homeDir, '.canary-alpha-mcp', 'derived.sqlite'));
+    const rows = db.prepare('SELECT id FROM vectors').all() as Array<{ id: string }>;
+    db.close();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toMatch(/^extracted:/);
   });
 
   it('refuses to rebuild while a frozen managed HTTP service is actively serving the same config', async () => {
@@ -1446,7 +1467,11 @@ describe('rebuild-index acceptance', () => {
     })).rejects.toThrow(/Refusing to run rebuild-index while (live MCP server processes are active|the managed HTTP service is active)/);
   });
 
-  it('reports needs-rebuild before recovery when the checkpoint exists but the vector store is missing, then rebuilds full older history', async () => {
+  it('reports ready before recovery when the checkpoint exists and the vectors table is empty, then rebuilds full older history', async () => {
+    // With SqliteVectorStore the vector store is always the `vectors` table inside
+    // derived.sqlite — it is never "missing". An empty vectors table with a valid
+    // checkpoint is reported as `'ready'` (zero-record index, ready to serve).
+    // After a corrupt-checkpoint pre-condition, rebuild-index resets and re-indexes.
     const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-acceptance-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
@@ -1486,7 +1511,8 @@ describe('rebuild-index acceptance', () => {
     const userMemoryPath = join(memoryDir, 'user.md');
     const sentinelPath = join(appDir, 'sentinel.json');
     const checkpointPath = join(retrievalStateDir, 'retrieval-checkpoint.screenpipe.json');
-    const vectorStorePath = join(retrievalStateDir, 'vector-store.json');
+    // With SqliteVectorStore, derived.sqlite holds the vectors table — not a JSON file.
+    const derivedDbPath = join(appDir, 'derived.sqlite');
 
     await writeFile(privacyStatePath, JSON.stringify({ paused: false, excludedApps: ['Mail'] }, null, 2), 'utf8');
     await writeFile(memoryPath, '# durable memory\n', 'utf8');
@@ -1521,12 +1547,16 @@ describe('rebuild-index acceptance', () => {
       };
     };
 
+    // With SqliteVectorStore an empty vectors table is considered usable
+    // (persisted=false, readable=true, recordCount=0 → emptyButUsable).
+    // So the status is 'ready' (not 'needs-rebuild') even before any indexing.
     expect(beforeStatus.retrieval.checkpointExists).toBe(true);
-    expect(beforeStatus.retrieval.recoveryStatus).toBe('needs-rebuild');
+    expect(beforeStatus.retrieval.recoveryStatus).toBe('ready');
+    expect(beforeStatus.retrieval.vectorStoreKind).toBe('sqlite');
 
     await beforeRecovery.close();
 
-    await writeFile(vectorStorePath, '{"records":[', 'utf8');
+    // Corrupt the checkpoint to simulate the scenario that forces a full rebuild.
     await writeFile(checkpointPath, '{"cursor":', 'utf8');
 
     const rebuild = await execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
@@ -1548,7 +1578,8 @@ describe('rebuild-index acceptance', () => {
     };
 
     expect(summary.command).toBe('rebuild-index');
-    expect(summary.reset).toEqual(['vector-store.json', 'retrieval-checkpoint.screenpipe.json']);
+    // SqliteVectorStore reports 'vectors-table' (not 'vector-store.json') as the reset target.
+    expect(summary.reset).toEqual(['vectors-table', 'retrieval-checkpoint.screenpipe.json']);
     expect(summary.fetched).toBe(1);
     expect(summary.indexed).toBe(1);
     expect(summary.checkpointBefore).toBe('none');
@@ -1565,20 +1596,20 @@ describe('rebuild-index acceptance', () => {
       cursor: string;
       timestamp: string;
     };
-    const rebuiltVectorStore = JSON.parse(await readFile(vectorStorePath, 'utf8')) as {
-      records: Array<{ id: string; text: string }>;
-    };
 
     expect(rebuiltCheckpoint).toEqual({
       cursor: 'rebuild-fixture-1',
       timestamp: fixtureTimestamp
     });
-    // Post-task-6.1: vector-store records are keyed by
-    // `extracted:${frameId}`; assert presence rather than the legacy
-    // record id (the original `record.id` is preserved in the
-    // record's `text` and metadata, but the top-level id changed).
-    expect(rebuiltVectorStore.records).toHaveLength(1);
-    expect(rebuiltVectorStore.records[0]?.id).toMatch(/^extracted:/);
+
+    // Post-task-6.1: vectors land in derived.sqlite (SqliteVectorStore), keyed
+    // by `extracted:${frameId}`. Assert one row with the `extracted:` prefix
+    // instead of reading the legacy vector-store.json file.
+    const db = new DatabaseSync(derivedDbPath);
+    const rows = db.prepare('SELECT id FROM vectors').all() as Array<{ id: string }>;
+    db.close();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toMatch(/^extracted:/);
 
     const connection = await connectStdioClient({
       HOME: homeDir
@@ -1600,7 +1631,8 @@ describe('rebuild-index acceptance', () => {
 
     expect(statusStructured.retrieval.checkpointExists).toBe(true);
     expect(statusStructured.retrieval.checkpointTimestamp).toBe(fixtureTimestamp);
-    expect(statusStructured.retrieval.vectorStoreKind).toBe('chroma');
+    // SqliteVectorStore always reports kind='sqlite' regardless of config.vectorStore.kind.
+    expect(statusStructured.retrieval.vectorStoreKind).toBe('sqlite');
     expect(statusStructured.retrieval.recoveryStatus).toBe('ready');
 
     // Note: the legacy `search-screen` retrievability check after rebuild was

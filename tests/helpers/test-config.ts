@@ -38,7 +38,7 @@ export async function writeTestConfig(homeDir: string, config: {
     '    model: acceptance-embedding-model',
     `    concurrency: ${config.embeddingConcurrency ?? 2}`,
     'vectorStore:',
-    '  kind: chroma',
+    '  kind: sqlite',
     ...(config.vectorStorePath ? [`  path: ${config.vectorStorePath}`] : []),
     'retrieval:',
     '  freshnessWindowMinutes: 15',

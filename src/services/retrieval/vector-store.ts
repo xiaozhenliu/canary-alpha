@@ -6,6 +6,8 @@ import { parseCaptureId } from '../capture/types.js';
 import { resolveRetrievalArtifactsDirectory } from '../../config/paths.js';
 import type { AppConfig } from '../../types/app-config.js';
 import type { RetrievalEvidenceItem, VectorStore, VectorStoreInspection, VectorStoreRecord, VectorSearchRequest } from './types.js';
+import { SqliteVectorStore } from './sqlite-vector-store.js';
+import type { DerivedDatabase } from '../work-activity/derived-database.js';
 
 interface PersistedVectorStorePayload {
   records: VectorStoreRecord[];
@@ -238,7 +240,7 @@ export class FileBackedVectorStore extends InMemoryVectorStore {
     const tempPath = `${this.filePath}.tmp`;
     await writeFile(
       tempPath,
-      JSON.stringify({ records: this.records } satisfies PersistedVectorStorePayload, null, 2),
+      JSON.stringify({ records: this.records } satisfies PersistedVectorStorePayload),
       { encoding: 'utf8', mode: PRIVATE_FILE_MODE }
     );
     await rename(tempPath, this.filePath);
@@ -335,6 +337,14 @@ export class FileBackedVectorStore extends InMemoryVectorStore {
   }
 }
 
-export function createVectorStore(config: AppConfig): VectorStore {
-  return new FileBackedVectorStore(config.vectorStore, resolveVectorStoreFilePath(config.vectorStore));
+export { SqliteVectorStore } from './sqlite-vector-store.js';
+
+export function createVectorStore(config: AppConfig, db?: DerivedDatabase): VectorStore {
+  if (config.vectorStore.kind === 'file') {
+    return new FileBackedVectorStore(config.vectorStore, resolveVectorStoreFilePath(config.vectorStore));
+  }
+  if (!db) {
+    throw new Error('SqliteVectorStore requires a DerivedDatabase handle');
+  }
+  return new SqliteVectorStore(db);
 }

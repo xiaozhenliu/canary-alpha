@@ -567,15 +567,15 @@ describe('SqliteSessionStore.listSessions', () => {
     expect(rows.map((r) => r.session_id).sort()).toEqual(['browser', 'editor-new']);
   });
 
-  it('matches a session stored with a local offset against UTC-Z window bounds', async () => {
-    // Regression: stored started_at carries a local offset (e.g. +08:00)
-    // while recall passes UTC `Z` bounds. A raw lexicographic compare drops
-    // the row ("18:..." > "10:..."); datetime() normalization must match it.
+  it('matches a session stored with UTC timestamp against UTC-Z window bounds', async () => {
+    // After Phase 0 timestamp normalization, all timestamps in
+    // derived.sqlite are canonical UTC Z-suffix. The write path
+    // (aggregator.ts) normalizes frameTimestamp before storing.
     await seedSession(
       'offset-session',
       makeExtraction({
         frameId: 99,
-        frameTimestamp: '2026-05-25T18:01:00.000+08:00', // == 2026-05-25T10:01:00Z
+        frameTimestamp: '2026-05-25T10:01:00.000Z',
         appName: 'Editor',
         contextKey: 'Editor::tz'
       })

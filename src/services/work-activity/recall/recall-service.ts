@@ -326,24 +326,16 @@ export class DefaultRecallService implements RecallService {
   ): Promise<RecallResult> {
     const buckets = new Map<string, BucketAggregate>();
 
+    // Batch-fetch all frames for all sessions in one call (Phase 2.1)
+    const allFrameIds = sessions.flatMap(s => s.evidence_frame_ids);
+    const allFrames = await this.deps.extractedContentStore.getByFrameIds(allFrameIds);
+    const framesByIdMap = new Map(allFrames.map(f => [f.frameId, f]));
+
     for (const session of sessions) {
-      // Pull the per-frame timestamps so we can bucket active time
-      // by frame timestamp rather than by the session's [started_at,
-      // ended_at] envelope. The latter would attribute all of a
-      // session's activity to its starting hour even if half the
-      // frames fall in the next hour.
-      const frames = await this.deps.extractedContentStore.getByFrameIds(
-        session.evidence_frame_ids
-      );
-      // The store's `getByFrameIds` does not guarantee ordering (SQL
-      // `IN (...)` returns rows in arbitrary order). Re-sort by
-      // parsed epoch milliseconds so {@link bucketSessionActiveSeconds}
-      // sees the time-ordered sequence design §8.3 assumes — and so
-      // a frame whose ISO string carries an explicit offset (e.g.
-      // `+08:00`) sorts chronologically rather than lexicographically.
-      // Unparseable timestamps collapse to `0` and surface at the
-      // start of the array; subsequent gap math clamps negative
-      // intervals to zero so a malformed row degrades gracefully.
+      const frames = session.evidence_frame_ids
+        .map(id => framesByIdMap.get(id))
+        .filter((f): f is ExtractionResult => f !== undefined);
+
       const orderedFrames = frames
         .slice()
         .sort(
@@ -352,13 +344,6 @@ export class DefaultRecallService implements RecallService {
             (Date.parse(b.frameTimestamp) || 0)
         );
 
-      // Sessions whose evidence rows are fully or partially missing
-      // from `extracted_content` (cascade-delete race, or upstream
-      // pruning ahead of the session row) get a 1-second fallback
-      // per missing frame, per design §"Failure modes" 5: "缺失帧按
-      // 1 秒计入桶，并不阻断 recall 返回". Missing seconds attach to
-      // the bucket containing `started_at` (we cannot pinpoint the
-      // missing frames' actual timestamps).
       const fetchedIds = new Set(frames.map((f) => f.frameId));
       const missingCount = session.evidence_frame_ids.reduce(
         (acc, id) => acc + (fetchedIds.has(id) ? 0 : 1),

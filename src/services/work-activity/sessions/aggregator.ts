@@ -31,6 +31,7 @@
 
 import type { ExtractionResult } from '../extraction/types.js';
 import type { SessionRow, SessionStore } from './session-store.js';
+import { normalizeToUtc } from '../../../lib/time.js';
 
 /**
  * Constructor dependencies for {@link DefaultSessionAggregator}. The
@@ -130,54 +131,38 @@ export class DefaultSessionAggregator implements SessionAggregator {
   async handleExtraction(
     extraction: ExtractionResult
   ): Promise<HandleExtractionResult> {
-    // The store filters on `(app_name, context_key, is_open = 1)`, so a
-    // frame with a different app/context cannot pull up the wrong open
-    // session. We still pass `appName` as `extraction.appName` (which
-    // may be `undefined`); the store stores `appName ?? ''` in the
-    // `app_name` column on `createSession`, so the read path here uses
-    // the same convention.
+    // Defense-in-depth: ensure frameTimestamp is UTC before it reaches
+    // the session store as started_at / ended_at. The primary
+    // normalization happens in toExtractionInput (indexing-service.ts).
+    const normalized: ExtractionResult = {
+      ...extraction,
+      frameTimestamp: normalizeToUtc(extraction.frameTimestamp)
+    };
+
     const open = await this.deps.store.findOpenSessionFor(
-      extraction.appName,
-      extraction.contextKey
+      normalized.appName,
+      normalized.contextKey
     );
 
-    if (open !== null && this.canExtend(open, extraction)) {
-      const delta = this.computeActiveSecondsDelta(open, extraction);
-      await this.deps.store.appendFrame(open.session_id, extraction, {
+    if (open !== null && this.canExtend(open, normalized)) {
+      const delta = this.computeActiveSecondsDelta(open, normalized);
+      await this.deps.store.appendFrame(open.session_id, normalized, {
         activeSecondsDelta: delta
       });
       return { sessionId: open.session_id, created: false };
     }
 
     if (open !== null) {
-      // The open session matched on `(appName, contextKey)` but failed
-      // `canExtend` — that means the gap exceeded the idle threshold or
-      // the new frame's timestamp slid before `ended_at` by more than
-      // `idleThreshold` seconds. Either way we close the stale session
-      // before creating a fresh one so the spec's invariant "at most
-      // one Open_Session per `(appName, contextKey)`" holds.
       await this.deps.store.closeSession(
         open.session_id,
         this.deps.now().toISOString()
       );
     }
 
-    // Note on R3.5 ("appName 切换 → 关闭"): `findOpenSessionFor` filters
-    // by `(appName, contextKey)`, so an app switch never returns the
-    // *previous* app's open session here. That previous session is left
-    // open until either (a) a frame with the same `(appName,
-    // contextKey)` arrives within the idle threshold (which can't happen
-    // because the user has switched apps), or (b)
-    // `flushIdleOpenSessions` runs. Path (b) executes at the start of
-    // every `IndexingService.runOnce()` (design §4 + R3.6), so the
-    // close happens within at most one indexing tick of the switch.
-    // The aggregator stays focused on a single `(appName, contextKey)`
-    // bucket per call, keeping the per-frame work O(1).
-
     const sessionId = this.deps.generateSessionId();
     await this.deps.store.createSession({
       session_id: sessionId,
-      ...extraction
+      ...normalized
     });
     return { sessionId, created: true };
   }
