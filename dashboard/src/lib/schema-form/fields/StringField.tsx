@@ -8,14 +8,10 @@ export function StringField({ path, schema, value, onChange }: FieldProps) {
       <SecretField
         value={String(value ?? '')}
         onReveal={async () => {
-          const res = await api<{ config: Record<string, unknown> }>('/config/effective?reveal=true');
-          const parts = path.split('.');
-          let val: unknown = res.config;
-          for (const p of parts) {
-            if (val && typeof val === 'object') val = (val as Record<string, unknown>)[p];
-            else break;
-          }
-          return String(val ?? '');
+          const res = await api<{ path: string; display: string; source: string }>(
+            `/config/get?path=${encodeURIComponent(path)}&reveal=true`
+          );
+          return res.display;
         }}
       />
     );

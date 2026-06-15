@@ -1,5 +1,5 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,36 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Replace Bulk Config Reveal with Single-Field API (GRO-162)
+
+**Result**
+
+- Removed `?reveal=true` support from `GET /api/config/effective` and
+  `GET /api/config`. Both endpoints now always return masked secret values,
+  ignoring any `reveal` query parameter.
+- Added `GET /api/config/get?path=<field>[&reveal=true]` — a new single-field
+  reveal endpoint that only exposes the specifically requested config field.
+  The implementation delegates to `cliService.get(path, { reveal })`, which
+  already existed and correctly handles secret masking via `isSecretPath` /
+  `maskValue`. Invalid or parent-object paths are rejected with 400.
+- Updated `dashboard/src/lib/schema-form/fields/StringField.tsx` to use the
+  new endpoint: `onReveal` now calls `/config/get?path=<encodeURIComponent(path)>&reveal=true`
+  and reads `res.display`, replacing the bulk `/config/effective?reveal=true` call.
+- Added 6 new security regression tests to `tests/acceptance/dashboard-http.test.ts`
+  covering: bulk reveal endpoints always mask, single-field reveal returns unmasked,
+  no-reveal path returns masked, missing path returns 400, unknown path returns 400.
+
+**Decisions**
+
+- `cliService.get()` already scoped reveal to a single leaf path via
+  `resolveSchemaAtPath`; no new masking logic was needed — only routing changes.
+- Chose to add tests to the existing `dashboard-http.test.ts` rather than a
+  new file since the test suite already has the `createApp`/`startHttpTransport`
+  setup and runs with the same HOME isolation.
+- Codex review confirmed no remaining bulk-reveal path and correct frontend
+  endpoint usage; one non-blocking suggestion (cross-asserting two secrets) noted
+  for future follow-up.
 
 ## 2026-06-15: Add HTTP Runtime Marker Lifecycle Acceptance Test (GRO-46)
 

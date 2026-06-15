@@ -32,24 +32,41 @@ function maskSecrets(obj: Record<string, unknown>, prefix = ''): Record<string, 
 /** Register /config routes onto the given router. */
 export function registerConfigRoutes(router: ApiRouter): void {
 
-  // GET /config/effective — return the fully-resolved (file + env) config with secrets masked.
+  // GET /config/effective — return the fully-resolved (file + env) config with secrets always masked.
+  // Bulk reveal is intentionally not supported; use GET /config/get?path=...&reveal=true instead.
   router.register('GET', '/config/effective', async (_ctx, _app) => {
     const config = await loadConfig();
-    // Cast to a plain object for recursive masking.
-    const reveal = _ctx.req.query.get('reveal') === 'true';
-    if (reveal) {
-      _app.logger.warn('Dashboard config reveal requested — secrets returned unmasked');
-    }
     const masked = maskSecrets(config as unknown as Record<string, unknown>);
-    sendJson(_ctx.res, 200, { config: reveal ? (config as unknown as Record<string, unknown>) : masked });
+    sendJson(_ctx.res, 200, { config: masked });
   });
 
   // GET /config — list all config entries with provenance (file vs. default).
-  // Accepts optional ?reveal=true to expose secret values (intended for admin use only).
+  // Secrets are always masked; use GET /config/get?path=...&reveal=true for single-field reveal.
   router.register('GET', '/config', async (ctx, _app) => {
-    const reveal = ctx.req.query.get('reveal') === 'true';
-    const entries = await cliService.list({ reveal });
+    const entries = await cliService.list({ reveal: false });
     sendJson(ctx.res, 200, { entries });
+  });
+
+  // GET /config/get — retrieve a single config field value.
+  // Query params: path (required), reveal (optional, boolean).
+  // Only the specifically requested field is revealed, limiting secret exposure blast radius.
+  router.register('GET', '/config/get', async (ctx, _app) => {
+    const path = ctx.req.query.get('path');
+    if (!path) {
+      sendJson(ctx.res, 400, { error: 'Query param "path" is required' });
+      return;
+    }
+    const reveal = ctx.req.query.get('reveal') === 'true';
+    try {
+      const result = await cliService.get(path, { reveal });
+      sendJson(ctx.res, 200, result);
+    } catch (err) {
+      if (err instanceof CliError) {
+        sendJson(ctx.res, 400, { error: err.message });
+      } else {
+        throw err;
+      }
+    }
   });
 
   // GET /config/schema — return the JSON schema derived from appConfigSchema.

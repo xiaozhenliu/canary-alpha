@@ -1,5 +1,5 @@
 ---
-doc_version: 9
+doc_version: 10
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -12,6 +12,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Security
+
+- Dashboard `GET /api/config/effective` and `GET /api/config` no longer accept
+  `?reveal=true` — bulk secret reveal is removed. Use the new
+  `GET /api/config/get?path=<field>&reveal=true` endpoint to reveal a single
+  named field at a time, limiting the blast radius if the authToken is
+  compromised (GRO-162).
+
+### Added
+
+- New Dashboard API endpoint `GET /api/config/get?path=<field>[&reveal=true]`
+  returns a single config field value (masked by default, revealed only when
+  `reveal=true` is explicitly requested). The field path must be a valid leaf
+  path in the config schema; object paths are rejected with 400 (GRO-162).
 
 ### Changed
 

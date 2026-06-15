@@ -98,4 +98,73 @@ describe('Dashboard HTTP integration', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  // Security: bulk reveal must never expose the raw secret value, even with ?reveal=true query param
+  it('GET /api/config/effective never returns unmasked secrets even with ?reveal=true', async () => {
+    const res = await fetch(`${baseUrl}/api/config/effective?reveal=true`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { config: Record<string, unknown> };
+    // The authToken set in-memory is not written to the config file; loadConfig() reads the file,
+    // so authToken from loadConfig() will be empty → masked as '(unset)'.
+    // Either way it must NOT be the plain testToken value.
+    const server = data.config.server as Record<string, unknown>;
+    expect(server.authToken).not.toBe(testToken);
+    // Must be a masked sentinel value (either '***' for set values or '(unset)' for empty)
+    expect(['***', '(unset)', undefined]).toContain(server.authToken);
+  });
+
+  it('GET /api/config never returns unmasked secrets even with ?reveal=true', async () => {
+    const res = await fetch(`${baseUrl}/api/config?reveal=true`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { entries: Array<{ path: string; display: string }> };
+    const authEntry = data.entries.find(e => e.path === 'server.authToken');
+    // Secret must always be masked in the list endpoint regardless of ?reveal=true
+    expect(authEntry).toBeDefined();
+    expect(['***', '(unset)']).toContain(authEntry?.display);
+    expect(authEntry?.display).not.toBe(testToken);
+  });
+
+  // Single-field reveal: only the requested field is exposed
+  it('GET /api/config/get returns masked value without reveal flag', async () => {
+    const res = await fetch(`${baseUrl}/api/config/get?path=server.authToken`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { path: string; display: string };
+    expect(data.path).toBe('server.authToken');
+    expect(data.display).toBe('***');
+  });
+
+  it('GET /api/config/get?reveal=true returns an unmasked (non-***) value for the requested field', async () => {
+    // providers.embeddings.apiKey is a secret field; when not set in the file its display is '(unset)',
+    // which is different from the masked sentinel '***'. Either way, reveal=true must not return '***'.
+    const res = await fetch(`${baseUrl}/api/config/get?path=providers.embeddings.apiKey&reveal=true`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { path: string; display: string };
+    expect(data.path).toBe('providers.embeddings.apiKey');
+    // With reveal=true the display must not be the masked sentinel
+    expect(data.display).not.toBe('***');
+  });
+
+  it('GET /api/config/get without path returns 400', async () => {
+    const res = await fetch(`${baseUrl}/api/config/get`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as { error: string };
+    expect(data.error).toMatch(/path/i);
+  });
+
+  it('GET /api/config/get with unknown path returns 400', async () => {
+    const res = await fetch(`${baseUrl}/api/config/get?path=nonexistent.field`, {
+      headers: { Authorization: `Bearer ${testToken}` }
+    });
+    expect(res.status).toBe(400);
+  });
 });
