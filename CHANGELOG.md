@@ -1,5 +1,5 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -23,6 +23,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Concurrent indexing no longer permanently skips frames whose embedding
+  failed when a later frame succeeded. The checkpoint advancement logic now
+  computes a failure ceiling (the earliest failed record) and refuses to advance
+  past it, ensuring every failed frame is retried on the next tick (GRO-163).
 - Dashboard `GET /api/logs` no longer reads the entire log file into memory.
   A bounded backward tail reader (10 MiB cap) replaces the previous
   `readFile` + `split('\n')` pattern, eliminating OOM risk on large production

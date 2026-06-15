@@ -1,5 +1,5 @@
 ---
-doc_version: 12
+doc_version: 13
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,49 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Prevent Checkpoint from Advancing Past Failed Frames (GRO-163)
+
+**Problem**
+
+In `src/services/retrieval/indexing-service.ts`, the checkpoint accumulation
+loop advanced to the newest record with `advanceCheckpoint: true`, ignoring
+any records with `advanceCheckpoint: false` (embedding failures). If record A
+(older, T1) failed and record B (newer, T2) succeeded, checkpoint advanced to
+T2, permanently skipping A. The same gap-skip existed in the
+blocked-records re-check loop.
+
+**Fix**
+
+Collect all `(record, advanceCheckpoint)` pairs from both the concurrent embed
+phase and the released-blocked serial phase into a single `checkpointCandidates`
+array before computing `latestCheckpoint`. After all processing, derive the
+failure ceiling — the earliest record (by `compareRecords()` ordering, which
+uses cursor for same-timestamp tiebreaking) with `advanceCheckpoint: false`.
+Then advance `latestCheckpoint` in a single forward pass, skipping any
+candidate whose position compares `>= failureCeilingRecord`.
+
+This design avoids rollback complexity: by collecting all results first and
+deriving the ceiling before any checkpoint accumulation, released-blocked
+failures lower the ceiling before it is ever applied.
+
+**Tests updated**
+
+- `tests/integration/indexing/concurrent-embedding.test.ts`: updated the
+  "advances checkpoint past failure" test (which encoded old broken behavior)
+  to assert the corrected invariant; added three new `checkpoint ceiling
+  (GRO-163)` tests (mixed batch, all-success, all-failure).
+- `tests/integration/indexing/indexing-service.test.ts`: updated
+  "continues indexing later successful records" test to expect checkpoint at
+  record-1 rather than record-3.
+
+**Codex review**
+
+Two Codex review passes were run. First pass flagged: (1) released-blocked
+rollback omitted those records from recomputation, (2) `Date.parse` vs
+`compareRecords` ordering inconsistency. The design was refactored to use
+the collect-then-ceiling-then-advance pattern, eliminating both issues. Second
+pass confirmed no remaining blocking findings.
 
 ## 2026-06-15: Replace Full-File Log Read with Bounded Tail Reader (GRO-161)
 

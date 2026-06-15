@@ -340,9 +340,10 @@ describe('concurrent embedding pool', () => {
     expect(elapsed).toBeLessThan(serialTimeMs * 0.85);
   });
 
-  it('advances checkpoint to the newest successful record when some records fail', async () => {
-    // 5 records at T1..T5. Record at index 2 (T3) will fail embedding.
-    // Checkpoint should advance to T5 (the newest successful record).
+  it('does NOT advance checkpoint past a failed frame (GRO-163)', async () => {
+    // 5 records at T1..T5. Record at index 2 (frameId=3, T3) will fail embedding.
+    // Checkpoint must NOT advance past T3 — it should stop at T2 (the record
+    // immediately before the failure ceiling) so the failed frame is retried.
     const baseMs = 1_700_000_000_000;
     const records = makeRecords(5, baseMs);
 
@@ -366,14 +367,16 @@ describe('concurrent embedding pool', () => {
 
     await service.runOnce(now);
 
-    // Checkpoint should be at the last record (frameId=5, index=4) because
-    // records T4 and T5 succeeded — the checkpoint advances past the failure.
+    // Checkpoint must stop at T2 (index=1, frameId=2) — the last record
+    // strictly before the failed frame (T3). Records T4 and T5 succeeded
+    // but are newer than the failure ceiling so they cannot advance the checkpoint.
     const checkpoint = await checkpointStore.readLatest();
     expect(checkpoint).not.toBeNull();
-    // The timestamp of record index 4 (T5, frameId=5)
-    const expectedTs = new Date(baseMs + 4 * 1_000).toISOString();
+    // The timestamp of record index 1 (T2, frameId=2)
+    const expectedTs = new Date(baseMs + 1 * 1_000).toISOString();
     expect(checkpoint!.timestamp).toBe(expectedTs);
-    // 4 records succeed (all except frameId=3)
+    // 4 records succeed (all except frameId=3): their embeddings are stored
+    // even though the checkpoint doesn't advance past the failure.
     expect(vectorStore.upserts[0]).toHaveLength(4);
   });
 
@@ -525,5 +528,85 @@ describe('concurrent embedding pool', () => {
     const expectedA = `extracted:${hashStringToNumericId('no-frame-a')}`;
     const expectedB = `extracted:${hashStringToNumericId('no-frame-b')}`;
     expect(ids).toEqual([expectedA, expectedB].sort());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GRO-163: checkpoint ceiling — prevent skipping failed frames
+// ---------------------------------------------------------------------------
+
+describe('checkpoint ceiling (GRO-163)', () => {
+  it('mixed batch: checkpoint stops before the failed frame timestamp', async () => {
+    // 4 records: T1, T2(fail), T3, T4.
+    // The failure ceiling is T2. Checkpoint must advance at most to T1.
+    const baseMs = 1_700_000_000_000;
+    const records = makeRecords(4, baseMs);
+
+    const vectorStore = new RecordingVectorStore();
+    // frameId=2 (index 1, timestamp T2) fails.
+    const embeddingService = new DelayedEmbeddingService(0, vectorStore, (frameId) =>
+      frameId === 2 ? 'fail' : 'ok'
+    );
+
+    const checkpointStore = new InMemoryCheckpointStore();
+    const deps = makeDeps({ records, vectorStore, embeddingService, checkpointStore, embeddingConcurrency: 4 });
+    const service = createIndexingService(deps);
+    const now = new Date(baseMs + 10 * 1_000);
+
+    await service.runOnce(now);
+
+    const checkpoint = await checkpointStore.readLatest();
+    expect(checkpoint).not.toBeNull();
+    // Only T1 (index 0, frameId=1) is strictly before T2 (the ceiling).
+    expect(checkpoint!.timestamp).toBe(new Date(baseMs + 0 * 1_000).toISOString());
+    // 3 records succeed (frameIds 1, 3, 4).
+    expect(vectorStore.upserts[0]).toHaveLength(3);
+  });
+
+  it('all frames succeed: checkpoint advances normally (no regression)', async () => {
+    // 4 records all succeed — checkpoint should reach the last one.
+    const baseMs = 1_700_000_000_000;
+    const records = makeRecords(4, baseMs);
+
+    const vectorStore = new RecordingVectorStore();
+    const embeddingService = new DelayedEmbeddingService(0, vectorStore);
+
+    const checkpointStore = new InMemoryCheckpointStore();
+    const deps = makeDeps({ records, vectorStore, embeddingService, checkpointStore, embeddingConcurrency: 4 });
+    const service = createIndexingService(deps);
+    const now = new Date(baseMs + 10 * 1_000);
+
+    await service.runOnce(now);
+
+    const checkpoint = await checkpointStore.readLatest();
+    expect(checkpoint).not.toBeNull();
+    // Last record: index 3, timestamp T4.
+    expect(checkpoint!.timestamp).toBe(new Date(baseMs + 3 * 1_000).toISOString());
+    expect(vectorStore.upserts[0]).toHaveLength(4);
+  });
+
+  it('all frames fail: checkpoint does not advance (no regression)', async () => {
+    // 3 records all fail — checkpoint must remain null (no prior checkpoint).
+    const baseMs = 1_700_000_000_000;
+    const records = makeRecords(3, baseMs);
+
+    const vectorStore = new RecordingVectorStore();
+    const checkpointStore = new InMemoryCheckpointStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      embeddingService: new AlwaysFailingEmbeddingService(),
+      checkpointStore,
+      embeddingConcurrency: 3
+    });
+    const service = createIndexingService(deps);
+    const now = new Date(baseMs + 10 * 1_000);
+
+    // All fail → runOnce throws (no records indexed, embedding error surfaced).
+    await expect(service.runOnce(now)).rejects.toThrow();
+
+    // Checkpoint must remain at null — nothing succeeded.
+    const checkpoint = await checkpointStore.readLatest();
+    expect(checkpoint).toBeNull();
   });
 });
