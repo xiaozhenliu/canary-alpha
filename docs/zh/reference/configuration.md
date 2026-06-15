@@ -233,7 +233,7 @@ routines:
   historyPath: ~/my-data/routines/history
 ```
 
-**MVP 范围边界** —— routines MVP 不包含：meetings 或 calendar 工具、手动触发 routine 运行、routine 输出作为 MCP resources、任意 LLM-backed prompt 执行，以及跨机器同步。远期路线图见 [future-backlog](../../specs/future-backlog.md)。
+**MVP 范围边界** —— routines MVP 不包含：meetings 或 calendar 工具、手动触发 routine 运行、routine 输出作为 MCP resources、任意 LLM-backed prompt 执行，以及跨机器同步。这些需求在项目待办中跟踪，留待后续版本实现。
 
 ## 环境变量覆盖
 

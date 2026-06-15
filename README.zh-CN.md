@@ -131,6 +131,7 @@ flowchart LR
 |------|------|
 | [快速开始](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart) | 首次安装、初始化与验证 |
 | [配置参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/configuration) | 配置字段与 embedding provider |
+| [控制面板](https://xiaozhenliu.github.io/canary-alpha/zh/reference/dashboard) | 状态监控、配置管理、Routines 与日志的 Web UI |
 | [MCP 工具](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools) | 工具 schema 与返回约定 |
 | [通用 MCP 客户端](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp) | Streamable HTTP 客户端配置 |
 | [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes) | Hermes 初始化与验证 |

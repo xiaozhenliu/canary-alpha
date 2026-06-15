@@ -132,6 +132,7 @@ Full documentation is available at **[xiaozhenliu.github.io/canary-alpha](https:
 |----------|----------------|
 | [Quickstart](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart) | First install, onboarding, and validation |
 | [Configuration](https://xiaozhenliu.github.io/canary-alpha/reference/configuration) | Configuration fields and embedding providers |
+| [Dashboard](https://xiaozhenliu.github.io/canary-alpha/reference/dashboard) | Web UI for status monitoring, config, routines, and logs |
 | [MCP tools](https://xiaozhenliu.github.io/canary-alpha/reference/tools) | Tool schemas and result contracts |
 | [Generic MCP client](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp) | Streamable HTTP client setup |
 | [Hermes](https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes) | Hermes onboarding and verification |

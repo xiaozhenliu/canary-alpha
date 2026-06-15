@@ -233,7 +233,7 @@ routines:
   historyPath: ~/my-data/routines/history
 ```
 
-**MVP scope boundaries** — the routines MVP does not include: meetings or calendar tools, manual trigger of a routine run, routine outputs as MCP resources, arbitrary LLM-backed prompt execution, or cross-machine sync. See [future-backlog](../specs/future-backlog.md) for post-MVP roadmap items.
+**MVP scope boundaries** — the routines MVP does not include: meetings or calendar tools, manual trigger of a routine run, routine outputs as MCP resources, arbitrary LLM-backed prompt execution, or cross-machine sync. These are tracked in the project backlog for future releases.
 
 ## Environment overrides
 

@@ -1,5 +1,5 @@
 ---
-doc_version: 16
+doc_version: 17
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,35 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Dashboard Reference Documentation and Dead Link Fixes
+
+**Context**
+
+Dashboard Web UI shipped in v2.5.0 but had no user-facing reference documentation.
+The only written material was the deprecated design spec (`docs/specs/dashboard-web-ui.md`)
+and a one-liner in README. Operators had no way to learn about authentication,
+page modules, or REST API endpoints without reading source code.
+
+**Changes**
+
+- Created `docs/reference/dashboard.md` (EN) and `docs/zh/reference/dashboard.md` (ZH)
+  covering: access, authentication (fail-closed Bearer token), all six page modules
+  (Status, Config, Routines, Activity, Privacy, Logs), REST API endpoint table,
+  and the relationship between dashboard / CLI / MCP tools.
+- Added Dashboard entries to VitePress sidebar config (EN + ZH), both README
+  doc tables, and operations guide (tip block with link).
+- Registered both documents in `docs/documentation/governed-documents.md`.
+- Fixed VitePress build failures caused by dead links:
+  - Added `specs/**` and `security/**` to `srcExclude` (internal-only docs were
+    being processed as site pages).
+  - Replaced `configuration.md` links to excluded `specs/future-backlog.md` with
+    inline text (EN + ZH).
+
+**Verification**
+
+`npx vitepress build docs` passes with zero dead links and zero warnings.
+Both dashboard pages render in the build output (`docs/.vitepress/dist/`).
 
 ## 2026-06-15: Batch Bug/Safety Backlog Clearance (GRO-43 ~ GRO-166)
 

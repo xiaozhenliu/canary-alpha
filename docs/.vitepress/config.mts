@@ -13,6 +13,8 @@ export default defineConfig({
     'documentation/**',
     'engineering/**',
     'plan/**',
+    'security/**',
+    'specs/**',
     'superpowers/**',
   ],
   themeConfig: {
@@ -55,6 +57,7 @@ export default defineConfig({
               items: [
                 { text: 'MCP Tools', link: '/reference/tools' },
                 { text: 'Configuration', link: '/reference/configuration' },
+                { text: 'Dashboard', link: '/reference/dashboard' },
                 { text: 'Privacy & Data', link: '/reference/privacy' },
               ],
             },
@@ -98,6 +101,7 @@ export default defineConfig({
               items: [
                 { text: 'MCP 工具', link: '/zh/reference/tools' },
                 { text: '配置文件', link: '/zh/reference/configuration' },
+                { text: '控制面板', link: '/zh/reference/dashboard' },
                 { text: '隐私与数据', link: '/zh/reference/privacy' },
               ],
             },

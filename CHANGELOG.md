@@ -48,6 +48,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   returns a single config field value (masked by default, revealed only when
   `reveal=true` is explicitly requested). The field path must be a valid leaf
   path in the config schema; object paths are rejected with 400 (GRO-162).
+- Dashboard reference documentation (`docs/reference/dashboard.md`) covering
+  access, authentication, all six page modules, REST API endpoints, and the
+  relationship between dashboard, CLI, and MCP tools. Available in English and
+  Simplified Chinese on the documentation site.
 
 ### Changed
 

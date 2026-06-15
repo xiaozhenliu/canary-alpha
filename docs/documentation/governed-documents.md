@@ -1,7 +1,7 @@
 ---
-doc_version: 19
+doc_version: 20
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Governed Documents
@@ -57,6 +57,7 @@ Excluded from governance:
 | `docs/guide/troubleshooting.md` | Operators and maintainers | Operational diagnosis and recovery | Service unreachable, provider errors, rebuild path, log inspection, capture observability | adequate | none |
 | `docs/reference/tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input schema, output expectations | adequate | none |
 | `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, config CLI commands, validation rules | adequate | none |
+| `docs/reference/dashboard.md` | Operators | Dashboard web UI usage | Access, authentication, page modules, REST API endpoints, relationship to CLI and MCP tools | adequate | none |
 | `docs/reference/privacy.md` | All users | Privacy and data locality | Data storage, capture defaults, runtime controls, log rotation | adequate | none |
 
 ### Documentation site — Simplified Chinese (docs/zh/)
@@ -74,6 +75,7 @@ Excluded from governance:
 | `docs/zh/guide/troubleshooting.md` | Operators and maintainers | Troubleshooting (ZH) |
 | `docs/zh/reference/tools.md` | MCP client integrators | MCP Tools reference (ZH) |
 | `docs/zh/reference/configuration.md` | Users configuring the server | Configuration reference (ZH) |
+| `docs/zh/reference/dashboard.md` | Operators | Dashboard (ZH) |
 | `docs/zh/reference/privacy.md` | All users | Privacy & Data (ZH) |
 
 ### Internal / repo-only documents (not part of docs site)
