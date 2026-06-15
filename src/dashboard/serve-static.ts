@@ -1,5 +1,4 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import type { ServerResponse } from 'node:http';
 
@@ -29,8 +28,9 @@ function isHashedAsset(pathname: string): boolean {
  *
  * - Decodes percent-encoding
  * - Normalizes slashes and removes redundant segments
- * - Strips any path traversal sequences (..)
- * - Returns a relative path safe to join onto rootDir
+ * - Does NOT strip `..` segments; the caller must verify the resolved absolute
+ *   path stays within rootDir (see startsWith guard in serveDashboardStatic)
+ * - Returns a relative path to join onto rootDir
  */
 function sanitizePath(pathname: string): string {
   // Decode percent-encoded characters before normalization.

@@ -73,16 +73,6 @@ export function ConfigPage() {
             provenance={provenance}
             sectionPath={section}
             onSave={handleFieldSave}
-            onArrayAdd={async (path, item) => {
-              await api('/config/array-add', { method: 'POST', body: JSON.stringify({ path, item }) });
-              await loadConfig();
-              setMessage({ text: `Added "${item}" to ${path}. Restart to apply.`, type: 'ok' });
-            }}
-            onArrayRemove={async (path, item) => {
-              await api('/config/array-remove', { method: 'POST', body: JSON.stringify({ path, item }) });
-              await loadConfig();
-              setMessage({ text: `Removed "${item}" from ${path}. Restart to apply.`, type: 'ok' });
-            }}
           />
         ))}
       </div>
@@ -97,8 +87,6 @@ function ConfigSection({ title, schema, values, provenance, sectionPath, onSave 
   provenance: Map<string, { overriddenByEnv?: string }>;
   sectionPath: string;
   onSave: (path: string, value: unknown, schema: JsonSchemaNode) => void;
-  onArrayAdd: (path: string, item: string) => void;
-  onArrayRemove: (path: string, item: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const hasEnvOverride = [...provenance.keys()].some(k => k.startsWith(sectionPath + '.'));

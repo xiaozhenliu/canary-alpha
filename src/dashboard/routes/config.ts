@@ -37,6 +37,9 @@ export function registerConfigRoutes(router: ApiRouter): void {
     const config = await loadConfig();
     // Cast to a plain object for recursive masking.
     const reveal = _ctx.req.query.get('reveal') === 'true';
+    if (reveal) {
+      _app.logger.warn('Dashboard config reveal requested — secrets returned unmasked');
+    }
     const masked = maskSecrets(config as unknown as Record<string, unknown>);
     sendJson(_ctx.res, 200, { config: reveal ? (config as unknown as Record<string, unknown>) : masked });
   });

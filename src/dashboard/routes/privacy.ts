@@ -36,6 +36,12 @@ export function registerPrivacyRoutes(router: ApiRouter): void {
       return;
     }
 
+    const VALID_ACTIONS: PrivacyAction[] = ['status', 'pause', 'resume', 'exclude-app', 'delete-range'];
+    if (!VALID_ACTIONS.includes(action as PrivacyAction)) {
+      sendJson(ctx.res, 400, { error: `Invalid action: "${action}"` });
+      return;
+    }
+
     const result = await app.services.privacy.execute({
       action: action as PrivacyAction,
       appName: typeof appName === 'string' ? appName : undefined,
