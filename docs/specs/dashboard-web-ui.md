@@ -139,6 +139,10 @@ future-backlog.md 的"历史范围裁剪"中曾标注 "UI/dashboard —— 产�
 
 - 开发方式遵循项目约束：禁止 TDD，按"实现 → 补测试 → 运行验证"推进。
 
+## 已知缺陷（实施后审计发现）
+
+- [`docs/superpowers/specs/2026-06-15-codex-design-review-audit.md`](../superpowers/specs/2026-06-15-codex-design-review-audit.md) — Codex 设计缺陷审查（2026-06-15），涉及 Dashboard 的发现：Finding #1（config reveal API 全量 secret 暴露，GRO-162）、Finding #2（Logs API 读取整个文件到内存，GRO-161）、Finding #4（config 写入无文件锁，GRO-164）、Finding #5（Privacy 缺少 remove-excluded-app，GRO-165）。
+
 ## 实现参考（非规范性）
 
 - `docs/superpowers/plans/2026-06-15-dashboard-web-ui.md` — 完整实施计划（18 个 Task，按 A→B→C→D→E 分组交付）

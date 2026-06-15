@@ -1,5 +1,5 @@
 ---
-doc_version: 15
+doc_version: 16
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,38 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Batch Bug/Safety Backlog Clearance (GRO-43 ~ GRO-166)
+
+This session processed all 10 remaining Backlog issues (GRO-43 through GRO-166)
+in priority order (Safety first, then Bug, by ascending issue number). Seven
+required code changes; three were verified as already resolved by prior commits.
+
+### Verified as already resolved (no code change)
+
+- **GRO-43** (Bug): Fix canonical app home path regressions after canary-alpha
+  rename. Zero references to old `screenpipe-memory-mcp` path remain in
+  `src/`, `tests/`, or `scripts/`. All 1188 tests pass. Fixed by the rename
+  commit (`f69cab9`).
+- **GRO-45** (Bug): Fix rebuild-index acceptance regressions. All 20
+  rebuild-index acceptance tests pass: artifact recovery, summary values,
+  checkpoint semantics, runtime marker guards, and managed service detection.
+  Fixed by v2.3.0–v2.5.0 storage and routines refactoring.
+- **GRO-166** (Bug): Routine name slug empty string file overwrite. All entry
+  points already validate: `routine-create` MCP tool checks
+  `if (!normalizedName)` and returns `isError`; Dashboard `POST /routines`
+  returns 400 when `sluggedName === ''`; `FileRoutineStore.writeDefinition` and
+  `appendRun` both throw on empty name. No additional guard needed.
+
+### Issues with code changes (individual entries below)
+
+- **GRO-44** (Bug+Safety): Restore delete-range last_1h acceptance test
+- **GRO-46** (Bug+Safety): Add HTTP runtime marker lifecycle test
+- **GRO-162** (Safety): Replace bulk config reveal with single-field API
+- **GRO-161** (Bug): Bounded tail reader for Logs API
+- **GRO-163** (Bug): Checkpoint failure ceiling to prevent frame skipping
+- **GRO-164** (Bug): Config write mutex for Dashboard concurrency
+- **GRO-165** (Bug): Add remove-excluded-app privacy action
 
 ## 2026-06-15: Add remove-excluded-app Action to Privacy Control (GRO-165)
 
