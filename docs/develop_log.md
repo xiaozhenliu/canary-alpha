@@ -1,5 +1,5 @@
 ---
-doc_version: 13
+doc_version: 14
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,47 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Config Write Mutex to Prevent Dashboard Lost Updates (GRO-164)
+
+**Problem**
+
+`ConfigCliService` methods `set`, `unset`, `addToArray`, and `removeFromArray`
+each perform a read-modify-write cycle: `readDocument() → modify → write()`.
+Two concurrent Dashboard API requests (e.g. two browser tabs calling
+`PUT /api/config` simultaneously) could interleave these steps — request A
+reads, request B reads, A writes, B writes — causing A's changes to be silently
+overwritten.
+
+**Fix**
+
+Added a `Mutex` class (promise-based queue, ~20 lines) directly inside
+`src/config/config-cli-service.ts`. A single `writeLock` instance is held per
+`ConfigCliService` instance and wraps the read-modify-write cycle of `set`,
+`unset`, and `mutateArray`. Pre-write validation (schema resolution, value
+coercion) remains outside the lock since it is pure computation with no I/O.
+Read-only methods (`get`, `list`, `validate`) are not locked.
+
+The mutex is deadlock-free: the `finally(() => release())` path in `run()`
+releases the lock on both success and any error or noop return. The queue
+chains promise gates (not the user callback itself), so a rejected write does
+not poison subsequent writes.
+
+This fix is sufficient because the Dashboard runs in the same Node.js process
+as the MCP server — the single-writer architecture (docs/architecture.md §8)
+means cross-process locking is not required.
+
+**Tests added**
+
+- `tests/unit/config-cli-service.test.ts`: new test
+  "serializes concurrent set operations without lost updates (GRO-164)" fires 5
+  concurrent `set()` calls on distinct paths and asserts all values survive in
+  the final persisted config.
+
+**Codex review**
+
+Passed. No blocking findings. Confirmed: all write paths wrapped, read-only
+paths unlocked, mutex is deadlock-free.
 
 ## 2026-06-15: Prevent Checkpoint from Advancing Past Failed Frames (GRO-163)
 

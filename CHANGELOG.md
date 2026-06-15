@@ -1,5 +1,5 @@
 ---
-doc_version: 12
+doc_version: 13
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -23,6 +23,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Concurrent Dashboard API requests to config write endpoints (`set`, `unset`,
+  `add`, `remove`) no longer lose updates. A process-internal promise-queue
+  mutex in `ConfigCliService` serializes all read-modify-write cycles, ensuring
+  every write is applied to the latest on-disk state (GRO-164).
 - Concurrent indexing no longer permanently skips frames whose embedding
   failed when a later frame succeeded. The checkpoint advancement logic now
   computes a failure ceiling (the earliest failed record) and refuses to advance

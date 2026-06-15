@@ -111,4 +111,23 @@ describe('ConfigCliService', () => {
     const r = await svc.get('logging.level', { reveal: false });
     expect(r.envDegraded).toBeFalsy();
   });
+
+  it('serializes concurrent set operations without lost updates (GRO-164)', async () => {
+    // Fire concurrent writes to distinct scalar paths and verify all survive.
+    const writes: Array<{ path: string; value: string }> = [
+      { path: 'storage.retentionDays', value: '7' },
+      { path: 'logging.level', value: 'warn' },
+      { path: 'retrieval.pollIntervalSeconds', value: '60' },
+      { path: 'trim.intervalSeconds', value: '300' },
+      { path: 'server.port', value: '3100' },
+    ];
+    // Launch all writes simultaneously — they race at the I/O level.
+    await Promise.all(writes.map(({ path, value }) => svc.set(path, value)));
+
+    // Every write must be reflected in the persisted file.
+    for (const { path, value } of writes) {
+      const r = await svc.get(path, { reveal: false });
+      expect(r.display, `path ${path} should equal ${value}`).toBe(value);
+    }
+  });
 });
