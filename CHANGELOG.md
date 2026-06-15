@@ -1,5 +1,5 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -20,6 +20,13 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   `GET /api/config/get?path=<field>&reveal=true` endpoint to reveal a single
   named field at a time, limiting the blast radius if the authToken is
   compromised (GRO-162).
+
+### Fixed
+
+- Dashboard `GET /api/logs` no longer reads the entire log file into memory.
+  A bounded backward tail reader (10 MiB cap) replaces the previous
+  `readFile` + `split('\n')` pattern, eliminating OOM risk on large production
+  log files (GRO-161).
 
 ### Added
 

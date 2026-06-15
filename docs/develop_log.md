@@ -1,5 +1,5 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,37 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Replace Full-File Log Read with Bounded Tail Reader (GRO-161)
+
+**Result**
+
+- Replaced `readFile(logFilePath, 'utf8')` + `.split('\n')` in
+  `src/dashboard/routes/logs.ts` with a new `readTailLines()` helper that
+  reads backward in 64 KiB chunks, stopping once enough non-empty lines have
+  been collected or the 10 MiB byte cap is reached.
+- Buffer fragments are stored as `Buffer` objects and decoded once via
+  `Buffer.concat().toString('utf8')` to prevent UTF-8 multi-byte corruption
+  at chunk boundaries — a real bug identified in the first Codex review pass.
+- `fh.read()` actual `bytesRead` is now used to slice the buffer, guarding
+  against short reads (e.g. log rotation during stat→read).
+- When `?level` filter is active, `FILTER_OVERSCAN_LINES` (10,000) lines are
+  requested; the 10 MiB byte cap provides the hard bound in all cases.
+- `total` in the response now reflects the window count rather than full-file
+  count — an intentional tradeoff documented in both code and changelog; the
+  old `total` required a full-file read to compute.
+- Added `tests/unit/dashboard/logs-tail-reader.test.ts` (8 unit tests covering
+  empty file, ENOENT, small file, large file tail, blank-line skipping, forward
+  order, multi-chunk, no trailing newline).
+- All existing tests pass: 41 total (acceptance + unit/dashboard).
+
+**Decisions**
+
+- Codex review (first pass) flagged blank lines counting toward the stop
+  condition; fixed by counting only `trim() !== ''` lines in the early-exit check.
+- Codex review (second pass) flagged UTF-8 boundary corruption and ignored
+  `fh.read` actual bytes — both fixed. The `total` behavior change was flagged
+  as blocking by Codex but is explicitly accepted per GRO-161 task spec.
 
 ## 2026-06-15: Replace Bulk Config Reveal with Single-Field API (GRO-162)
 
