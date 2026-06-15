@@ -1,5 +1,5 @@
 ---
-doc_version: 8
+doc_version: 9
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -28,6 +28,11 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   confirmed `privacy-control delete-range last_1h`, cascade coordinator
   cleanup, and post-delete `find` verification. Frame ID alignment between the
   Screenpipe HTTP stub and the SQLite fixture is verified directly.
+- Added HTTP runtime marker lifecycle acceptance test in
+  `tests/acceptance/http-init.test.ts` (GRO-46). The test verifies that an HTTP
+  server creates a runtime marker file in `~/.canary-alpha-mcp/runtime-processes/`
+  on startup and removes it after SIGTERM shutdown, using an isolated temp HOME
+  directory consistent with the existing stdio marker test pattern.
 
 ## [2.5.0] - 2026-06-15
 

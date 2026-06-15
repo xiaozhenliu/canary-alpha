@@ -1,5 +1,5 @@
 ---
-doc_version: 9
+doc_version: 10
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,29 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Add HTTP Runtime Marker Lifecycle Acceptance Test (GRO-46)
+
+**Result**
+
+- Added the `removes the runtime marker when an HTTP server shuts down` test to
+  `tests/acceptance/http-init.test.ts`. The test uses an isolated temp `HOME`
+  directory, starts a real HTTP server process via `startHttpServer` with that
+  `HOME` in the env, asserts that a runtime marker exists in
+  `<HOME>/.canary-alpha-mcp/runtime-processes/` immediately after startup, then
+  sends SIGTERM and polls until the marker directory is empty.
+- The pattern mirrors the existing `stdio` marker lifecycle test in
+  `tests/acceptance/stdio-init.test.ts` (same polling loop, same isolation
+  approach), completing the acceptance criterion that both transports must
+  validate marker create-on-start / remove-on-shutdown behaviour.
+
+**Decisions**
+
+- Used port 8770 for the new test to avoid conflicts with the existing
+  acceptance tests on 8765/8766/8767/8776.
+- No changes to `startHttpServer` were needed: the helper already accepts an
+  `env` parameter and spreads it last, so `{ HOME: homeDir }` correctly
+  overrides the inherited `HOME`.
 
 ## 2026-06-15: Restore delete-range last_1h Acceptance Test (GRO-44)
 
