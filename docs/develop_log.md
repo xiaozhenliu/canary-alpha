@@ -1,7 +1,7 @@
 ---
-doc_version: 8
+doc_version: 9
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Development Log
@@ -11,6 +11,43 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Restore delete-range last_1h Acceptance Test (GRO-44)
+
+**Result**
+
+- The stub acceptance test at line 109 of
+  `tests/acceptance/privacy-control.test.ts` — previously paused because it
+  depended on the removed `recent-activity` / `search-screen` tools — has been
+  replaced with a full end-to-end acceptance test using the `find` /
+  `privacy-control` MCP tools.
+- `src/mcp/tools/shared.ts`: `formatPrivacyControlToolResult` now surfaces
+  `deletedFrames`, `deletedElements`, `deletedExtractedContent`,
+  `deletedSessions`, `deletedEmbeddings`, and `cascade` in the structured
+  output of `delete-range` responses. These were present on the service result
+  but were not passed through to the MCP tool layer.
+
+**Decisions**
+
+- The "outside window" fixture frame (id=1) is placed at 65 minutes ago, not
+  2 hours. With the default `freshnessWindowMinutes: 15` and
+  `maxCatchUpBatches: 5` the startup catch-up window is 75 minutes, so a
+  2-hour frame would never be indexed and the post-delete assertion that frame 1
+  survives would be vacuous.
+- The test polls `find` until both recent frames (id=2, id=3) appear before
+  triggering the delete, ensuring the cascade operates on already-indexed rows
+  rather than racing the indexing pipeline.
+- After the delete the test asserts `cascade.cascade === 'ok'` to distinguish
+  a genuine cascade from a tombstone-only suppression; it also queries the
+  Screenpipe SQLite fixture directly to confirm frame 1 still exists and frames
+  2/3 are physically gone.
+
+**Verification**
+
+- `npx vitest run tests/acceptance/privacy-control.test.ts` — 4/4 pass.
+- `npx vitest run tests/integration/privacy/` — 22/22 pass.
+- Codex MCP review passed after two iterations (fixture window fix + cascade
+  assertion + SQLite direct verification).
 
 ## Maintenance Format
 

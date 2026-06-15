@@ -13,6 +13,22 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `privacy-control` tool structured output now includes `deletedFrames`,
+  `deletedElements`, `deletedExtractedContent`, `deletedSessions`,
+  `deletedEmbeddings`, and `cascade` fields when a `delete-range` action
+  completes, giving callers visibility into the full upstream + cascade outcome.
+
+### Tests
+
+- Restored the `delete-range last_1h` acceptance test in
+  `tests/acceptance/privacy-control.test.ts` (GRO-44). The test now exercises
+  the full end-to-end path via real MCP stdio: startup catch-up indexing,
+  confirmed `privacy-control delete-range last_1h`, cascade coordinator
+  cleanup, and post-delete `find` verification. Frame ID alignment between the
+  Screenpipe HTTP stub and the SQLite fixture is verified directly.
+
 ## [2.5.0] - 2026-06-15
 
 ### Added

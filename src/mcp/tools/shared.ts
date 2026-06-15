@@ -108,6 +108,12 @@ export function formatPrivacyControlToolResult(result: PrivacyControlResult): Ca
       screenpipeStorage: result.screenpipeStorage,
       requestedRange: result.requestedRange,
       confirmed: result.confirmed,
+      deletedFrames: result.deletedFrames,
+      deletedElements: result.deletedElements,
+      deletedExtractedContent: result.deletedExtractedContent,
+      deletedSessions: result.deletedSessions,
+      deletedEmbeddings: result.deletedEmbeddings,
+      cascade: result.cascade,
       error: result.error
     }
   };
