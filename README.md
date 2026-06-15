@@ -1,7 +1,7 @@
 ---
-doc_version: 23
+doc_version: 24
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # canary-alpha-mcp
@@ -38,6 +38,7 @@ AI agents are more useful when they can recover context from your actual work wi
 - **Provider configuration**: use local Ollama by default when available, or configure any OpenAI-compatible embedding endpoint.
 - **Operational visibility**: inspect capture health, ingestion mix, disk-budget warnings, and retrieval recovery status.
 - **Two MCP transports**: use Streamable HTTP for the managed service or stdio for compatible local clients.
+- **Dashboard Web UI**: a browser-based management panel for status monitoring, configuration, routines control, activity browsing, privacy management, and log viewing — accessible at `http://127.0.0.1:<port>/`.
 
 ## Quick Start
 
@@ -112,7 +113,7 @@ See [Generic MCP client setup](https://xiaozhenliu.github.io/canary-alpha/guide/
 
 ## Architecture
 
-`canary-alpha-mcp` is an independent MCP server with no frontend. It reads local Screenpipe data, builds a local derived index, and exposes a focused tool surface through stdio and Streamable HTTP.
+`canary-alpha-mcp` is an independent MCP server with an embedded dashboard for local operators. It reads local Screenpipe data, builds a local derived index, and exposes a focused tool surface through stdio and Streamable HTTP. The dashboard web UI provides browser-based status monitoring and configuration management at the same HTTP endpoint.
 
 ```mermaid
 flowchart LR

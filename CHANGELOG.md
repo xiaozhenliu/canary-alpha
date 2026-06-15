@@ -1,7 +1,7 @@
 ---
-doc_version: 7
+doc_version: 8
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Changelog
@@ -12,6 +12,49 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [2.5.0] - 2026-06-15
+
+### Added
+
+- Dashboard Web UI: a browser-based management panel embedded in the existing
+  HTTP server, accessible at `http://127.0.0.1:<port>/`.
+  - **Status Dashboard**: real-time display of server, capture, retrieval,
+    ingestion, disk budget, work activity, and providers status with auto-refresh
+    and degraded-state indicators.
+  - **Configuration Manager**: schema-driven form UI auto-generated from the Zod
+    config schema. Supports editing scalar fields, viewing array fields, secret
+    masking/reveal, and environment-variable override annotations.
+  - **Routines Manager**: list, create, edit, enable/disable toggle, and view
+    execution history for background routines with cron validation.
+  - **Activity Browser**: time-range session timeline and keyword/semantic/hybrid
+    search panel with result timestamps.
+  - **Privacy Controls**: pause/resume collection, manage excluded apps (add-only;
+    backend limitation documented), and delete data ranges with confirmation.
+  - **Log Viewer**: structured JSON log display with level filtering.
+  - **Token Gate**: auth token entry screen on first visit with 401 re-auth.
+- Dashboard REST API (`/api/*`): 15 endpoints for status, config (effective
+  values + schema + mutations), routines (CRUD + history), activity (sessions +
+  search), privacy (status + actions), and logs.
+- Shared Bearer token auth helper (`verifyBearerToken`) extracted from the
+  HTTP transport for reuse by both `/mcp` and `/api/*` routes.
+- API route registry pattern: `ApiRouter` with path-param matching, 1 MB body
+  limit, and automatic 401/404/500 handling.
+- SPA static file server with extension-aware fallback (HTML-only SPA routing;
+  missing `.js`/`.css` assets correctly return 404).
+- Zod 4 → JSON Schema converter (`schema-export.ts`) for dynamic form generation.
+- Frontend: React 19 + Vite 6 + Tailwind CSS v4 SPA with module-registry
+  architecture. Bundle size ~85 KB gzip (well under 150 KB target).
+- Build integration: `npm run build` now produces both server TypeScript and
+  dashboard frontend; `npm run typecheck:all` covers both.
+- Dashboard unit tests (API router + schema export) and acceptance tests
+  (HTTP integration with proper server cleanup).
+
+### Changed
+
+- `StartedHttpTransport` now includes a `server` reference for test cleanup.
+- HTTP transport request handler restructured: `/mcp` → `/api/*` → SPA static →
+  404 (previously non-`/mcp` paths returned 404 immediately).
 
 ## [2.4.0] - 2026-06-14
 
