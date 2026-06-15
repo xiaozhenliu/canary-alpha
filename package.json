@@ -50,6 +50,8 @@
     "eval:coverage": "tsx tests/evaluations/coverage-scenario/run.ts",
     "eval:work-activity": "tsx tests/evaluations/work-activity/run-eval.ts",
     "eval:faithfulness": "tsx tests/evaluations/work-activity/run-faithfulness.ts",
+    "release:public": "bash scripts/publish-to-public.sh",
+    "release:public:dry-run": "bash scripts/publish-to-public.sh --dry-run",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
