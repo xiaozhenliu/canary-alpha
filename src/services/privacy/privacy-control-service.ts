@@ -277,6 +277,8 @@ export class DefaultPrivacyControlService implements PrivacyControlService {
         return this.resume(state);
       case 'exclude-app':
         return this.excludeApp(state, request);
+      case 'remove-excluded-app':
+        return this.removeExcludedApp(state, request);
       case 'delete-range':
         return this.deleteRange(state, request);
     }
@@ -403,6 +405,39 @@ export class DefaultPrivacyControlService implements PrivacyControlService {
     return this.updateState('exclude-app', {
       ...state,
       excludedApps
+    });
+  }
+
+  private async removeExcludedApp(state: PrivacyState, request: PrivacyControlRequest): Promise<PrivacyControlResult> {
+    const appName = request.appName?.trim();
+    if (!appName) {
+      return {
+        ...createResult('remove-excluded-app', state),
+        error: {
+          code: 'PRIVACY_APP_NAME_REQUIRED',
+          message: 'App name is required for remove-excluded-app.'
+        }
+      };
+    }
+
+    const normalizedAppName = normalizeAppName(appName);
+    const filtered = state.excludedApps.filter(
+      (existing) => normalizeAppName(existing) !== normalizedAppName
+    );
+
+    if (filtered.length === state.excludedApps.length) {
+      return {
+        ...createResult('remove-excluded-app', state),
+        error: {
+          code: 'PRIVACY_APP_NOT_EXCLUDED',
+          message: `App "${appName}" is not in the excluded list.`
+        }
+      };
+    }
+
+    return this.updateState('remove-excluded-app', {
+      ...state,
+      excludedApps: filtered
     });
   }
 

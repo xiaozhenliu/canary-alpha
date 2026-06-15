@@ -1263,7 +1263,11 @@ describe('indexing core service', () => {
     });
   });
 
-  it('continues indexing later successful records and advances checkpoint to the last success', async () => {
+  it('indexes successful records around a failure but does NOT advance checkpoint past the failed frame (GRO-163)', async () => {
+    // record-1 (T1) succeeds, record-2 (T2) fails, record-3 (T3) succeeds.
+    // Checkpoint must stop at record-1 so that record-2 is retried next tick.
+    // record-3's embedding is stored but its timestamp is beyond the failure
+    // ceiling and therefore cannot advance the checkpoint.
     const vectorStore = new RecordingVectorStore();
     const checkpointStore = new StubCheckpointStore({
       cursor: 'record-0',
@@ -1304,12 +1308,15 @@ describe('indexing core service', () => {
 
     const result = await service.runOnce(new Date('2026-04-13T12:00:00.000Z'));
 
+    // 2 records succeed (record-1 and record-3); 1 fails (record-2).
     expect(result.indexed).toBe(2);
     expect(vectorStore.upserts).toHaveLength(1);
     expect(vectorStore.upserts[0]?.map((record) => record.id)).toEqual(['record-1', 'record-3']);
+    // Checkpoint must be at record-1 (the last success strictly before record-2).
+    // record-3 is at T3 > T2 (failure ceiling) so it cannot advance the checkpoint.
     await expect(checkpointStore.readLatest()).resolves.toEqual({
-      cursor: 'record-3',
-      timestamp: '2026-04-13T11:22:00.000Z'
+      cursor: 'record-1',
+      timestamp: '2026-04-13T11:20:00.000Z'
     });
   });
 

@@ -1,12 +1,12 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 ---
 
 # MCP 工具
 
-服务当前注册了九个 MCP 工具。本文介绍面向客户端集成者的公开工具接口、输入 schema 和输出预期。
+服务当前注册了十二个 MCP 工具。本文介绍面向客户端集成者的公开工具接口、输入 schema 和输出预期。
 
 ## 返回值格式
 
@@ -34,6 +34,9 @@ last_updated: 2026-06-13
 | `privacy-control` | privacy | 检查或修改本地隐私采集控制 |
 | `screenpipe-control` | screenpipe | 检查、启动或停止本地 Screenpipe 录制进程 |
 | `internal-status` | internal | 返回启动安全的运行时状态 |
+| `routine-list` | routines | 列出所有已配置的本地 routine，包含调度计划、启用状态和最近一次运行摘要 |
+| `routine-create` | routines | 按名称创建新 routine 或更新已有 routine |
+| `routine-history` | routines | 按名称返回指定 routine 的执行历史，按最新优先排序 |
 
 ## `find`
 
@@ -302,6 +305,87 @@ CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，�
 响应还包含采集/摄入可观测性块（`capture`、`ingestionMix`、`diskBudget`）以及摘要派生存储健康状况的 `workActivity` 块。参见 [排障](/zh/guide/troubleshooting#采集与摄入可观测性) 了解故障模式参考。
 
 本工具是 `npm run service:status` 使用的主要健康探针。
+
+## `routine-list`
+
+列出所有已配置的本地 routine。可选按启用状态过滤。返回每个 routine 的调度计划、启用状态、prompt、recent-activity 窗口、时间戳，以及（存在时的）最近一次运行摘要。
+
+**输入**
+
+```json
+{
+  "enabled": true
+}
+```
+
+| 字段 | 类型 | 是否必填 | 备注 |
+|------|------|---------|------|
+| `enabled` | boolean | 否 | 提供时，仅返回 `enabled` 字段与此值匹配的 routine |
+
+**输出预期**
+
+- `structuredContent.routines` 是 routine 对象数组；每项包含 `name`、`schedule`、`enabled`、`kind`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`，以及可选的 `latestRun`（`runId`、`startedAt`、`completedAt`、`status` ∈ `success` | `failed` | `skipped`、`summary`）
+- `structuredContent.total` 为返回的 routine 数量
+- `content[0].text` 为简短叙述（如 "3 routine(s) configured."）
+- 失败路径返回 `isError: true`，`structuredContent: { routines: [], total: 0 }`
+
+## `routine-create`
+
+按名称创建新 routine 或更新已有 routine。调度计划必须是合法的 5 字段 cron 表达式。名称会被规范化为文件系统安全的 slug（小写字母数字加连字符）。若调度器正在运行，新定义或更新定义无需重启服务即可立即生效。
+
+**输入**
+
+```json
+{
+  "name": "morning standup",
+  "prompt": "Summarize yesterday's work activity for the standup.",
+  "schedule": "0 9 * * 1-5",
+  "enabled": true,
+  "recentActivityMinutes": 480
+}
+```
+
+| 字段 | 类型 | 是否必填 | 备注 |
+|------|------|---------|------|
+| `name` | string（最短 1） | 是 | 规范化为小写字母数字加连字符 |
+| `prompt` | string（最短 1） | 是 | routine 执行器使用的 prompt 文本 |
+| `schedule` | string（最短 1） | 是 | 5 字段 cron 表达式（如 `"0 8 * * *"` 表示每天 08:00） |
+| `enabled` | boolean | 否 | 默认 `true` |
+| `recentActivityMinutes` | 正整数 | 否 | recent-activity 查询的回溯窗口（分钟），默认 `60` |
+
+**输出预期**
+
+- `structuredContent.routine` 返回持久化的定义：`name`、`schedule`、`enabled`、`kind`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`
+- `structuredContent.isNew` 在 routine 新建时为 `true`，更新已有 routine 时为 `false`
+- `content[0].text` 说明 routine 是被创建还是更新（如 `Routine "morning-standup" created.`）
+- 失败路径（无效 cron、空名称、存储错误）返回 `isError: true`
+
+## `routine-history`
+
+按名称返回指定 routine 的执行历史，按最新优先排序。每条记录包含运行状态、时间信息，以及输出内容或错误消息。`name` 参数与存储的（规范化后的）routine 名称精确匹配。
+
+**输入**
+
+```json
+{
+  "name": "morning-standup",
+  "limit": 5
+}
+```
+
+| 字段 | 类型 | 是否必填 | 备注 |
+|------|------|---------|------|
+| `name` | string（最短 1） | 是 | 要查询的 routine 名称（规范化后的存储名称） |
+| `limit` | 1–100 正整数 | 否 | 默认 `10` |
+
+**输出预期**
+
+- `structuredContent.name` 回显请求的 routine 名称
+- `structuredContent.runs` 是运行记录数组，最新优先；每条记录包含 `runId`、`name`、`startedAt`、`completedAt`、`status` ∈ `success` | `failed` | `skipped`、`summary`、`output`，以及可选 `error`（`message`）
+- `structuredContent.total` 为返回的记录数
+- `content[0].text` 为简短叙述（如 `5 run record(s) for routine "morning-standup".`）
+- 无历史记录时 `runs` 为空，叙述文本会说明
+- 失败路径返回 `isError: true`，`structuredContent: { name, runs: [], total: 0 }`
 
 ## 兼容性说明
 

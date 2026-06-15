@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # 配置文件
@@ -197,6 +197,43 @@ capture:
 | `pollIntervalSeconds` | 正整数 | `30` | 后台检索轮询间隔。 |
 | `maxCatchUpBatches` | 正整数 | `3` | 限制每个周期的追赶工作量。 |
 | `maxCatchUpRecords` | 正整数 | `500` | 限制追赶期间处理的记录数。 |
+
+### `routines`
+
+控制本地 routines 引擎。Routine 是按 cron 调度在后台运行、从既有 recent-activity 数据产出确定性摘要的任务——不需要任何外部 LLM provider。
+
+| 字段 | 类型 | 默认值 | 备注 |
+|------|------|--------|------|
+| `enabled` | boolean | `false` | 为 `false` 时不调度或执行任何 routine。设为 `true` 以激活调度器。 |
+| `definitionsPath` | string | `~/.canary-alpha-mcp/routines/definitions/` | routine 定义 JSON 文件的持久化目录，支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
+| `historyPath` | string | `~/.canary-alpha-mcp/routines/history/` | routine 执行历史 JSON 文件的持久化目录（每 routine 一个文件，最新优先）。支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
+
+默认存储结构：
+
+```
+~/.canary-alpha-mcp/
+  routines/
+    definitions/   ← 每个 routine 一个 JSON 文件（以 slug 命名）
+    history/       ← 每个 routine 一个 JSON 文件（执行记录，最新优先）
+```
+
+使用默认路径启用 routines：
+
+```yaml
+routines:
+  enabled: true
+```
+
+自定义存储路径：
+
+```yaml
+routines:
+  enabled: true
+  definitionsPath: ~/my-data/routines/definitions
+  historyPath: ~/my-data/routines/history
+```
+
+**MVP 范围边界** —— routines MVP 不包含：meetings 或 calendar 工具、手动触发 routine 运行、routine 输出作为 MCP resources、任意 LLM-backed prompt 执行，以及跨机器同步。这些需求在项目待办中跟踪，留待后续版本实现。
 
 ## 环境变量覆盖
 

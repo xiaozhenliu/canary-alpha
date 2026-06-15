@@ -38,6 +38,21 @@ export const TOOL_MANIFEST = [
     name: 'internal-status',
     title: 'Internal Status',
     category: 'internal'
+  },
+  {
+    name: 'routine-list',
+    title: 'List Routines',
+    category: 'routines'
+  },
+  {
+    name: 'routine-create',
+    title: 'Create or Update Routine',
+    category: 'routines'
+  },
+  {
+    name: 'routine-history',
+    title: 'Routine Execution History',
+    category: 'routines'
   }
 ] as const;
 

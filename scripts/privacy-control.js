@@ -19,7 +19,7 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
 const HOTSPOT_LIMIT = 2;
 const ALLOWED_DELETE_RANGES = new Set(['last_1h', 'last_1d', 'all']);
-const SUPPORTED_ACTIONS = new Set(['status', 'pause', 'resume', 'exclude-app', 'delete-range']);
+const SUPPORTED_ACTIONS = new Set(['status', 'pause', 'resume', 'exclude-app', 'remove-excluded-app', 'delete-range']);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 
@@ -35,6 +35,7 @@ function usage() {
     '  npm run privacy-control -- pause',
     '  npm run privacy-control -- resume',
     '  npm run privacy-control -- exclude-app --app <name> [--rebuild]',
+    '  npm run privacy-control -- remove-excluded-app --app <name>',
     '  npm run privacy-control -- delete-range --range <last_1h|last_1d|all> --confirm'
   ].join('\n');
 }
@@ -97,7 +98,7 @@ function formatCommandFailure(error) {
 }
 
 function toToolArguments(parsed) {
-  if (parsed.action === 'exclude-app') {
+  if (parsed.action === 'exclude-app' || parsed.action === 'remove-excluded-app') {
     return {
       action: parsed.action,
       appName: parsed.appName
@@ -208,6 +209,8 @@ export function parseArgs(argv) {
     };
   }
 
+  // Both exclude-app and remove-excluded-app require --app <name>.
+  // Only exclude-app accepts the optional --rebuild flag.
   let appName;
   let rebuild = false;
 
@@ -219,7 +222,7 @@ export function parseArgs(argv) {
       continue;
     }
 
-    if (token === '--rebuild') {
+    if (token === '--rebuild' && action === 'exclude-app') {
       rebuild = true;
       continue;
     }
@@ -228,13 +231,17 @@ export function parseArgs(argv) {
   }
 
   if (appName === undefined) {
+    if (action === 'remove-excluded-app') {
+      throw new Error('Usage: npm run privacy-control -- remove-excluded-app --app <name>');
+    }
+
     throw new Error('Usage: npm run privacy-control -- exclude-app --app <name> [--rebuild]');
   }
 
   return {
-    action: 'exclude-app',
+    action,
     appName,
-    rebuild
+    ...(action === 'exclude-app' ? { rebuild } : {})
   };
 }
 
@@ -324,6 +331,8 @@ export function formatResult(result) {
       const excludedApp = toNonEmptyString(excludedApps.at(-1));
       return excludedApp ? `Excluded app: ${excludedApp}` : 'Excluded app updated.';
     }
+    case 'remove-excluded-app':
+      return 'App removed from excluded list.';
     case 'delete-range':
       return formatDeleteRangeResult(structured);
     default:

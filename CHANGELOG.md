@@ -1,7 +1,7 @@
 ---
-doc_version: 6
+doc_version: 14
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Changelog
@@ -12,6 +12,142 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Security
+
+- Dashboard `GET /api/config/effective` and `GET /api/config` no longer accept
+  `?reveal=true` — bulk secret reveal is removed. Use the new
+  `GET /api/config/get?path=<field>&reveal=true` endpoint to reveal a single
+  named field at a time, limiting the blast radius if the authToken is
+  compromised (GRO-162).
+
+### Fixed
+
+- Concurrent Dashboard API requests to config write endpoints (`set`, `unset`,
+  `add`, `remove`) no longer lose updates. A process-internal promise-queue
+  mutex in `ConfigCliService` serializes all read-modify-write cycles, ensuring
+  every write is applied to the latest on-disk state (GRO-164).
+- Concurrent indexing no longer permanently skips frames whose embedding
+  failed when a later frame succeeded. The checkpoint advancement logic now
+  computes a failure ceiling (the earliest failed record) and refuses to advance
+  past it, ensuring every failed frame is retried on the next tick (GRO-163).
+- Dashboard `GET /api/logs` no longer reads the entire log file into memory.
+  A bounded backward tail reader (10 MiB cap) replaces the previous
+  `readFile` + `split('\n')` pattern, eliminating OOM risk on large production
+  log files (GRO-161).
+
+### Added
+
+- `privacy-control` tool now supports `remove-excluded-app` action to remove an
+  app from the exclusion list. Uses the same case-insensitive matching as
+  `exclude-app`. Returns `PRIVACY_APP_NOT_EXCLUDED` error when the app is not
+  in the list, and `PRIVACY_APP_NAME_REQUIRED` when no app name is provided.
+  The `scripts/privacy-control.js` CLI also exposes the new action via
+  `npm run privacy-control -- remove-excluded-app --app <name>` (GRO-165).
+- New Dashboard API endpoint `GET /api/config/get?path=<field>[&reveal=true]`
+  returns a single config field value (masked by default, revealed only when
+  `reveal=true` is explicitly requested). The field path must be a valid leaf
+  path in the config schema; object paths are rejected with 400 (GRO-162).
+- Dashboard reference documentation (`docs/reference/dashboard.md`) covering
+  access, authentication, all six page modules, REST API endpoints, and the
+  relationship between dashboard, CLI, and MCP tools. Available in English and
+  Simplified Chinese on the documentation site.
+
+### Changed
+
+- `privacy-control` tool structured output now includes `deletedFrames`,
+  `deletedElements`, `deletedExtractedContent`, `deletedSessions`,
+  `deletedEmbeddings`, and `cascade` fields when a `delete-range` action
+  completes, giving callers visibility into the full upstream + cascade outcome.
+
+### Tests
+
+- Restored the `delete-range last_1h` acceptance test in
+  `tests/acceptance/privacy-control.test.ts` (GRO-44). The test now exercises
+  the full end-to-end path via real MCP stdio: startup catch-up indexing,
+  confirmed `privacy-control delete-range last_1h`, cascade coordinator
+  cleanup, and post-delete `find` verification. Frame ID alignment between the
+  Screenpipe HTTP stub and the SQLite fixture is verified directly.
+- Added HTTP runtime marker lifecycle acceptance test in
+  `tests/acceptance/http-init.test.ts` (GRO-46). The test verifies that an HTTP
+  server creates a runtime marker file in `~/.canary-alpha-mcp/runtime-processes/`
+  on startup and removes it after SIGTERM shutdown, using an isolated temp HOME
+  directory consistent with the existing stdio marker test pattern.
+
+## [2.5.0] - 2026-06-15
+
+### Added
+
+- Dashboard Web UI: a browser-based management panel embedded in the existing
+  HTTP server, accessible at `http://127.0.0.1:<port>/`.
+  - **Status Dashboard**: real-time display of server, capture, retrieval,
+    ingestion, disk budget, work activity, and providers status with auto-refresh
+    and degraded-state indicators.
+  - **Configuration Manager**: schema-driven form UI auto-generated from the Zod
+    config schema. Supports editing scalar fields, viewing array fields, secret
+    masking/reveal, and environment-variable override annotations.
+  - **Routines Manager**: list, create, edit, enable/disable toggle, and view
+    execution history for background routines with cron validation.
+  - **Activity Browser**: time-range session timeline and keyword/semantic/hybrid
+    search panel with result timestamps.
+  - **Privacy Controls**: pause/resume collection, manage excluded apps (add-only;
+    backend limitation documented), and delete data ranges with confirmation.
+  - **Log Viewer**: structured JSON log display with level filtering.
+  - **Token Gate**: auth token entry screen on first visit with 401 re-auth.
+- Dashboard REST API (`/api/*`): 15 endpoints for status, config (effective
+  values + schema + mutations), routines (CRUD + history), activity (sessions +
+  search), privacy (status + actions), and logs.
+- Shared Bearer token auth helper (`verifyBearerToken`) extracted from the
+  HTTP transport for reuse by both `/mcp` and `/api/*` routes.
+- API route registry pattern: `ApiRouter` with path-param matching, 1 MB body
+  limit, and automatic 401/404/500 handling.
+- SPA static file server with extension-aware fallback (HTML-only SPA routing;
+  missing `.js`/`.css` assets correctly return 404).
+- Zod 4 → JSON Schema converter (`schema-export.ts`) for dynamic form generation.
+- Frontend: React 19 + Vite 6 + Tailwind CSS v4 SPA with module-registry
+  architecture. Bundle size ~85 KB gzip (well under 150 KB target).
+- Build integration: `npm run build` now produces both server TypeScript and
+  dashboard frontend; `npm run typecheck:all` covers both.
+- Dashboard unit tests (API router + schema export) and acceptance tests
+  (HTTP integration with proper server cleanup).
+
+### Changed
+
+- `StartedHttpTransport` now includes a `server` reference for test cleanup.
+- HTTP transport request handler restructured: `/mcp` → `/api/*` → SPA static →
+  404 (previously non-`/mcp` paths returned 404 immediately).
+
+## [2.4.0] - 2026-06-14
+
+### Added
+
+- Routines MVP: three new MCP tools for managing background automation workflows:
+  - `routine-list` — list configured local routines with schedule, enabled state,
+    prompt, recent-activity window, timestamps, and latest run summary.
+  - `routine-create` — create or update a local routine by providing a name,
+    prompt, and cron schedule.
+  - `routine-history` — retrieve recent execution history for a named routine,
+    returned newest-first with structured status and summary fields.
+- Cron scheduler (`RoutineSchedulerService`): enabled routines execute in the
+  background on their configured cron schedule; concurrent runs of the same
+  routine are skipped (recorded as `skipped`) to prevent overlap.
+- Built-in `daily_summary` routine: produces a deterministic activity report
+  from recent screen-activity data without requiring a new LLM provider.
+- Delivery documentation: `docs/delivery/routines.md` describing routine tools,
+  config defaults (`routines.enabled`, `routines.storagePath`), storage paths,
+  and MVP scope boundaries.
+
+### Changed
+
+- `captureFramesReader` replaces the previous internal alias `screenpipeFramesReader`
+  in the retrieval service layer (TD-007). The rename aligns with the
+  capture-provider abstraction; no observable behavior change.
+
+### Fixed
+
+- `AxTreeMaintenanceService` ported to use `CaptureMaintenancePort` internally
+  (TD-005), removing the last direct Screenpipe service reference from the
+  maintenance layer. No behavior change.
 
 ## [2.3.0] - 2026-06-14
 

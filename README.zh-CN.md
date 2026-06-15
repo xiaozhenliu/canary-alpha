@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-14
 ---
 
 # canary-alpha-mcp
@@ -74,7 +74,7 @@ http://127.0.0.1:18765/mcp
 
 ## MCP 工具
 
-运行时注册了 9 个 MCP tools：
+运行时注册了 12 个 MCP tools：
 
 | Tool | 用途 |
 |------|------|
@@ -87,6 +87,9 @@ http://127.0.0.1:18765/mcp
 | `privacy-control` | 检查或修改本地隐私控制 |
 | `screenpipe-control` | 检查、启动或停止本地 Screenpipe 录制进程 |
 | `internal-status` | 检查运行健康状态、采集状态和索引恢复状态 |
+| `routine-list` | 列出已配置的本地 routine，含调度计划、启用状态和最近一次运行摘要 |
+| `routine-create` | 通过提供名称、prompt 和 cron 计划创建或更新本地 routine |
+| `routine-history` | 按名称获取某 routine 的近期执行历史，newest-first 排序 |
 
 输入 schema 和返回结果约定请阅读 [MCP 工具参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools)。
 
@@ -128,6 +131,7 @@ flowchart LR
 |------|------|
 | [快速开始](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart) | 首次安装、初始化与验证 |
 | [配置参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/configuration) | 配置字段与 embedding provider |
+| [控制面板](https://xiaozhenliu.github.io/canary-alpha/zh/reference/dashboard) | 状态监控、配置管理、Routines 与日志的 Web UI |
 | [MCP 工具](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools) | 工具 schema 与返回约定 |
 | [通用 MCP 客户端](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp) | Streamable HTTP 客户端配置 |
 | [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes) | Hermes 初始化与验证 |

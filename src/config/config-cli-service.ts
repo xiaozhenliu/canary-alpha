@@ -7,6 +7,27 @@ import { computeConfigProvenance } from './config-provenance.js';
 import { isSecretPath, maskValue } from './config-secrets.js';
 import type { Document } from 'yaml';
 
+/**
+ * Process-internal mutex that serializes async operations via a promise chain.
+ * Prevents lost-update races when concurrent callers share one ConfigCliService
+ * instance (e.g. Dashboard API requests running in the same Node.js process).
+ *
+ * Not suitable for cross-process locking — the single-writer architecture
+ * (docs/architecture.md §8) means cross-process locking is not required.
+ */
+class Mutex {
+  private queue: Promise<void> = Promise.resolve();
+
+  run<T>(fn: () => Promise<T>): Promise<T> {
+    let release!: () => void;
+    // Enqueue: gate opens only after the previous tail resolves.
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const previous = this.queue;
+    this.queue = gate;
+    return previous.then(() => fn()).finally(() => release());
+  }
+}
+
 // list display source: 'file' when the field is explicitly present in the file, 'default' when falling back to the schema default.
 export type ConfigValueSource = 'file' | 'default';
 
@@ -49,6 +70,9 @@ function safeProvenance(): Map<string, { overriddenByEnv?: string }> | null {
 
 export class ConfigCliService {
   constructor(private readonly store: ConfigFileStore = new ConfigFileStore()) {}
+
+  // Serializes all write operations (set / unset / mutateArray) within this process.
+  private readonly writeLock = new Mutex();
 
   configPath(): string {
     return this.store.path();
@@ -96,6 +120,7 @@ export class ConfigCliService {
   }
 
   async set(dotted: string, rawValue: string): Promise<ConfigMutateResult> {
+    // Schema validation is pure (no I/O) — run outside the lock.
     const path = splitPath(dotted);
     const resolved = resolveSchemaAtPath(path);
     if (!resolved.ok) {
@@ -108,50 +133,57 @@ export class ConfigCliService {
     if (!coerced.ok) {
       throw new CliError(`Cannot set ${dotted}: ${coerced.message}`);
     }
-    const { doc, existed } = await this.store.readDocument();
-    // null literal (only reachable for nullable fields) is equivalent to unset: delete the key.
-    if (coerced.value === null) {
-      this.store.deleteAtPath(doc, path);
-    } else {
-      this.store.setScalarAtPath(doc, path, coerced.value);
-    }
-    this.assertValid(doc);
-    await this.store.write(doc);
-    const prov = safeProvenance();
-    return {
-      path: dotted,
-      ok: true,
-      message: existed ? `set ${dotted}` : `created config and set ${dotted}`,
-      overriddenByEnv: prov?.get(dotted)?.overriddenByEnv
-    };
+
+    return this.writeLock.run(async () => {
+      const { doc, existed } = await this.store.readDocument();
+      // null literal (only reachable for nullable fields) is equivalent to unset: delete the key.
+      if (coerced.value === null) {
+        this.store.deleteAtPath(doc, path);
+      } else {
+        this.store.setScalarAtPath(doc, path, coerced.value);
+      }
+      this.assertValid(doc);
+      await this.store.write(doc);
+      const prov = safeProvenance();
+      return {
+        path: dotted,
+        ok: true,
+        message: existed ? `set ${dotted}` : `created config and set ${dotted}`,
+        overriddenByEnv: prov?.get(dotted)?.overriddenByEnv
+      };
+    });
   }
 
   async unset(dotted: string): Promise<ConfigMutateResult> {
+    // Schema validation is pure (no I/O) — run outside the lock.
     const path = splitPath(dotted);
     const resolved = resolveSchemaAtPath(path);
     if (!resolved.ok) {
       throw this.pathError(resolved, dotted);
     }
-    const { doc } = await this.store.readDocument();
-    const had = this.store.getAtPath(doc, path) !== undefined;
-    if (!had) {
-      return { path: dotted, ok: true, message: `${dotted} was not set`, noop: true };
-    }
-    this.store.deleteAtPath(doc, path);
-    try {
-      this.assertValid(doc);
-    } catch (err) {
-      if (err instanceof CliError) {
-        throw new CliError(`Cannot unset required field ${dotted}`);
+
+    return this.writeLock.run(async () => {
+      const { doc } = await this.store.readDocument();
+      const had = this.store.getAtPath(doc, path) !== undefined;
+      if (!had) {
+        return { path: dotted, ok: true, message: `${dotted} was not set`, noop: true };
       }
-      throw err;
-    }
-    await this.store.write(doc);
-    return {
-      path: dotted,
-      ok: true,
-      message: `unset ${dotted}`
-    };
+      this.store.deleteAtPath(doc, path);
+      try {
+        this.assertValid(doc);
+      } catch (err) {
+        if (err instanceof CliError) {
+          throw new CliError(`Cannot unset required field ${dotted}`);
+        }
+        throw err;
+      }
+      await this.store.write(doc);
+      return {
+        path: dotted,
+        ok: true,
+        message: `unset ${dotted}`
+      };
+    });
   }
 
   async addToArray(dotted: string, item: string): Promise<ConfigMutateResult> {
@@ -163,25 +195,29 @@ export class ConfigCliService {
   }
 
   private async mutateArray(dotted: string, item: string, op: 'add' | 'remove'): Promise<ConfigMutateResult> {
+    // Schema validation is pure (no I/O) — run outside the lock.
     const path = splitPath(dotted);
     const resolved = resolveSchemaAtPath(path);
     if (!resolved.ok) throw this.pathError(resolved, dotted);
     if (!resolved.isArray) throw new CliError(`${dotted} is not an array field`);
-    const { doc } = await this.store.readDocument();
-    const changed = op === 'add'
-      ? this.store.addToSeqAtPath(doc, path, item)
-      : this.store.removeFromSeqAtPath(doc, path, item);
-    if (!changed) {
-      return {
-        path: dotted,
-        ok: true,
-        noop: true,
-        message: op === 'add' ? `${item} already present` : `${item} not found`
-      };
-    }
-    this.assertValid(doc);
-    await this.store.write(doc);
-    return { path: dotted, ok: true, message: `${op} ${item} in ${dotted}` };
+
+    return this.writeLock.run(async () => {
+      const { doc } = await this.store.readDocument();
+      const changed = op === 'add'
+        ? this.store.addToSeqAtPath(doc, path, item)
+        : this.store.removeFromSeqAtPath(doc, path, item);
+      if (!changed) {
+        return {
+          path: dotted,
+          ok: true,
+          noop: true,
+          message: op === 'add' ? `${item} already present` : `${item} not found`
+        };
+      }
+      this.assertValid(doc);
+      await this.store.write(doc);
+      return { path: dotted, ok: true, message: `${op} ${item} in ${dotted}` };
+    });
   }
 
   async validate(): Promise<ConfigValidateResult> {

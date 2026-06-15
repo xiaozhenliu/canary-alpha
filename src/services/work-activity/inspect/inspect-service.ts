@@ -15,8 +15,8 @@
  *     UI can re-use the same renderer.
  *
  *   - **`target.kind === 'frame'`** — read the five-column projection
- *     of ScreenPipe's upstream `frames` table via the supplied
- *     {@link ScreenpipeFramesReader}, plus the (optional) derived
+ *     of the capture source's upstream `frames` table via the supplied
+ *     {@link CaptureFrameDetailPort}, plus the (optional) derived
  *     `extracted_content` row. The narrative for this path is a
  *     deterministic template (no provider call) because a single
  *     frame is too small a unit of work to be worth an LLM round
@@ -45,9 +45,9 @@ import type { ExtractionResult } from '../extraction/types.js';
 import type { SessionStore, SessionRow } from '../sessions/session-store.js';
 import type { SummaryWorker, EnsureSummaryResult } from '../summary/worker.js';
 import type {
-  ScreenpipeFrameRow,
-  ScreenpipeFramesReader
-} from '../../capture/providers/screenpipe/frames-reader.js';
+  CaptureFrameDetailPort,
+  CaptureFrameRow
+} from '../../capture/types.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -177,7 +177,7 @@ export interface InspectService {
  *     used by the frame-path to surface the derived snippet.
  *   - `summaryWorker` — materialises the session's `summary` block
  *     (idempotent; design §6.5).
- *   - `screenpipeFramesReader` — read-only port over ScreenPipe's
+ *   - `captureFramesReader` — read-only port over the capture source's
  *     `frames` table; abstracted so tests can swap in an in-memory
  *     stub without spawning a real `db.sqlite`.
  *   - `now` — wall-clock provider, kept for symmetry with the rest
@@ -189,7 +189,7 @@ export interface InspectServiceDependencies {
   sessionStore: SessionStore;
   extractedContentStore: ExtractedContentStore;
   summaryWorker: SummaryWorker;
-  screenpipeFramesReader: ScreenpipeFramesReader;
+  captureFramesReader: CaptureFrameDetailPort;
   now?: () => Date;
 }
 
@@ -281,7 +281,7 @@ export class DefaultInspectService implements InspectService {
     // database are independent SQLite connections, so we save the
     // round-trip latency.
     const [frameRow, derivedRows] = await Promise.all([
-      this.deps.screenpipeFramesReader.getFrame(frameId),
+      this.deps.captureFramesReader.getFrame(frameId),
       this.deps.extractedContentStore.getByFrameIds(numericFrameIds(frameId))
     ]);
     const derived = derivedRows[0] ?? null;
@@ -432,7 +432,7 @@ function buildSessionNarrative(
  */
 function buildFrameNarrative(
   frameId: number | string,
-  frameRow: ScreenpipeFrameRow | null,
+  frameRow: CaptureFrameRow | null,
   derivedRow: ExtractionResult | null
 ): string {
   if (frameRow === null && derivedRow === null) {

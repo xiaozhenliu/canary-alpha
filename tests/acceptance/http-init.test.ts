@@ -1,7 +1,14 @@
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { connectHttpClient } from '../helpers/mcp-client.js';
+import { startEmbeddingStub } from '../helpers/embedding-stub.js';
+import { startScreenpipeStub } from '../helpers/screenpipe-stub.js';
 import { startHttpServer } from '../helpers/start-http-server.js';
+import { writeTestConfig } from '../helpers/test-config.js';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -88,5 +95,60 @@ describe('http MCP initialization', () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it('removes the runtime marker when an HTTP server shuts down', async () => {
+    const homeDir = await mkdtemp(join(testTempRoot(), 'http-init-runtime-marker-'));
+    cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
+
+    const screenpipe = await startScreenpipeStub({ records: [] });
+    cleanup.push(() => screenpipe.stop());
+
+    const embedding = await startEmbeddingStub();
+    cleanup.push(() => embedding.stop());
+
+    const port = 8770;
+    await writeTestConfig(homeDir, {
+      embeddingBaseUrl: embedding.url,
+      screenpipeBaseUrl: screenpipe.url,
+      mode: 'http',
+      port,
+      authToken: 'test-http-token'
+    });
+
+    // Start the HTTP server with a custom HOME so markers go into the isolated temp dir.
+    const server = await startHttpServer(port, {
+      HOME: homeDir,
+      CANARY_ALPHA_MCP_AUTH_TOKEN: 'test-http-token'
+    });
+    cleanup.push(() => server.stop());
+
+    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+
+    // Verify marker was created after startup.
+    const startMarkers = await readdir(runtimeDir);
+    expect(startMarkers.length).toBeGreaterThan(0);
+
+    // Shutdown the server and wait for it to exit.
+    await server.stop();
+
+    // Poll until the marker directory is empty or gone (cleanup on shutdown).
+    const startedAt = Date.now();
+    let remainingMarkers = ['placeholder'];
+    while (Date.now() - startedAt < 10_000) {
+      try {
+        remainingMarkers = await readdir(runtimeDir);
+      } catch {
+        remainingMarkers = [];
+      }
+
+      if (remainingMarkers.length === 0) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    expect(remainingMarkers).toEqual([]);
   });
 });

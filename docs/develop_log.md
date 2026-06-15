@@ -1,7 +1,7 @@
 ---
-doc_version: 7
+doc_version: 17
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Development Log
@@ -12,6 +12,302 @@ outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
 
+## 2026-06-15: Dashboard Reference Documentation and Dead Link Fixes
+
+**Context**
+
+Dashboard Web UI shipped in v2.5.0 but had no user-facing reference documentation.
+The only written material was the deprecated design spec (`docs/specs/dashboard-web-ui.md`)
+and a one-liner in README. Operators had no way to learn about authentication,
+page modules, or REST API endpoints without reading source code.
+
+**Changes**
+
+- Created `docs/reference/dashboard.md` (EN) and `docs/zh/reference/dashboard.md` (ZH)
+  covering: access, authentication (fail-closed Bearer token), all six page modules
+  (Status, Config, Routines, Activity, Privacy, Logs), REST API endpoint table,
+  and the relationship between dashboard / CLI / MCP tools.
+- Added Dashboard entries to VitePress sidebar config (EN + ZH), both README
+  doc tables, and operations guide (tip block with link).
+- Registered both documents in `docs/documentation/governed-documents.md`.
+- Fixed VitePress build failures caused by dead links:
+  - Added `specs/**` and `security/**` to `srcExclude` (internal-only docs were
+    being processed as site pages).
+  - Replaced `configuration.md` links to excluded `specs/future-backlog.md` with
+    inline text (EN + ZH).
+
+**Verification**
+
+`npx vitepress build docs` passes with zero dead links and zero warnings.
+Both dashboard pages render in the build output (`docs/.vitepress/dist/`).
+
+## 2026-06-15: Batch Bug/Safety Backlog Clearance (GRO-43 ~ GRO-166)
+
+This session processed all 10 remaining Backlog issues (GRO-43 through GRO-166)
+in priority order (Safety first, then Bug, by ascending issue number). Seven
+required code changes; three were verified as already resolved by prior commits.
+
+### Verified as already resolved (no code change)
+
+- **GRO-43** (Bug): Fix canonical app home path regressions after canary-alpha
+  rename. Zero references to old `screenpipe-memory-mcp` path remain in
+  `src/`, `tests/`, or `scripts/`. All 1188 tests pass. Fixed by the rename
+  commit (`f69cab9`).
+- **GRO-45** (Bug): Fix rebuild-index acceptance regressions. All 20
+  rebuild-index acceptance tests pass: artifact recovery, summary values,
+  checkpoint semantics, runtime marker guards, and managed service detection.
+  Fixed by v2.3.0–v2.5.0 storage and routines refactoring.
+- **GRO-166** (Bug): Routine name slug empty string file overwrite. All entry
+  points already validate: `routine-create` MCP tool checks
+  `if (!normalizedName)` and returns `isError`; Dashboard `POST /routines`
+  returns 400 when `sluggedName === ''`; `FileRoutineStore.writeDefinition` and
+  `appendRun` both throw on empty name. No additional guard needed.
+
+### Issues with code changes (individual entries below)
+
+- **GRO-44** (Bug+Safety): Restore delete-range last_1h acceptance test
+- **GRO-46** (Bug+Safety): Add HTTP runtime marker lifecycle test
+- **GRO-162** (Safety): Replace bulk config reveal with single-field API
+- **GRO-161** (Bug): Bounded tail reader for Logs API
+- **GRO-163** (Bug): Checkpoint failure ceiling to prevent frame skipping
+- **GRO-164** (Bug): Config write mutex for Dashboard concurrency
+- **GRO-165** (Bug): Add remove-excluded-app privacy action
+
+## 2026-06-15: Add remove-excluded-app Action to Privacy Control (GRO-165)
+
+**Problem**
+
+`PrivacyAction` only had `exclude-app` (add to exclusion list) with no reverse
+operation. Users who accidentally excluded an app could not undo it through the
+privacy interface.
+
+**Fix**
+
+Added `remove-excluded-app` action across all four layers:
+
+- `src/services/privacy/types.ts` — added to `PrivacyAction` union; added
+  `PRIVACY_APP_NOT_EXCLUDED` to `PrivacyControlError.code`
+- `src/services/privacy/privacy-control-service.ts` — new `removeExcludedApp()`
+  private method using the same `normalizeAppName` (lowercase) comparison as
+  `exclude-app`; returns `PRIVACY_APP_NOT_EXCLUDED` when app is not in list
+- `src/mcp/tools/privacy-control.ts` — added to Zod enum
+- `src/dashboard/routes/privacy.ts` — added to `VALID_ACTIONS` array
+- `scripts/privacy-control.js` — added to `SUPPORTED_ACTIONS`, `usage()`,
+  `parseArgs()` (accepts `--app`, no `--rebuild`), `toToolArguments()`, and
+  `formatResult()`
+
+**Verification**
+
+All 4 service-level integration tests pass. New CLI integration test
+`removes an excluded app via CLI` verifies the end-to-end round-trip:
+exclude + remove, confirm state file has 0 entries. All 98 existing tests
+remain green (integration/privacy + acceptance + contract).
+
+## 2026-06-15: Config Write Mutex to Prevent Dashboard Lost Updates (GRO-164)
+
+**Problem**
+
+`ConfigCliService` methods `set`, `unset`, `addToArray`, and `removeFromArray`
+each perform a read-modify-write cycle: `readDocument() → modify → write()`.
+Two concurrent Dashboard API requests (e.g. two browser tabs calling
+`PUT /api/config` simultaneously) could interleave these steps — request A
+reads, request B reads, A writes, B writes — causing A's changes to be silently
+overwritten.
+
+**Fix**
+
+Added a `Mutex` class (promise-based queue, ~20 lines) directly inside
+`src/config/config-cli-service.ts`. A single `writeLock` instance is held per
+`ConfigCliService` instance and wraps the read-modify-write cycle of `set`,
+`unset`, and `mutateArray`. Pre-write validation (schema resolution, value
+coercion) remains outside the lock since it is pure computation with no I/O.
+Read-only methods (`get`, `list`, `validate`) are not locked.
+
+The mutex is deadlock-free: the `finally(() => release())` path in `run()`
+releases the lock on both success and any error or noop return. The queue
+chains promise gates (not the user callback itself), so a rejected write does
+not poison subsequent writes.
+
+This fix is sufficient because the Dashboard runs in the same Node.js process
+as the MCP server — the single-writer architecture (docs/architecture.md §8)
+means cross-process locking is not required.
+
+**Tests added**
+
+- `tests/unit/config-cli-service.test.ts`: new test
+  "serializes concurrent set operations without lost updates (GRO-164)" fires 5
+  concurrent `set()` calls on distinct paths and asserts all values survive in
+  the final persisted config.
+
+**Codex review**
+
+Passed. No blocking findings. Confirmed: all write paths wrapped, read-only
+paths unlocked, mutex is deadlock-free.
+
+## 2026-06-15: Prevent Checkpoint from Advancing Past Failed Frames (GRO-163)
+
+**Problem**
+
+In `src/services/retrieval/indexing-service.ts`, the checkpoint accumulation
+loop advanced to the newest record with `advanceCheckpoint: true`, ignoring
+any records with `advanceCheckpoint: false` (embedding failures). If record A
+(older, T1) failed and record B (newer, T2) succeeded, checkpoint advanced to
+T2, permanently skipping A. The same gap-skip existed in the
+blocked-records re-check loop.
+
+**Fix**
+
+Collect all `(record, advanceCheckpoint)` pairs from both the concurrent embed
+phase and the released-blocked serial phase into a single `checkpointCandidates`
+array before computing `latestCheckpoint`. After all processing, derive the
+failure ceiling — the earliest record (by `compareRecords()` ordering, which
+uses cursor for same-timestamp tiebreaking) with `advanceCheckpoint: false`.
+Then advance `latestCheckpoint` in a single forward pass, skipping any
+candidate whose position compares `>= failureCeilingRecord`.
+
+This design avoids rollback complexity: by collecting all results first and
+deriving the ceiling before any checkpoint accumulation, released-blocked
+failures lower the ceiling before it is ever applied.
+
+**Tests updated**
+
+- `tests/integration/indexing/concurrent-embedding.test.ts`: updated the
+  "advances checkpoint past failure" test (which encoded old broken behavior)
+  to assert the corrected invariant; added three new `checkpoint ceiling
+  (GRO-163)` tests (mixed batch, all-success, all-failure).
+- `tests/integration/indexing/indexing-service.test.ts`: updated
+  "continues indexing later successful records" test to expect checkpoint at
+  record-1 rather than record-3.
+
+**Codex review**
+
+Two Codex review passes were run. First pass flagged: (1) released-blocked
+rollback omitted those records from recomputation, (2) `Date.parse` vs
+`compareRecords` ordering inconsistency. The design was refactored to use
+the collect-then-ceiling-then-advance pattern, eliminating both issues. Second
+pass confirmed no remaining blocking findings.
+
+## 2026-06-15: Replace Full-File Log Read with Bounded Tail Reader (GRO-161)
+
+**Result**
+
+- Replaced `readFile(logFilePath, 'utf8')` + `.split('\n')` in
+  `src/dashboard/routes/logs.ts` with a new `readTailLines()` helper that
+  reads backward in 64 KiB chunks, stopping once enough non-empty lines have
+  been collected or the 10 MiB byte cap is reached.
+- Buffer fragments are stored as `Buffer` objects and decoded once via
+  `Buffer.concat().toString('utf8')` to prevent UTF-8 multi-byte corruption
+  at chunk boundaries — a real bug identified in the first Codex review pass.
+- `fh.read()` actual `bytesRead` is now used to slice the buffer, guarding
+  against short reads (e.g. log rotation during stat→read).
+- When `?level` filter is active, `FILTER_OVERSCAN_LINES` (10,000) lines are
+  requested; the 10 MiB byte cap provides the hard bound in all cases.
+- `total` in the response now reflects the window count rather than full-file
+  count — an intentional tradeoff documented in both code and changelog; the
+  old `total` required a full-file read to compute.
+- Added `tests/unit/dashboard/logs-tail-reader.test.ts` (8 unit tests covering
+  empty file, ENOENT, small file, large file tail, blank-line skipping, forward
+  order, multi-chunk, no trailing newline).
+- All existing tests pass: 41 total (acceptance + unit/dashboard).
+
+**Decisions**
+
+- Codex review (first pass) flagged blank lines counting toward the stop
+  condition; fixed by counting only `trim() !== ''` lines in the early-exit check.
+- Codex review (second pass) flagged UTF-8 boundary corruption and ignored
+  `fh.read` actual bytes — both fixed. The `total` behavior change was flagged
+  as blocking by Codex but is explicitly accepted per GRO-161 task spec.
+
+## 2026-06-15: Replace Bulk Config Reveal with Single-Field API (GRO-162)
+
+**Result**
+
+- Removed `?reveal=true` support from `GET /api/config/effective` and
+  `GET /api/config`. Both endpoints now always return masked secret values,
+  ignoring any `reveal` query parameter.
+- Added `GET /api/config/get?path=<field>[&reveal=true]` — a new single-field
+  reveal endpoint that only exposes the specifically requested config field.
+  The implementation delegates to `cliService.get(path, { reveal })`, which
+  already existed and correctly handles secret masking via `isSecretPath` /
+  `maskValue`. Invalid or parent-object paths are rejected with 400.
+- Updated `dashboard/src/lib/schema-form/fields/StringField.tsx` to use the
+  new endpoint: `onReveal` now calls `/config/get?path=<encodeURIComponent(path)>&reveal=true`
+  and reads `res.display`, replacing the bulk `/config/effective?reveal=true` call.
+- Added 6 new security regression tests to `tests/acceptance/dashboard-http.test.ts`
+  covering: bulk reveal endpoints always mask, single-field reveal returns unmasked,
+  no-reveal path returns masked, missing path returns 400, unknown path returns 400.
+
+**Decisions**
+
+- `cliService.get()` already scoped reveal to a single leaf path via
+  `resolveSchemaAtPath`; no new masking logic was needed — only routing changes.
+- Chose to add tests to the existing `dashboard-http.test.ts` rather than a
+  new file since the test suite already has the `createApp`/`startHttpTransport`
+  setup and runs with the same HOME isolation.
+- Codex review confirmed no remaining bulk-reveal path and correct frontend
+  endpoint usage; one non-blocking suggestion (cross-asserting two secrets) noted
+  for future follow-up.
+
+## 2026-06-15: Add HTTP Runtime Marker Lifecycle Acceptance Test (GRO-46)
+
+**Result**
+
+- Added the `removes the runtime marker when an HTTP server shuts down` test to
+  `tests/acceptance/http-init.test.ts`. The test uses an isolated temp `HOME`
+  directory, starts a real HTTP server process via `startHttpServer` with that
+  `HOME` in the env, asserts that a runtime marker exists in
+  `<HOME>/.canary-alpha-mcp/runtime-processes/` immediately after startup, then
+  sends SIGTERM and polls until the marker directory is empty.
+- The pattern mirrors the existing `stdio` marker lifecycle test in
+  `tests/acceptance/stdio-init.test.ts` (same polling loop, same isolation
+  approach), completing the acceptance criterion that both transports must
+  validate marker create-on-start / remove-on-shutdown behaviour.
+
+**Decisions**
+
+- Used port 8770 for the new test to avoid conflicts with the existing
+  acceptance tests on 8765/8766/8767/8776.
+- No changes to `startHttpServer` were needed: the helper already accepts an
+  `env` parameter and spreads it last, so `{ HOME: homeDir }` correctly
+  overrides the inherited `HOME`.
+
+## 2026-06-15: Restore delete-range last_1h Acceptance Test (GRO-44)
+
+**Result**
+
+- The stub acceptance test at line 109 of
+  `tests/acceptance/privacy-control.test.ts` — previously paused because it
+  depended on the removed `recent-activity` / `search-screen` tools — has been
+  replaced with a full end-to-end acceptance test using the `find` /
+  `privacy-control` MCP tools.
+- `src/mcp/tools/shared.ts`: `formatPrivacyControlToolResult` now surfaces
+  `deletedFrames`, `deletedElements`, `deletedExtractedContent`,
+  `deletedSessions`, `deletedEmbeddings`, and `cascade` in the structured
+  output of `delete-range` responses. These were present on the service result
+  but were not passed through to the MCP tool layer.
+
+**Decisions**
+
+- The "outside window" fixture frame (id=1) is placed at 65 minutes ago, not
+  2 hours. With the default `freshnessWindowMinutes: 15` and
+  `maxCatchUpBatches: 5` the startup catch-up window is 75 minutes, so a
+  2-hour frame would never be indexed and the post-delete assertion that frame 1
+  survives would be vacuous.
+- The test polls `find` until both recent frames (id=2, id=3) appear before
+  triggering the delete, ensuring the cascade operates on already-indexed rows
+  rather than racing the indexing pipeline.
+- After the delete the test asserts `cascade.cascade === 'ok'` to distinguish
+  a genuine cascade from a tombstone-only suppression; it also queries the
+  Screenpipe SQLite fixture directly to confirm frame 1 still exists and frames
+  2/3 are physically gone.
+
+**Verification**
+
+- `npx vitest run tests/acceptance/privacy-control.test.ts` — 4/4 pass.
+- `npx vitest run tests/integration/privacy/` — 22/22 pass.
+- Codex MCP review passed after two iterations (fixture window fix + cascade
+  assertion + SQLite direct verification).
+
 ## Maintenance Format
 
 Add an entry only when a change materially affects architecture, delivery,
@@ -21,6 +317,54 @@ from Git history and keep each entry scoped to:
 - **Result**: what became true after the milestone;
 - **Decisions**: constraints or trade-offs future maintainers should preserve;
 - **Verification**: the evidence used to close the milestone.
+
+## 2026-06-14: Routines MVP Delivery and Tech Debt Resolution (v2.4.0)
+
+**Result**
+
+- Routines MVP Groups B–D delivered in full:
+  - **B (Scheduling)**: `RoutineSchedulerService` runs enabled routines on their
+    configured cron schedule using `node-cron`. Overlap protection is enforced —
+    a trigger that arrives while the previous run is still executing is recorded
+    as `skipped` rather than spawning a concurrent run. Built-in `daily_summary`
+    produces a deterministic report from `recentActivity` data with no new LLM
+    provider dependency.
+  - **C (MCP tools)**: `routine-list`, `routine-create`, and `routine-history`
+    registered and validated through the tool manifest contract.
+  - **D (Delivery & verification)**: `docs/delivery/routines.md` documents tool
+    schemas, config defaults (`routines.enabled`, `routines.storagePath`), storage
+    paths, and MVP scope boundaries. Contract, integration, acceptance, typecheck,
+    and build automation all pass end-to-end.
+- **TD-007 resolved**: `screenpipeFramesReader` renamed to `captureFramesReader`
+  in the retrieval service layer, completing alignment with the capture-provider
+  abstraction. No observable behavior change.
+- **TD-005 resolved**: `AxTreeMaintenanceService` ported to use
+  `CaptureMaintenancePort` internally, removing the last direct Screenpipe
+  service reference from the maintenance layer. No behavior change.
+- `docs/specs/routines-mvp.md` marked deprecated (all groups A–D complete).
+- Bumped version to `2.4.0`.
+
+**Decisions**
+
+- Scheduler bootstrap follows the config-driven provider factory pattern
+  established by capture-provider-decoupling: `RoutineSchedulerService` is
+  wired in `bootstrap.ts` behind the `routines.enabled` capability gate; it is
+  never referenced directly in transport or tool layers.
+- `daily_summary` deliberately avoids any remote LLM call: it aggregates session
+  data from `recentActivity` and formats a structured local summary, keeping the
+  routine execution path deterministic and offline-safe.
+- TD-007 and TD-005 were resolved together in this batch because both are
+  straightforward renames/ports with zero behavior change — combining them keeps
+  the commit history clean without increasing review surface.
+
+**Verification**
+
+- `npx tsc --noEmit` clean. Full Vitest suite passes with new routine unit,
+  contract, integration, and acceptance coverage added.
+- Tool manifest contract updated to include `routine-list`, `routine-create`,
+  `routine-history`.
+- Acceptance criteria 1–12 from `docs/specs/routines-mvp.md` verified by
+  automated tests and typecheck/build.
 
 ## 2026-06-14: Security Audit Remediation (v2.2.0)
 

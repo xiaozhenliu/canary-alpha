@@ -436,6 +436,45 @@ describe('privacy-control CLI', () => {
     await expect(readFile(statePath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
+  it('removes an excluded app via CLI and prints compact confirmation', async () => {
+    const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-remove-excluded-'));
+    cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
+
+    const screenpipe = await startScreenpipeStub({ records: [] });
+    cleanup.push(() => screenpipe.stop());
+
+    const embedding = await startEmbeddingStub();
+    cleanup.push(() => embedding.stop());
+
+    await writeTestConfig(homeDir, {
+      embeddingBaseUrl: embedding.url,
+      screenpipeBaseUrl: screenpipe.url,
+      mode: 'http',
+      port: 18774
+    });
+
+    const server = await startHttpServer(18774, { HOME: homeDir });
+    cleanup.push(() => server.stop());
+
+    // First exclude an app so there is something to remove
+    await execFileAsync(process.execPath, [SCRIPT_PATH, 'exclude-app', '--app', 'Claude'], {
+      cwd: PROJECT_ROOT,
+      env: { ...process.env, HOME: homeDir, MCP_PORT: '18774' }
+    });
+
+    const { stdout } = await execFileAsync(process.execPath, [SCRIPT_PATH, 'remove-excluded-app', '--app', 'Claude'], {
+      cwd: PROJECT_ROOT,
+      env: { ...process.env, HOME: homeDir, MCP_PORT: '18774' }
+    });
+
+    const statePath = join(homeDir, '.canary-alpha-mcp', 'privacy-state.json');
+    const persistedState = JSON.parse(await readFile(statePath, 'utf8')) as { excludedApps: string[] };
+
+    expect(stdout).toContain('App removed from excluded list.');
+    expect(stdout).not.toContain('structuredContent');
+    expect(persistedState.excludedApps).toHaveLength(0);
+  });
+
   it('surfaces MCP validation responses as actionable non-zero exits without dumping payloads', async () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-control-cli-validation-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));

@@ -1,7 +1,7 @@
 ---
-doc_version: 22
+doc_version: 24
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # canary-alpha-mcp
@@ -38,6 +38,7 @@ AI agents are more useful when they can recover context from your actual work wi
 - **Provider configuration**: use local Ollama by default when available, or configure any OpenAI-compatible embedding endpoint.
 - **Operational visibility**: inspect capture health, ingestion mix, disk-budget warnings, and retrieval recovery status.
 - **Two MCP transports**: use Streamable HTTP for the managed service or stdio for compatible local clients.
+- **Dashboard Web UI**: a browser-based management panel for status monitoring, configuration, routines control, activity browsing, privacy management, and log viewing — accessible at `http://127.0.0.1:<port>/`.
 
 ## Quick Start
 
@@ -74,7 +75,7 @@ For the complete first-run walkthrough, Screenpipe permissions, safer terminal c
 
 ## MCP Tools
 
-The runtime registers nine MCP tools:
+The runtime registers twelve MCP tools:
 
 | Tool | Purpose |
 |------|---------|
@@ -87,6 +88,9 @@ The runtime registers nine MCP tools:
 | `privacy-control` | Check or modify local privacy controls |
 | `screenpipe-control` | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | Inspect runtime health, capture state, and retrieval recovery status |
+| `routine-list` | List configured local routines with schedule, enabled state, and latest run summary |
+| `routine-create` | Create or update a local routine with a name, prompt, and cron schedule |
+| `routine-history` | Retrieve recent execution history for a named routine, newest-first |
 
 See the [MCP tools reference](https://xiaozhenliu.github.io/canary-alpha/reference/tools) for schemas and result contracts.
 
@@ -109,7 +113,7 @@ See [Generic MCP client setup](https://xiaozhenliu.github.io/canary-alpha/guide/
 
 ## Architecture
 
-`canary-alpha-mcp` is an independent MCP server with no frontend. It reads local Screenpipe data, builds a local derived index, and exposes a focused tool surface through stdio and Streamable HTTP.
+`canary-alpha-mcp` is an independent MCP server with an embedded dashboard for local operators. It reads local Screenpipe data, builds a local derived index, and exposes a focused tool surface through stdio and Streamable HTTP. The dashboard web UI provides browser-based status monitoring and configuration management at the same HTTP endpoint.
 
 ```mermaid
 flowchart LR
@@ -128,6 +132,7 @@ Full documentation is available at **[xiaozhenliu.github.io/canary-alpha](https:
 |----------|----------------|
 | [Quickstart](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart) | First install, onboarding, and validation |
 | [Configuration](https://xiaozhenliu.github.io/canary-alpha/reference/configuration) | Configuration fields and embedding providers |
+| [Dashboard](https://xiaozhenliu.github.io/canary-alpha/reference/dashboard) | Web UI for status monitoring, config, routines, and logs |
 | [MCP tools](https://xiaozhenliu.github.io/canary-alpha/reference/tools) | Tool schemas and result contracts |
 | [Generic MCP client](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp) | Streamable HTTP client setup |
 | [Hermes](https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes) | Hermes onboarding and verification |

@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-13
+last_updated: 2026-06-15
 ---
 
 # 日常运维
@@ -37,6 +37,10 @@ npm run service:logs     # 追踪服务日志
 `service:status` 验证真实的 MCP `internal-status` 契约，而不仅仅是进程是否运行。它会报告端点 URL 和检索恢复状态。
 
 `service:logs` 追踪托管服务的日志文件。在 onboarding 失败或服务意外退出时使用。
+
+::: tip 控制面板
+当服务以 HTTP 模式运行时，浏览器管理面板可通过 `http://127.0.0.1:<port>/` 访问。它提供状态监控、配置编辑、Routines 管理、活动浏览、隐私控制和日志查看功能。详见[控制面板参考](/zh/reference/dashboard)。
+:::
 
 ## 诊断
 

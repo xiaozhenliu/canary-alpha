@@ -90,6 +90,78 @@ export interface CaptureLifecyclePort {
   execute(request: { action: 'status' | 'start' | 'stop' }): Promise<CaptureLifecycleResult>;
 }
 
+// ---------------------------------------------------------------------------
+// Maintenance port — AX-tree sweep and storage reclaim
+// ---------------------------------------------------------------------------
+
+/**
+ * Result of a single AX-tree sweep pass. Counts are mutually exclusive
+ * within a run: a frame is either nulled-via-existing, converted, or failed.
+ */
+export interface CaptureSweepResult {
+  /** Frames whose JSON was nulled because accessibility elements already exist. */
+  jsonNulledViaExisting: number;
+  /** Frames whose JSON was successfully converted to normalised element rows. */
+  converted: number;
+  /** Frames whose JSON could not be parsed or inserted. */
+  convertFailures: number;
+  /** True when the sweep was entirely skipped due to schema drift or busy db. */
+  skippedSchemaGuard: boolean;
+}
+
+/** Result of a single incremental storage-reclaim pass. */
+export interface CaptureReclaimResult {
+  /** SQLite page_count before the vacuum. */
+  pagesBefore: number;
+  /** SQLite page_count after the vacuum. */
+  pagesAfter: number;
+  /** True when the reclaim was skipped due to schema drift. */
+  skippedSchemaGuard: boolean;
+  /** True when the reclaim was skipped because the database was busy. */
+  skippedBusy: boolean;
+}
+
+/** Point-in-time maintenance metrics exposed by the status query. */
+export interface CaptureMaintenanceStatus {
+  /** Number of frames that still carry unprocessed accessibility_tree_json blobs. */
+  framesWithTreeJson: number;
+  /** Number of frames whose elements_ref_frame_id points to a missing elements row. */
+  danglingRefs: number;
+  /** SQLite page_count. */
+  pageCount: number;
+  /** SQLite freelist_count (pages returned to the freelist but not yet reclaimed). */
+  freelistCount: number;
+  /** SQLite auto_vacuum mode (0 = none, 1 = full, 2 = incremental). */
+  autoVacuumMode: number;
+  /** True when schema incompatibility prevented the status query from running. */
+  skippedSchemaGuard: boolean;
+}
+
+/**
+ * Provider port for AX-tree maintenance operations. Implementations live
+ * in the provider directory and may use provider-specific storage directly.
+ * Upper layers call this port without knowing which storage backend is used.
+ */
+export interface CaptureMaintenancePort {
+  /**
+   * Run one sweep pass: convert pending accessibility_tree_json blobs into
+   * normalised element rows, or null the JSON when elements already exist.
+   */
+  sweepOnce(opts?: { minFrameAgeMs?: number; batchSize?: number; now?: () => Date; beforeConvertTxn?: () => void; busyTimeoutMs?: number }): CaptureSweepResult;
+  /**
+   * Run one incremental vacuum pass to return free pages to the OS.
+   */
+  reclaimOnce(opts?: { maxPages?: number; busyTimeoutMs?: number }): CaptureReclaimResult;
+  /**
+   * Return a point-in-time summary of maintenance-relevant database metrics.
+   */
+  status(): CaptureMaintenanceStatus;
+}
+
+// ---------------------------------------------------------------------------
+// Capability descriptor
+// ---------------------------------------------------------------------------
+
 /**
  * Capability descriptor. Upper layers MUST branch on these flags instead of
  * on a provider name — `if (provider === 'screenpipe')` is a boundary
@@ -109,6 +181,8 @@ export interface CaptureCapabilities {
   retentionTrim: boolean;
   /** Provider supports process lifecycle control (start/stop). */
   processLifecycle: boolean;
+  /** Provider implements AX-tree sweep and storage-reclaim maintenance. */
+  axTreeMaintenance: boolean;
 }
 
 /**

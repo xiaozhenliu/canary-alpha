@@ -17,10 +17,6 @@ const ALLOWED_PATH_PREFIXES = [
   // config fields (config.screenpipe.url / .apiKey) to the provider implementations.
   // Matching only the exact file avoids widening the entire src/services/capture/ tree.
   'src/services/capture/provider-factory.ts',
-  // Maintenance service: AxTreeMaintenanceService queries Screenpipe's SQLite `frames`
-  // table directly (schema knowledge: FROM frames). Refactoring it into the provider
-  // directory is a larger task; it is whitelisted here until that move is made.
-  'src/services/maintenance/',
   // capture/types.ts contains a comment that quotes `=== 'screenpipe'` as an example
   // of the anti-pattern to avoid. The git-grep pattern matches the comment verbatim.
   'src/services/capture/types.ts'
@@ -29,7 +25,7 @@ const ALLOWED_PATH_PREFIXES = [
 const FORBIDDEN_PATTERNS = [
   'FROM frames',            // upstream SQLite schema knowledge
   // Upstream data directory (`~/.screenpipe`). The trailing guard keeps identifier
-  // names such as `.screenpipeStorage` / `.screenpipeFramesReader` from matching —
+  // names such as `.screenpipeStorage` from matching —
   // those are neutral-layer property names, not directory knowledge.
   "\\.screenpipe([^A-Za-z]|$)",
   'screenpipe-safe-record', // provider process script

@@ -5,23 +5,31 @@ import type { AppConfig } from '../../types/app-config.js';
 import { createScreenpipeClient } from './providers/screenpipe/http-client.js';
 import { DefaultScreenpipeControlService } from './providers/screenpipe/control-service.js';
 import { SqliteScreenpipeFramesReader } from './providers/screenpipe/frames-reader.js';
+import { createScreenpipeMaintenanceAdapter } from './providers/screenpipe/maintenance-adapter.js';
 import type {
   CaptureCapabilities,
   CaptureClient,
   CaptureFrameDetailPort,
-  CaptureLifecyclePort
+  CaptureLifecyclePort,
+  CaptureMaintenancePort
 } from './types.js';
 
 /**
  * Everything a capture provider contributes to the app. `frameDetail`,
- * `lifecycle` are optional — absence must match the corresponding
- * capability flag being false.
+ * `lifecycle`, and `maintenance` are optional — absence must match the
+ * corresponding capability flag being false.
  */
 export interface CaptureProvider {
   capabilities: CaptureCapabilities;
   client: CaptureClient;
   frameDetail?: CaptureFrameDetailPort;
   lifecycle?: CaptureLifecyclePort;
+  /**
+   * AX-tree sweep and storage-reclaim maintenance port. Present only when
+   * capabilities.axTreeMaintenance is true. Upper layers use this port
+   * instead of accessing provider storage directly.
+   */
+  maintenance?: CaptureMaintenancePort;
   /**
    * Absolute path of the provider's upstream SQLite database, consumed by
    * the trim poller and privacy delete-range. Only providers with
@@ -38,6 +46,7 @@ export interface CaptureProvider {
 export const SCREENPIPE_PROVIDER_NAME = 'screenpipe' as const;
 
 function createScreenpipeProvider(config: AppConfig): CaptureProvider {
+  const dbPath = join(resolveScreenpipeDirectory(), 'db.sqlite');
   return {
     capabilities: {
       providerName: SCREENPIPE_PROVIDER_NAME,
@@ -45,14 +54,14 @@ function createScreenpipeProvider(config: AppConfig): CaptureProvider {
       accessibilityTree: true,
       frameDetail: true,
       retentionTrim: true,
-      processLifecycle: true
+      processLifecycle: true,
+      axTreeMaintenance: true
     },
     client: createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey),
-    frameDetail: new SqliteScreenpipeFramesReader(
-      join(resolveScreenpipeDirectory(), 'db.sqlite')
-    ),
+    frameDetail: new SqliteScreenpipeFramesReader(dbPath),
     lifecycle: new DefaultScreenpipeControlService(),
-    upstreamDatabasePath: join(resolveScreenpipeDirectory(), 'db.sqlite')
+    maintenance: createScreenpipeMaintenanceAdapter({ databasePath: dbPath }),
+    upstreamDatabasePath: dbPath
   };
 }
 

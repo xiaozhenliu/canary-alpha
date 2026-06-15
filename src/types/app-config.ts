@@ -18,6 +18,8 @@ import type { InspectService } from '../services/work-activity/inspect/inspect-s
 import type { RecallService } from '../services/work-activity/recall/recall-service.js';
 import type { CascadeDeleteCoordinator } from '../services/work-activity/cascade-delete-coordinator.js';
 import type { CaptureStatus, IngestionMix, DiskBudget } from '../services/diagnostics/ingestion-observability-service.js';
+import type { RoutineStore } from '../services/routines/types.js';
+import type { RoutineScheduler } from '../services/routines/scheduler.js';
 import type {
   ExtractionStatus,
   ObservabilityDegradation,
@@ -415,6 +417,17 @@ export type {
   SummaryRollup
 };
 
+export interface RoutinesContext {
+  /** Persistent store for routine definitions and run history. */
+  store: RoutineStore;
+  /**
+   * Live scheduler instance. Present only when `config.routines.enabled`
+   * is true; tools that need to refresh the scheduler after a mutation
+   * should check for its presence before calling `refresh()`.
+   */
+  scheduler: RoutineScheduler | undefined;
+}
+
 export interface AppServices {
   bootstrapStatus: {
     getStatus(address?: AddressInfo | null): Promise<BootstrapStatus>;
@@ -449,6 +462,13 @@ export interface AppServices {
     recall: RecallService;
     cascadeDelete: CascadeDeleteCoordinator;
   };
+  /**
+   * Routines subsystem — always populated (even when
+   * `config.routines.enabled` is false) so the MCP tools can respond
+   * with a useful message instead of crashing. `scheduler` is `undefined`
+   * when routines are disabled.
+   */
+  routines: RoutinesContext;
 }
 
 export interface AppContext {

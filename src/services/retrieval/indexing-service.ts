@@ -715,21 +715,23 @@ export class DefaultIndexingService implements IndexingService {
     }
 
     // Accumulate checkpoint / error signals from the concurrent embed results.
+    // We collect all (record, advanceCheckpoint) pairs from every processing
+    // path before computing latestCheckpoint. This lets us determine the full
+    // failure ceiling first, then apply it in a single forward pass — avoiding
+    // the rollback complexity that arises when released-blocked failures lower
+    // the ceiling below what the embed phase already advanced the checkpoint to.
     let indexedCount = 0;
     let firstEmbeddingError: unknown;
-    let latestCheckpoint: IndexedCheckpoint | null = checkpointBefore
-      ? {
-          cursor: checkpointBefore.cursor,
-          timestamp: checkpointBefore.timestamp
-        }
-      : null;
+
+    // Pairs of (record, advanceCheckpoint) accumulated from the embed phase
+    // AND the released-blocked phase. Privacy-permanently-blocked records are
+    // handled separately at the end.
+    const checkpointCandidates: Array<{ record: CaptureRecord; advance: boolean }> = [];
 
     for (const e of embedResults) {
       if (e.outcome.indexed) indexedCount += 1;
       if (e.outcome.error !== undefined) firstEmbeddingError ??= e.outcome.error;
-      if (e.outcome.advanceCheckpoint && isNewerThanCheckpoint(e.record, latestCheckpoint)) {
-        latestCheckpoint = toCheckpoint(e.record);
-      }
+      checkpointCandidates.push({ record: e.record, advance: e.outcome.advanceCheckpoint });
     }
 
     // -----------------------------------------------------------------------
@@ -759,9 +761,7 @@ export class DefaultIndexingService implements IndexingService {
         const advanced = await this.processRecord(record);
         if (advanced.indexed) indexedCount += 1;
         if (advanced.error !== undefined) firstEmbeddingError ??= advanced.error;
-        if (advanced.advanceCheckpoint && isNewerThanCheckpoint(record, latestCheckpoint)) {
-          latestCheckpoint = toCheckpoint(record);
-        }
+        checkpointCandidates.push({ record, advance: advanced.advanceCheckpoint });
       }
 
       blockedRecords = stillBlockedRecords;
@@ -770,8 +770,49 @@ export class DefaultIndexingService implements IndexingService {
       }
     }
 
+    // -----------------------------------------------------------------------
+    // Compute the checkpoint ceiling: the earliest record (by compareRecords
+    // ordering) that failed embedding. The checkpoint must not advance to any
+    // record that compares >= this ceiling, ensuring failed frames are retried.
+    // Using compareRecords() (which uses cursor for same-timestamp tiebreaking)
+    // matches the ordering already used by isNewerThanCheckpoint().
+    // -----------------------------------------------------------------------
+    let failureCeilingRecord: CaptureRecord | undefined;
+    for (const c of checkpointCandidates) {
+      if (!c.advance) {
+        if (
+          failureCeilingRecord === undefined ||
+          compareRecords(c.record, failureCeilingRecord) < 0
+        ) {
+          failureCeilingRecord = c.record;
+        }
+      }
+    }
+
+    // Derive latestCheckpoint in a single forward pass over all candidates.
+    let latestCheckpoint: IndexedCheckpoint | null = checkpointBefore
+      ? {
+          cursor: checkpointBefore.cursor,
+          timestamp: checkpointBefore.timestamp
+        }
+      : null;
+
+    for (const c of checkpointCandidates) {
+      if (c.advance && isNewerThanCheckpoint(c.record, latestCheckpoint)) {
+        // Do not advance past the earliest failed frame.
+        if (
+          failureCeilingRecord !== undefined &&
+          compareRecords(c.record, failureCeilingRecord) >= 0
+        ) {
+          continue;
+        }
+        latestCheckpoint = toCheckpoint(c.record);
+      }
+    }
+
     // Records that remained blocked through the entire pass advance the
     // checkpoint past them only when no embedding failure has happened
+    // and the record is strictly before the failure ceiling
     // — same semantics as the pre-task-6.1 implementation. A blocked
     // record is one we *intentionally* don't index (privacy filter), so
     // there's no need to re-fetch it on the next tick once its
@@ -779,6 +820,14 @@ export class DefaultIndexingService implements IndexingService {
     for (const record of blockedRecords) {
       if (firstEmbeddingError) {
         break;
+      }
+
+      // Do not advance the checkpoint past the earliest embedding failure.
+      if (
+        failureCeilingRecord !== undefined &&
+        compareRecords(record, failureCeilingRecord) >= 0
+      ) {
+        continue;
       }
 
       if (isNewerThanCheckpoint(record, latestCheckpoint)) {

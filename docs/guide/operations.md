@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ---
 
 # Operations
@@ -84,6 +84,10 @@ npm run service:logs     # Stream the service log
 `service:status` validates the real MCP `internal-status` contract, not just whether a process is running. It reports the endpoint URL and retrieval recovery status.
 
 `service:logs` streams the log file for the managed service. Use this when onboarding fails or when the service exits unexpectedly.
+
+::: tip Dashboard
+When the service is running in HTTP mode, a browser-based management panel is available at `http://127.0.0.1:<port>/`. It provides status monitoring, configuration editing, routines management, activity browsing, privacy controls, and log viewing. See [Dashboard reference](/reference/dashboard) for details.
+:::
 
 ## Diagnostics
 

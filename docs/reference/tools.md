@@ -1,12 +1,12 @@
 ---
-doc_version: 7
+doc_version: 8
 doc_status: active
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 ---
 
 # MCP Tools
 
-The server currently registers nine MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
+The server currently registers twelve MCP tools. This document describes the public tool surface, input schemas, and output expectations for client integrators.
 
 ## Result shape
 
@@ -34,6 +34,9 @@ The `from` / `to` time-window bounds on `find` and `recall` are interpreted as *
 | `privacy-control` | privacy | Check or modify local privacy collection controls |
 | `screenpipe-control` | screenpipe | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | internal | Return bootstrap-safe runtime status |
+| `routine-list` | routines | List all configured local routines with their schedule, enabled state, and latest run summary |
+| `routine-create` | routines | Create a new local routine or update an existing one by name |
+| `routine-history` | routines | Return the execution history of a named routine, newest first |
 
 ## `find`
 
@@ -302,6 +305,87 @@ Return bootstrap-safe runtime status.
 The response also carries the capture/ingestion observability blocks (`capture`, `ingestionMix`, `diskBudget`) and a `workActivity` block summarising the derived-store health (session counts, summary worker state, embedding hash index size). See [Troubleshooting: Capture & ingestion observability](/guide/troubleshooting#capture--ingestion-observability) for the failure-mode reference.
 
 This tool is the primary health probe used by `npm run service:status`.
+
+## `routine-list`
+
+List all configured local routines. Optionally filter to only enabled or only disabled routines. Returns each routine's schedule, enabled state, prompt, recent-activity window, timestamps, and the most recent run summary when one exists.
+
+**Input**
+
+```json
+{
+  "enabled": true
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `enabled` | boolean | no | When provided, filters to routines whose `enabled` field matches this value |
+
+**Output expectations**
+
+- `structuredContent.routines` is an array of routine objects. Each item exposes `name`, `schedule`, `enabled`, `kind`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`, and optional `latestRun` (`runId`, `startedAt`, `completedAt`, `status` ∈ `success` | `failed` | `skipped`, `summary`)
+- `structuredContent.total` is the count of returned routines
+- `content[0].text` is a brief narrative summary (e.g. "3 routine(s) configured.")
+- Failure paths return `isError: true` with `structuredContent: { routines: [], total: 0 }`
+
+## `routine-create`
+
+Create a new local routine or update an existing one by name. The schedule must be a valid 5-field cron expression. The name is normalized to a filesystem-safe slug (lowercase alphanumeric with hyphens). If the scheduler is running, the new or updated definition is picked up immediately without a server restart.
+
+**Input**
+
+```json
+{
+  "name": "morning standup",
+  "prompt": "Summarize yesterday's work activity for the standup.",
+  "schedule": "0 9 * * 1-5",
+  "enabled": true,
+  "recentActivityMinutes": 480
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string (min 1) | yes | Normalized to lowercase alphanumeric with hyphens |
+| `prompt` | string (min 1) | yes | Prompt executed by the routine executor |
+| `schedule` | string (min 1) | yes | 5-field cron expression (e.g. `"0 8 * * *"` for daily at 08:00) |
+| `enabled` | boolean | no | Defaults to `true` |
+| `recentActivityMinutes` | positive integer | no | Look-back window for recent-activity queries; defaults to `60` |
+
+**Output expectations**
+
+- `structuredContent.routine` returns the persisted definition: `name`, `schedule`, `enabled`, `kind`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`
+- `structuredContent.isNew` is `true` when the routine was created, `false` when an existing routine was updated
+- `content[0].text` states whether the routine was created or updated (e.g. `Routine "morning-standup" created.`)
+- Failure paths (invalid cron, empty name, store error) return `isError: true`
+
+## `routine-history`
+
+Return the execution history of a named routine, newest first. Each record includes run status, timing, and the output or error message. The `name` parameter is matched exactly against the stored (normalized) routine name.
+
+**Input**
+
+```json
+{
+  "name": "morning-standup",
+  "limit": 5
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string (min 1) | yes | Routine name to look up (as stored after normalization) |
+| `limit` | positive integer up to 100 | no | Defaults to `10` |
+
+**Output expectations**
+
+- `structuredContent.name` echoes the requested routine name
+- `structuredContent.runs` is the array of run records, newest first. Each record exposes `runId`, `name`, `startedAt`, `completedAt`, `status` ∈ `success` | `failed` | `skipped`, `summary`, `output`, and optional `error` (`message`)
+- `structuredContent.total` is the count of returned records
+- `content[0].text` is a brief narrative (e.g. `5 run record(s) for routine "morning-standup".`)
+- When no history exists, `runs` is empty and the narrative says so
+- Failure paths return `isError: true` with `structuredContent: { name, runs: [], total: 0 }`
 
 ## Compatibility notes
 
