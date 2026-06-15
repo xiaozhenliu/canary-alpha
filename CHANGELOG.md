@@ -1,5 +1,5 @@
 ---
-doc_version: 13
+doc_version: 14
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -38,6 +38,12 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `privacy-control` tool now supports `remove-excluded-app` action to remove an
+  app from the exclusion list. Uses the same case-insensitive matching as
+  `exclude-app`. Returns `PRIVACY_APP_NOT_EXCLUDED` error when the app is not
+  in the list, and `PRIVACY_APP_NAME_REQUIRED` when no app name is provided.
+  The `scripts/privacy-control.js` CLI also exposes the new action via
+  `npm run privacy-control -- remove-excluded-app --app <name>` (GRO-165).
 - New Dashboard API endpoint `GET /api/config/get?path=<field>[&reveal=true]`
   returns a single config field value (masked by default, revealed only when
   `reveal=true` is explicitly requested). The field path must be a valid leaf

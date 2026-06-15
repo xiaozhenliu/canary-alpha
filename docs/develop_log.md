@@ -1,5 +1,5 @@
 ---
-doc_version: 14
+doc_version: 15
 doc_status: active
 last_updated: 2026-06-15
 ---
@@ -11,6 +11,36 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-15: Add remove-excluded-app Action to Privacy Control (GRO-165)
+
+**Problem**
+
+`PrivacyAction` only had `exclude-app` (add to exclusion list) with no reverse
+operation. Users who accidentally excluded an app could not undo it through the
+privacy interface.
+
+**Fix**
+
+Added `remove-excluded-app` action across all four layers:
+
+- `src/services/privacy/types.ts` — added to `PrivacyAction` union; added
+  `PRIVACY_APP_NOT_EXCLUDED` to `PrivacyControlError.code`
+- `src/services/privacy/privacy-control-service.ts` — new `removeExcludedApp()`
+  private method using the same `normalizeAppName` (lowercase) comparison as
+  `exclude-app`; returns `PRIVACY_APP_NOT_EXCLUDED` when app is not in list
+- `src/mcp/tools/privacy-control.ts` — added to Zod enum
+- `src/dashboard/routes/privacy.ts` — added to `VALID_ACTIONS` array
+- `scripts/privacy-control.js` — added to `SUPPORTED_ACTIONS`, `usage()`,
+  `parseArgs()` (accepts `--app`, no `--rebuild`), `toToolArguments()`, and
+  `formatResult()`
+
+**Verification**
+
+All 4 service-level integration tests pass. New CLI integration test
+`removes an excluded app via CLI` verifies the end-to-end round-trip:
+exclude + remove, confirm state file has 0 entries. All 98 existing tests
+remain green (integration/privacy + acceptance + contract).
 
 ## 2026-06-15: Config Write Mutex to Prevent Dashboard Lost Updates (GRO-164)
 

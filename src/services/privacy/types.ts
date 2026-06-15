@@ -1,7 +1,7 @@
 import type { ScreenpipeStorageDiagnostics } from '../../types/app-config.js';
 
 export type PrivacyDeleteRange = 'last_1h' | 'last_1d' | 'all';
-export type PrivacyAction = 'status' | 'pause' | 'resume' | 'exclude-app' | 'delete-range';
+export type PrivacyAction = 'status' | 'pause' | 'resume' | 'exclude-app' | 'remove-excluded-app' | 'delete-range';
 
 export interface PrivacySuppressedRange {
   from: string;
@@ -47,6 +47,7 @@ export interface PrivacyControlRequest {
 export interface PrivacyControlError {
   code:
     | 'PRIVACY_APP_NAME_REQUIRED'
+    | 'PRIVACY_APP_NOT_EXCLUDED'
     | 'PRIVACY_RANGE_REQUIRED'
     | 'PRIVACY_CONFIRM_REQUIRED'
     | 'PRIVACY_UNSUPPORTED_RANGE'

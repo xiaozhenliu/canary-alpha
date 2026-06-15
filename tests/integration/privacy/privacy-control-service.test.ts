@@ -221,4 +221,52 @@ describe('privacy control service', () => {
 
     expect(result.error).toMatchObject({ code: 'PRIVACY_APP_NAME_REQUIRED' });
   });
+
+  it('removes an excluded app from the list', async () => {
+    const store = new InMemoryPrivacyStore({
+      paused: false,
+      excludedApps: ['Claude', 'Screenpipe']
+    });
+    const service = new DefaultPrivacyControlService(store);
+
+    const result = await service.execute({ action: 'remove-excluded-app', appName: 'Claude' });
+
+    expect(result.excludedApps).toEqual(['Screenpipe']);
+    expect(result.error).toBeUndefined();
+    await expect(store.read()).resolves.toMatchObject({ excludedApps: ['Screenpipe'] });
+  });
+
+  it('removes an excluded app case-insensitively', async () => {
+    const store = new InMemoryPrivacyStore({
+      paused: false,
+      excludedApps: ['Claude', 'IINA']
+    });
+    const service = new DefaultPrivacyControlService(store);
+
+    const result = await service.execute({ action: 'remove-excluded-app', appName: 'claude' });
+
+    expect(result.excludedApps).toEqual(['IINA']);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('returns PRIVACY_APP_NAME_REQUIRED when remove-excluded-app is called without an app name', async () => {
+    const service = new DefaultPrivacyControlService(new InMemoryPrivacyStore());
+    const result = await service.execute({ action: 'remove-excluded-app', appName: '   ' });
+
+    expect(result.error).toMatchObject({ code: 'PRIVACY_APP_NAME_REQUIRED' });
+  });
+
+  it('returns PRIVACY_APP_NOT_EXCLUDED when the app is not in the excluded list', async () => {
+    const store = new InMemoryPrivacyStore({
+      paused: false,
+      excludedApps: ['Claude']
+    });
+    const service = new DefaultPrivacyControlService(store);
+
+    const result = await service.execute({ action: 'remove-excluded-app', appName: 'Screenpipe' });
+
+    expect(result.error).toMatchObject({ code: 'PRIVACY_APP_NOT_EXCLUDED' });
+    // State must not change
+    await expect(store.read()).resolves.toMatchObject({ excludedApps: ['Claude'] });
+  });
 });

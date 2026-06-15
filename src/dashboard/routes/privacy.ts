@@ -36,7 +36,7 @@ export function registerPrivacyRoutes(router: ApiRouter): void {
       return;
     }
 
-    const VALID_ACTIONS: PrivacyAction[] = ['status', 'pause', 'resume', 'exclude-app', 'delete-range'];
+    const VALID_ACTIONS: PrivacyAction[] = ['status', 'pause', 'resume', 'exclude-app', 'remove-excluded-app', 'delete-range'];
     if (!VALID_ACTIONS.includes(action as PrivacyAction)) {
       sendJson(ctx.res, 400, { error: `Invalid action: "${action}"` });
       return;

@@ -5,7 +5,7 @@ import type { AppContext } from '../../types/app-config.js';
 import { formatPrivacyControlToolResult } from './shared.js';
 
 const inputSchema = z.object({
-  action: z.enum(['status', 'pause', 'resume', 'exclude-app', 'delete-range']),
+  action: z.enum(['status', 'pause', 'resume', 'exclude-app', 'remove-excluded-app', 'delete-range']),
   appName: z.string().optional(),
   range: z.enum(['last_1h', 'last_1d', 'all']).optional(),
   confirm: z.boolean().optional()
