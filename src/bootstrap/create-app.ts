@@ -2,7 +2,7 @@ import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { DailySummaryExecutor } from '../services/routines/executor.js';
+import { PromptDrivenExecutor } from '../services/routines/prompt-driven-executor.js';
 import { FileRoutineStore } from '../services/routines/routine-store.js';
 import { RoutineScheduler } from '../services/routines/scheduler.js';
 import { resolveRoutineDefinitionsDirectory, resolveRoutineHistoryDirectory } from '../config/paths.js';
@@ -23,11 +23,12 @@ import { createIndexingService } from '../services/retrieval/indexing-service.js
 import { createEmbeddingProvider } from '../services/retrieval/provider-factory.js';
 import { runTrimOnce } from '../services/capture/providers/screenpipe/trim-service.js';
 import { createCaptureProvider, SCREENPIPE_PROVIDER_NAME } from '../services/capture/provider-factory.js';
-import { createVectorStore, resolveVectorStoreDirectory } from '../services/retrieval/vector-store.js';
+import { createVectorStore, resolveVectorStoreDirectory, resolveVectorStoreFilePath } from '../services/retrieval/vector-store.js';
 import {
   initDerivedSchema,
   openDerivedDatabase,
-  resolveDerivedDatabasePath
+  resolveDerivedDatabasePath,
+  migrateVectorStoreJsonToSqlite
 } from '../services/work-activity/derived-database.js';
 import { SqliteExtractedContentStore } from '../services/work-activity/extraction/extracted-content-store.js';
 import { createExtractionRegistry } from '../services/work-activity/extraction/registry.js';
@@ -43,6 +44,7 @@ import { SummaryWorker } from '../services/work-activity/summary/worker.js';
 import { ProviderHealthRegistry } from '../services/work-activity/observability/provider-health-registry.js';
 import { WorkActivityObservabilityService } from '../services/work-activity/observability/work-activity-observability-service.js';
 import { createCascadeDeleteCoordinator, type CascadeDeleteCoordinator } from '../services/work-activity/cascade-delete-coordinator.js';
+import { DefaultLlmClient } from '../services/llm/llm-client.js';
 import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../types/app-config.js';
 
@@ -188,7 +190,6 @@ export async function createApp(overrides?: {
   const embeddingProvider = createEmbeddingProvider(config);
   const captureProvider = createCaptureProvider(config);
   const captureClient = captureProvider.client;
-  const vectorStore = createVectorStore(config);
   const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(captureProvider.capabilities.providerName, resolveVectorStoreDirectory(config.vectorStore)));
   const fileAnalysis = new DefaultFileAnalyzeService();
   const memory = new DefaultMemoryService(
@@ -212,6 +213,19 @@ export async function createApp(overrides?: {
   // `DatabaseSync` connection.
   const derivedDatabase = openDerivedDatabase(resolveDerivedDatabasePath(config));
   initDerivedSchema(derivedDatabase);
+
+  // Vector store: create after derived schema is initialized so
+  // SqliteVectorStore can use the vectors table.
+  const vectorStore = createVectorStore(config, derivedDatabase);
+
+  // One-time JSON→SQLite migration (Phase 1.3): if the vectors table
+  // was just created (user_version < 2) and a vector-store.json exists,
+  // migrate its contents into the SQLite vectors table.
+  if (config.vectorStore.kind !== 'file') {
+    const jsonPath = resolveVectorStoreFilePath(config.vectorStore);
+    migrateVectorStoreJsonToSqlite(derivedDatabase, jsonPath, logger);
+  }
+
   const extractedContentStore = new SqliteExtractedContentStore(derivedDatabase);
   const sessionStore = new SqliteSessionStore(derivedDatabase);
   const hashIndex = new SqliteHashIndex(derivedDatabase);
@@ -386,10 +400,29 @@ export async function createApp(overrides?: {
   let routineScheduler: RoutineScheduler | undefined;
 
   if (config.routines.enabled) {
-    const executor = new DailySummaryExecutor({
-      find: findService,
-      recall: recallService
-    });
+    // Routines v2: build an LLM client when credentials are available,
+    // or leave it undefined so PromptDrivenExecutor falls back to template output.
+    const llmBaseUrl = config.llm.base_url;
+    const llmApiKey = config.llm.api_key;
+    const llmClient = (llmBaseUrl && llmApiKey)
+      ? new DefaultLlmClient({
+          baseUrl: llmBaseUrl,
+          apiKey: llmApiKey,
+          timeoutMs: config.analysis.summary.remoteLlmTimeoutMs
+        })
+      : undefined;
+
+    const executor = new PromptDrivenExecutor(
+      {
+        find: findService,
+        recall: recallService,
+        llmClient,
+        privacyState: privacyStore
+      },
+      undefined,
+      config.llm.model
+    );
+
     routineScheduler = new RoutineScheduler({
       routineStore,
       executor,

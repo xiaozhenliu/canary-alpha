@@ -14,7 +14,6 @@ function createDefinition(overrides: Partial<RoutineDefinition> = {}): RoutineDe
     name: 'Daily Summary!!!',
     schedule: '0 9 * * *',
     enabled: true,
-    kind: 'daily_summary',
     prompt: 'Summarize the day',
     recentActivityMinutes: 60,
     createdAt: now,
@@ -70,7 +69,7 @@ describe('file routine store', () => {
         name: 'daily-summary',
         schedule: '30 9 * * *',
         enabled: true,
-        kind: 'daily_summary',
+
         prompt: 'Summarize the latest activity',
         recentActivityMinutes: 90,
         createdAt: '2026-05-02T12:00:00.000Z',
@@ -81,7 +80,7 @@ describe('file routine store', () => {
         name: 'daily-summary',
         schedule: '30 9 * * *',
         enabled: true,
-        kind: 'daily_summary',
+
         prompt: 'Summarize the latest activity',
         recentActivityMinutes: 90,
         createdAt: '2026-05-02T12:00:00.000Z',
@@ -93,7 +92,7 @@ describe('file routine store', () => {
           name: 'daily-summary',
           schedule: '30 9 * * *',
           enabled: true,
-          kind: 'daily_summary',
+  
           prompt: 'Summarize the latest activity',
           recentActivityMinutes: 90,
           createdAt: '2026-05-02T12:00:00.000Z',
@@ -107,7 +106,7 @@ describe('file routine store', () => {
           name: 'daily-summary',
           schedule: '30 9 * * *',
           enabled: true,
-          kind: 'daily_summary',
+  
           prompt: 'Summarize the latest activity',
           recentActivityMinutes: 90,
           createdAt: '2026-05-02T12:00:00.000Z',
@@ -194,7 +193,7 @@ describe('file routine store', () => {
         name: 'daily-summary',
         schedule: '0 9 * * *',
         enabled: true,
-        kind: 'daily_summary',
+
         prompt: 'Summarize the day',
         recentActivityMinutes: 60,
         createdAt: '2026-05-02T12:00:00.000Z',
@@ -278,6 +277,56 @@ describe('file routine store', () => {
         }
       ]);
       await rm(join(historyDirectory, 'ignored.json.tmp'));
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('loads persisted definition with stale kind field (AC #10)', async () => {
+    // Write a definition JSON containing a legacy "kind" field to the definitions
+    // directory. The store must load it without error, strip the kind field from
+    // the returned RoutineDefinition, and preserve all other fields correctly.
+    const tempDir = await mkdtemp(join(testTempRoot(), 'routine-store-stale-kind-'));
+    const definitionsDirectory = join(tempDir, 'definitions');
+    const historyDirectory = join(tempDir, 'history');
+    const store = new FileRoutineStore({ definitionsDirectory, historyDirectory });
+
+    try {
+      await mkdir(definitionsDirectory, { recursive: true });
+      await mkdir(historyDirectory, { recursive: true });
+
+      const staleDefinition = {
+        name: 'daily-summary',
+        schedule: '0 9 * * *',
+        enabled: true,
+        prompt: 'Summarize the day',
+        recentActivityMinutes: 60,
+        kind: 'daily_summary',
+        createdAt: '2026-05-02T12:00:00.000Z',
+        updatedAt: '2026-05-02T12:00:00.000Z'
+      };
+
+      await writeFile(
+        join(definitionsDirectory, 'daily-summary.json'),
+        JSON.stringify(staleDefinition, null, 2),
+        'utf8'
+      );
+
+      // The store must load without throwing.
+      const definition = await store.readDefinition('daily-summary');
+      expect(definition).toBeDefined();
+
+      // The stale kind field must NOT appear in the returned object.
+      expect(definition).not.toHaveProperty('kind');
+
+      // All other fields must be intact.
+      expect(definition?.name).toBe('daily-summary');
+      expect(definition?.schedule).toBe('0 9 * * *');
+      expect(definition?.enabled).toBe(true);
+      expect(definition?.prompt).toBe('Summarize the day');
+      expect(definition?.recentActivityMinutes).toBe(60);
+      expect(definition?.createdAt).toBe('2026-05-02T12:00:00.000Z');
+      expect(definition?.updatedAt).toBe('2026-05-02T12:00:00.000Z');
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

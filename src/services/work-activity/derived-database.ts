@@ -1,6 +1,9 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync as fsRenameSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+
+import { normalizeToUtc } from '../../lib/time.js';
+import { float32ArrayToBlob } from '../../lib/blob.js';
 
 export { resolveDerivedDatabasePath } from '../../config/paths.js';
 export type DerivedDatabase = DatabaseSync;
@@ -120,22 +123,59 @@ function* chunked<T>(items: T[], size: number): Generator<T[], void, void> {
 const MAX_BIND_PARAMS = 500;
 
 /**
- * Creates (idempotently) the three derived tables and their indexes.
- *
- * Schema definitions are taken verbatim from the work-activity-analysis
- * design document, §1 "Components and Interfaces":
- *
- *   - `extracted_content`: per-frame extraction result (R1).
- *   - `sessions`: continuous work units (R3).
- *   - `embedding_hash_index`: SHA256 → embedding cache (R5).
- *
- * The function uses `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT
- * EXISTS`, so calling it on an already-initialized database is a no-op.
+ * Creates (idempotently) the derived tables and their indexes, then
+ * runs any pending schema migrations gated by `PRAGMA user_version`.
  */
 export function initDerivedSchema(db: DerivedDatabase): void {
   db.exec(EXTRACTED_CONTENT_DDL);
   db.exec(SESSIONS_DDL);
   db.exec(EMBEDDING_HASH_INDEX_DDL);
+  db.exec(VECTORS_DDL);
+  migrateDerivedSchemaV1(db);
+}
+
+/**
+ * Returns the current `PRAGMA user_version` value. Useful for tests
+ * and diagnostics.
+ */
+export function getDerivedSchemaVersion(db: DerivedDatabase): number {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  return row.user_version;
+}
+
+/**
+ * V1 migration: normalize all timestamps in extracted_content and sessions
+ * to canonical UTC (Z-suffix). Gated by `PRAGMA user_version < 1`.
+ */
+function migrateDerivedSchemaV1(db: DerivedDatabase): void {
+  const version = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  if (version.user_version >= 1) return;
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const ecRows = db.prepare(
+      `SELECT frame_id, frame_timestamp FROM extracted_content WHERE frame_timestamp NOT LIKE '%Z'`
+    ).all() as Array<{ frame_id: number; frame_timestamp: string }>;
+    const ecUpdate = db.prepare('UPDATE extracted_content SET frame_timestamp = ? WHERE frame_id = ?');
+    for (const row of ecRows) {
+      ecUpdate.run(normalizeToUtc(row.frame_timestamp), row.frame_id);
+    }
+
+    const sessRows = db.prepare(
+      `SELECT session_id, started_at, ended_at FROM sessions
+       WHERE started_at NOT LIKE '%Z' OR ended_at NOT LIKE '%Z'`
+    ).all() as Array<{ session_id: string; started_at: string; ended_at: string }>;
+    const sessUpdate = db.prepare('UPDATE sessions SET started_at = ?, ended_at = ? WHERE session_id = ?');
+    for (const row of sessRows) {
+      sessUpdate.run(normalizeToUtc(row.started_at), normalizeToUtc(row.ended_at), row.session_id);
+    }
+
+    db.exec('PRAGMA user_version = 1');
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 const EXTRACTED_CONTENT_DDL = /* sql */ `
@@ -207,3 +247,111 @@ const EMBEDDING_HASH_INDEX_DDL = /* sql */ `
     inserted_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
   );
 `;
+
+const VECTORS_DDL = /* sql */ `
+  CREATE TABLE IF NOT EXISTS vectors (
+    id              TEXT PRIMARY KEY,
+    text            TEXT NOT NULL,
+    timestamp       TEXT NOT NULL,
+    app_name        TEXT,
+    window_name     TEXT,
+    embedding       BLOB NOT NULL,
+    source_types    TEXT NOT NULL,
+    metadata        TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_vectors_ts_id
+    ON vectors(timestamp, id);
+
+  CREATE INDEX IF NOT EXISTS idx_vectors_app_ts_id
+    ON vectors(app_name, timestamp, id);
+`;
+
+interface JsonVectorRecord {
+  id: string;
+  text: string;
+  timestamp: string;
+  appName?: string;
+  windowName?: string;
+  embedding?: number[];
+  sourceTypes?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * One-time migration from vector-store.json to the SQLite vectors table.
+ * Gated by `PRAGMA user_version < 2`. After migration, the JSON file is
+ * renamed to `.migrated` as a backup.
+ */
+export function migrateVectorStoreJsonToSqlite(
+  db: DerivedDatabase,
+  jsonPath: string,
+  logger?: { info: (msg: string, ctx?: Record<string, unknown>) => void }
+): void {
+  const version = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  if (version.user_version >= 2) return;
+  if (!existsSync(jsonPath)) {
+    db.exec('PRAGMA user_version = 2');
+    return;
+  }
+
+  let records: JsonVectorRecord[];
+  try {
+    const raw = readFileSync(jsonPath, 'utf8');
+    const parsed = JSON.parse(raw) as { records?: unknown[] };
+    if (!Array.isArray(parsed.records)) {
+      db.exec('PRAGMA user_version = 2');
+      return;
+    }
+    records = parsed.records as JsonVectorRecord[];
+  } catch {
+    db.exec('PRAGMA user_version = 2');
+    return;
+  }
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const stmt = db.prepare(
+      `INSERT OR REPLACE INTO vectors (id, text, timestamp, app_name, window_name, embedding, source_types, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    let migrated = 0;
+    for (const r of records) {
+      if (!r.embedding || r.embedding.length === 0) continue;
+
+      let ts = r.timestamp;
+      try { ts = normalizeToUtc(r.timestamp); } catch { /* keep original if unparseable */ }
+
+      if (r.metadata?.frameTimestamp && typeof r.metadata.frameTimestamp === 'string') {
+        try { r.metadata.frameTimestamp = normalizeToUtc(r.metadata.frameTimestamp as string); } catch { /* keep original */ }
+      }
+
+      stmt.run(
+        r.id,
+        r.text,
+        ts,
+        r.appName ?? null,
+        r.windowName ?? null,
+        float32ArrayToBlob(r.embedding),
+        JSON.stringify(r.sourceTypes ?? []),
+        r.metadata ? JSON.stringify(r.metadata) : null
+      );
+      migrated++;
+    }
+
+    db.exec('PRAGMA user_version = 2');
+    db.exec('COMMIT');
+    logger?.info('Migrated vector store from JSON to SQLite', { migrated, total: records.length });
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  // Rename the JSON file to .migrated as a backup
+  try {
+    fsRenameSync(jsonPath, `${jsonPath}.migrated`);
+  } catch {
+    // Non-fatal: the file might be locked or read-only
+  }
+}

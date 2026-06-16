@@ -471,14 +471,8 @@ export class SqliteSessionStore implements SessionStore {
   }
 
   async countSessionsStartedSince(since: string): Promise<number> {
-    // `>=` matches "rolling 24h window" semantics where `since = now -
-    // 86400s`. Callers that want a strict-greater-than predicate can
-    // bump the timestamp by one millisecond on their side.
-    // datetime() normalizes both sides to UTC: stored `started_at` carries a
-    // local offset while `since` is a UTC instant, so a raw string compare
-    // would under/over-count across the timezone-representation boundary.
     const stmt = this.db.prepare(
-      `SELECT COUNT(*) AS c FROM sessions WHERE datetime(started_at) >= datetime(?)`
+      `SELECT COUNT(*) AS c FROM sessions WHERE started_at >= ?`
     );
     const row = stmt.get(since) as { c: number | bigint } | undefined;
     return row === undefined ? 0 : Number(row.c);
@@ -501,18 +495,11 @@ export class SqliteSessionStore implements SessionStore {
     const params: (string | number)[] = [];
 
     if (filter.from !== undefined) {
-      // Normalize both sides to UTC via datetime() before comparing. Stored
-      // `started_at` carries a local offset (e.g. `+08:00`) while callers
-      // (recall tool / agents) pass UTC `Z` bounds; a raw string `>=`/`<=`
-      // compares them lexicographically and silently drops in-window rows
-      // whenever the two representations differ. datetime() collapses both to
-      // canonical UTC so the comparison is chronological. Cost: the
-      // `started_at` index is bypassed (acceptable at local-first scale).
-      where.push('datetime(started_at) >= datetime(?)');
+      where.push('started_at >= ?');
       params.push(filter.from);
     }
     if (filter.to !== undefined) {
-      where.push('datetime(started_at) <= datetime(?)');
+      where.push('started_at <= ?');
       params.push(filter.to);
     }
     if (filter.appName !== undefined) {

@@ -1,7 +1,7 @@
 ---
-doc_version: 14
+doc_version: 16
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # Changelog
@@ -11,7 +11,77 @@ All notable user-facing changes to `canary-alpha-mcp` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
+## [2.7.0] — 2026-06-16
+
+### Added
+
+- **Routines v2 — Prompt-Driven LLM Execution**: Routine prompts now drive actual
+  content retrieval and LLM analysis. The executor retrieves relevant screen evidence
+  via `FindService` (keyword search) and activity overview via `RecallService` in
+  parallel, deduplicates and truncates evidence, redacts secrets, and calls the
+  configured LLM endpoint to produce tailored briefings. When no LLM is configured,
+  the executor falls back to deterministic template formatting.
+- **Shared LlmClient module** (`src/services/llm/llm-client.ts`): Extracted generic
+  OpenAI-compatible `chat/completions` HTTP wrapper with structured error codes
+  (`NOT_CONFIGURED`, `TIMEOUT`, `PROVIDER_UNAVAILABLE`, `PARSE_FAILED`),
+  `AbortController` timeout, and API-key redaction. Both `RemoteLlmSummaryProvider`
+  and `PromptDrivenExecutor` consume this module.
+- **Schedule-aware `recentActivityMinutes` inference**: When `recentActivityMinutes`
+  is omitted from `routine-create`, the tool infers a look-back window from the cron
+  schedule (hourly→60, daily→1440, weekly→10080, monthly→43200). Explicit values
+  always override inference.
+- **Privacy guard for routine execution**: When privacy pause is active, the executor
+  does not send screen evidence to external endpoints and falls back to template
+  formatting.
+
+### Changed
+
+- **`RoutineKind` removed**: The `kind: 'daily_summary'` type constraint and field
+  are removed from `RoutineDefinition`, tool schemas, and all output. Existing
+  persisted definitions containing `kind` are tolerated on read (field is silently
+  discarded).
+- **`RemoteLlmSummaryProvider` refactored**: HTTP transport, timeout, and error
+  mapping delegated to shared `LlmClient`. Domain-specific payload construction
+  (system/user messages, token cap) remains in the provider.
+
+### Fixed
+
+- `routine-create` input schema: `recentActivityMinutes` changed from
+  `.default(60)` to `.optional()` so omission vs explicit `60` is distinguishable.
+
 ## [Unreleased]
+
+### Performance
+
+- **Retrieval & storage performance overhaul** (BUG-004): All time-windowed queries
+  on derived storage are now index-served. Timestamps in `extracted_content` and
+  `sessions` tables are normalized to canonical UTC (`Z`-suffix) on write and
+  migrated once on startup (`PRAGMA user_version = 1`), eliminating the
+  `datetime()` SQL wrapping that defeated B-tree indexes on every read path.
+- **Vector store migrated from JSON to SQLite**: `vector-store.json` is replaced
+  by a `vectors` table in `derived.sqlite` with covering indexes
+  `(timestamp, id)` and `(app_name, timestamp, id)`. Embeddings are stored as
+  raw `Float32Array` BLOBs (4× smaller than JSON). Two-phase query: filter phase
+  uses covering index (no BLOB read), score phase loads only matching embeddings.
+  One-time JSON→SQLite migration runs automatically; the original file is renamed
+  to `vector-store.json.migrated` as backup.
+- **Recall batch frame query**: The per-session `getByFrameIds` loop in
+  `recall-service.ts` is replaced with a single batch call, reducing SQL
+  round-trips from N to 1 for time-block granularity.
+- `FileBackedVectorStore.persist()` no longer pretty-prints JSON (removes
+  indentation overhead from the legacy code path).
+- `rebuild-index` simplified: operates directly on `SqliteVectorStore`
+  (reset + replay), eliminating the temp-directory / atomic-file-swap dance.
+
+### Changed
+
+- Default `vectorStore.kind` changed from `'chroma'` to `'sqlite'`. Existing
+  configs with `kind: 'chroma'` are treated as `'sqlite'` (any non-`'file'`
+  value maps to the SQLite backend). Use `kind: 'file'` to opt into the legacy
+  `FileBackedVectorStore` JSON path.
+- Shared BLOB alignment utility (`src/lib/blob.ts`) extracted from
+  `hash-index.ts` — reused by both the embedding hash cache and the new
+  `SqliteVectorStore`.
 
 ### Security
 

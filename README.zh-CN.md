@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # canary-alpha-mcp
@@ -37,6 +37,7 @@ last_updated: 2026-06-14
 - **隐私控制**：暂停或恢复采集、排除应用、删除时间范围，并使用更安全的默认参数启动 Screenpipe。
 - **Provider 配置化**：可用时默认使用本地 Ollama，也可以配置任意 OpenAI-compatible embedding endpoint。
 - **运行状态可观测**：检查采集健康状态、摄取比例、磁盘预算告警和索引恢复状态。
+- **Prompt 驱动的 Routines**：通过自然语言 prompt 加 cron 表达式调度定期任务——执行器检索相关屏幕证据并调用配置的 LLM 生成定制简报，未配置 LLM 时自动降级为确定性摘要。
 - **两种 MCP transport**：托管服务使用 Streamable HTTP，也兼容 stdio 本地接入。
 
 ## 快速开始
@@ -87,8 +88,8 @@ http://127.0.0.1:18765/mcp
 | `privacy-control` | 检查或修改本地隐私控制 |
 | `screenpipe-control` | 检查、启动或停止本地 Screenpipe 录制进程 |
 | `internal-status` | 检查运行健康状态、采集状态和索引恢复状态 |
-| `routine-list` | 列出已配置的本地 routine，含调度计划、启用状态和最近一次运行摘要 |
-| `routine-create` | 通过提供名称、prompt 和 cron 计划创建或更新本地 routine |
+| `routine-list` | 列出已配置的 routine，含调度计划、启用状态和最近一次运行摘要 |
+| `routine-create` | 通过 prompt 和 cron 计划创建或更新 routine；省略回溯窗口时自动根据调度频率推断 |
 | `routine-history` | 按名称获取某 routine 的近期执行历史，newest-first 排序 |
 
 输入 schema 和返回结果约定请阅读 [MCP 工具参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools)。

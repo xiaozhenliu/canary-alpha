@@ -38,7 +38,7 @@ const providersConfigSchema = z.object({
 });
 
 const vectorStoreConfigSchema = z.object({
-  kind: z.string().default('chroma'),
+  kind: z.string().default('sqlite'),
   path: z.string().optional()
 });
 

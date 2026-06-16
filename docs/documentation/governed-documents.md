@@ -1,7 +1,7 @@
 ---
-doc_version: 20
+doc_version: 23
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # Governed Documents
@@ -93,9 +93,12 @@ Excluded from governance:
 | `docs/specs/README.md` | Maintainers and contributors | Tool-agnostic backlog index and spec format convention | adequate | none |
 | `docs/specs/routines-mvp.md` | Maintainers and contributors | Routines MVP requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
+| `docs/specs/retrieval-storage-performance.md` | Maintainers and contributors | Retrieval & storage performance overhaul spec (Problems 1,2,4,5 from BUG-004) | adequate | none |
+| `docs/specs/routines-v2-llm-execution.md` | Maintainers and contributors | Routines v2 — prompt-driven LLM execution (active, delivered v2.7.0) | adequate | none |
 | `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 | `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
 | `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |
+| `docs/security/audit-2026-06-15.md` | Maintainers | Security audit snapshot — 2026-06-15 full source review (v2.5.0) | adequate | none |
 
 ## State Vocabulary
 

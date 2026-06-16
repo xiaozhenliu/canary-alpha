@@ -36,7 +36,6 @@ function makeDefinition(overrides: Partial<RoutineDefinition> = {}): RoutineDefi
     // Every-minute cron — used only as valid expression; we call fireRoutine directly.
     schedule: '* * * * *',
     enabled: true,
-    kind: 'daily_summary',
     prompt: 'Summarize the day',
     recentActivityMinutes: 60,
     createdAt: now,

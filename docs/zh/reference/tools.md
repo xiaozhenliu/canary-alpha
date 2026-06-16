@@ -1,7 +1,7 @@
 ---
-doc_version: 3
+doc_version: 4
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # MCP 工具
@@ -324,7 +324,7 @@ CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，�
 
 **输出预期**
 
-- `structuredContent.routines` 是 routine 对象数组；每项包含 `name`、`schedule`、`enabled`、`kind`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`，以及可选的 `latestRun`（`runId`、`startedAt`、`completedAt`、`status` ∈ `success` | `failed` | `skipped`、`summary`）
+- `structuredContent.routines` 是 routine 对象数组；每项包含 `name`、`schedule`、`enabled`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`，以及可选的 `latestRun`（`runId`、`startedAt`、`completedAt`、`status` ∈ `success` | `failed` | `skipped`、`summary`）
 - `structuredContent.total` 为返回的 routine 数量
 - `content[0].text` 为简短叙述（如 "3 routine(s) configured."）
 - 失败路径返回 `isError: true`，`structuredContent: { routines: [], total: 0 }`
@@ -351,11 +351,11 @@ CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，�
 | `prompt` | string（最短 1） | 是 | routine 执行器使用的 prompt 文本 |
 | `schedule` | string（最短 1） | 是 | 5 字段 cron 表达式（如 `"0 8 * * *"` 表示每天 08:00） |
 | `enabled` | boolean | 否 | 默认 `true` |
-| `recentActivityMinutes` | 正整数 | 否 | recent-activity 查询的回溯窗口（分钟），默认 `60` |
+| `recentActivityMinutes` | 正整数 | 否 | 回溯窗口（分钟）。省略时根据 schedule 频率自动推断：每小时→60、每天→1440、每周→10080、每月→43200。显式值始终覆盖推断。 |
 
 **输出预期**
 
-- `structuredContent.routine` 返回持久化的定义：`name`、`schedule`、`enabled`、`kind`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`
+- `structuredContent.routine` 返回持久化的定义：`name`、`schedule`、`enabled`、`prompt`、`recentActivityMinutes`、`createdAt`、`updatedAt`
 - `structuredContent.isNew` 在 routine 新建时为 `true`，更新已有 routine 时为 `false`
 - `content[0].text` 说明 routine 是被创建还是更新（如 `Routine "morning-standup" created.`）
 - 失败路径（无效 cron、空名称、存储错误）返回 `isError: true`

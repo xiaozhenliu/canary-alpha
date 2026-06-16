@@ -1,11 +1,9 @@
-export type RoutineKind = 'daily_summary';
 export type RoutineRunStatus = 'success' | 'failed' | 'skipped';
 
 export interface RoutineDefinition {
   name: string;
   schedule: string;
   enabled: boolean;
-  kind: RoutineKind;
   prompt: string;
   recentActivityMinutes: number;
   createdAt: string;

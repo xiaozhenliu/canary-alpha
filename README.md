@@ -1,7 +1,7 @@
 ---
-doc_version: 24
+doc_version: 25
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # canary-alpha-mcp
@@ -38,6 +38,7 @@ AI agents are more useful when they can recover context from your actual work wi
 - **Provider configuration**: use local Ollama by default when available, or configure any OpenAI-compatible embedding endpoint.
 - **Operational visibility**: inspect capture health, ingestion mix, disk-budget warnings, and retrieval recovery status.
 - **Two MCP transports**: use Streamable HTTP for the managed service or stdio for compatible local clients.
+- **Prompt-driven routines**: schedule recurring tasks with a natural-language prompt and a cron expression — the executor retrieves relevant screen evidence and calls the configured LLM to produce tailored briefings. Falls back to a deterministic summary when no LLM is configured.
 - **Dashboard Web UI**: a browser-based management panel for status monitoring, configuration, routines control, activity browsing, privacy management, and log viewing — accessible at `http://127.0.0.1:<port>/`.
 
 ## Quick Start
@@ -88,8 +89,8 @@ The runtime registers twelve MCP tools:
 | `privacy-control` | Check or modify local privacy controls |
 | `screenpipe-control` | Check, start, or stop the local Screenpipe recording process |
 | `internal-status` | Inspect runtime health, capture state, and retrieval recovery status |
-| `routine-list` | List configured local routines with schedule, enabled state, and latest run summary |
-| `routine-create` | Create or update a local routine with a name, prompt, and cron schedule |
+| `routine-list` | List configured routines with schedule, enabled state, and latest run summary |
+| `routine-create` | Create or update a routine with a prompt and cron schedule; look-back window is inferred from schedule frequency when omitted |
 | `routine-history` | Retrieve recent execution history for a named routine, newest-first |
 
 See the [MCP tools reference](https://xiaozhenliu.github.io/canary-alpha/reference/tools) for schemas and result contracts.

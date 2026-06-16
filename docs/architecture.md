@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # canary-alpha-mcp 架构文档
@@ -51,7 +51,7 @@ last_updated: 2026-06-14
 - 检索/索引：`src/services/retrieval/`（embedding provider 工厂、vector store、hybrid ranker、checkpoint、freshness policy、indexing service；capture client 经 provider factory 注入）。
 - 工作活动：`src/services/work-activity/`（extraction 规则注册表、sessions 聚合、summary、embedding-service、find/recall/inspect、cascade-delete、observability、derived-database、hash-index）。
 - 数据控制与可观测：`src/services/memory/`、`src/services/privacy/`、`src/services/file-analysis/`、`src/services/diagnostics/`、`src/services/runtime-process-registry.ts`、`src/services/bootstrap-status-service.ts`。
-- 已定义但未接线：`src/services/routines/`（见第 7 节）。
+- Routines 调度引擎：`src/services/routines/`（`FileRoutineStore` + `RoutineScheduler` + `PromptDrivenExecutor`，由 `config.routines.enabled` 门控）。v2.7.0 起执行器为 prompt-driven LLM 执行（`FindService`+`RecallService` 并行检索 → 去重/截断/脱敏 → `LlmClient` 调用），无 LLM 配置时降级为确定性模板。共享 `LlmClient` 模块位于 `src/services/llm/llm-client.ts`。
 
 ### 2.5 基础设施适配层
 
@@ -103,7 +103,7 @@ v1 在 `src/mcp/register-tools.ts` 中实际注册 **9 个工具**。`src/mcp/to
 说明：
 
 - legacy `search-screen` / `recent-activity` 已在 task 8.1 移除，`find` / `recall` / `inspect` 是其前向替代。
-- **routines 未作为 MCP 工具暴露**（见第 7 节）。
+- routines 工具（`routine-list` / `routine-create` / `routine-history`）由 v2.4.0 交付（见 [routines-mvp.md](./specs/routines-mvp.md)）。下一阶段 [routines-v2](./specs/routines-v2-llm-execution.md) 将把执行层从固定模板升级为 prompt-driven LLM 汇总。
 - 大多数工具返回「双通道」结果（text content + 符合 outputSchema 的 structuredContent）；`screenpipe-control` 是唯一只返回 text、无 structuredContent 的工具。
 - find/recall/inspect 共享统一降级信封：失败时返回 `isError: true` 且 structuredContent 仍 schema-valid，`narrativeText` 携带中文诊断「派生数据当前不可访问」。
 
@@ -186,7 +186,7 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 
 以下能力在代码或配置中留有痕迹，但**当前 runtime 不存在**，文档读者不应据此假定其可用：
 
-- **Routines / 调度引擎**：`src/services/routines/`（`FileRoutineStore` + types）已定义，`paths.ts` 也预留了 `routines/{definitions,history}` 目录，config 留有 routines 块（默认 disabled）。但 `FileRoutineStore` **从未在 `create-app.ts` 实例化或接线**，没有 cron 调度器、没有 executor、没有 `node-cron` 依赖，routines 也**未作为 MCP 工具暴露**。整条 routine 执行链路属后续 phase。
+- ~~**Routines / 调度引擎**~~：已于 v2.4.0 交付调度基础设施，v2.7.0 升级为 prompt-driven LLM 执行（`PromptDrivenExecutor` + 共享 `LlmClient`，移除 `RoutineKind` 硬编码，新增 schedule-aware 回溯窗口推断）。Spec: [routines-v2-llm-execution.md](./specs/routines-v2-llm-execution.md)。
 - **Meeting / Calendar 集成**：`src/` 中不存在任何 calendar / meeting 代码，纯属规划。
 - **MCP resources 暴露**：当前 server 仅声明 `logging` capability，未注册任何 resources；resource 形态的能力暴露是规划项。
 

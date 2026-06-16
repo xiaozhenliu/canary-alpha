@@ -5,6 +5,7 @@ import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 import type { AppContext } from '../../types/app-config.js';
 import type { RoutineDefinition } from '../../services/routines/types.js';
 import { normalizeRoutineName } from '../../services/routines/routine-store.js';
+import { inferRecentActivityMinutes } from '../../services/routines/schedule-inference.js';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -31,8 +32,8 @@ const inputSchema = z.object({
     .number()
     .int()
     .positive()
-    .default(60)
-    .describe('Look-back window in minutes when the executor queries recent activity. Defaults to 60.')
+    .optional()
+    .describe('Look-back window in minutes. When omitted, inferred from schedule frequency.')
 });
 
 const outputSchema = z.object({
@@ -40,7 +41,6 @@ const outputSchema = z.object({
     name: z.string(),
     schedule: z.string(),
     enabled: z.boolean(),
-    kind: z.enum(['daily_summary']),
     prompt: z.string(),
     recentActivityMinutes: z.number().int().nonnegative(),
     createdAt: z.string(),
@@ -97,14 +97,17 @@ export function registerRoutineCreateTool(server: McpServer, app: AppContext): v
         };
       }
 
+      // Infer look-back window from schedule when the caller does not supply one.
+      const recentActivityMinutes =
+        input.recentActivityMinutes ?? inferRecentActivityMinutes(input.schedule);
+
       const now = new Date().toISOString();
       const definition: RoutineDefinition = {
         name: normalizedName,
         schedule: input.schedule,
         enabled: input.enabled,
-        kind: 'daily_summary',
         prompt: input.prompt,
-        recentActivityMinutes: input.recentActivityMinutes,
+        recentActivityMinutes,
         createdAt: now,
         updatedAt: now
       };
@@ -175,7 +178,6 @@ export function registerRoutineCreateTool(server: McpServer, app: AppContext): v
             name: saved.name,
             schedule: saved.schedule,
             enabled: saved.enabled,
-            kind: saved.kind,
             prompt: saved.prompt,
             recentActivityMinutes: saved.recentActivityMinutes,
             createdAt: saved.createdAt,

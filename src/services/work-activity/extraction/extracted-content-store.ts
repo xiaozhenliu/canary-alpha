@@ -203,10 +203,7 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
           extraction_rule_kind,
           source_types
        FROM extracted_content
-       -- Normalize both bounds to UTC: stored frame_timestamp carries a local
-       -- offset while from/to are UTC instants, so a raw BETWEEN compares
-       -- mixed representations lexicographically. See session-store.listSessions.
-       WHERE datetime(frame_timestamp) BETWEEN datetime(?) AND datetime(?)
+       WHERE frame_timestamp BETWEEN ? AND ?
        ORDER BY frame_timestamp ASC`
     );
     const rows = stmt.all(from, to) as unknown as ExtractedContentRow[];
@@ -224,8 +221,7 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
           COUNT(*) AS total,
           COALESCE(SUM(CASE WHEN extracted_text = '' THEN 1 ELSE 0 END), 0) AS empty
        FROM extracted_content
-       -- UTC-normalized window bounds; see listByTimeWindow above.
-       WHERE datetime(frame_timestamp) BETWEEN datetime(?) AND datetime(?)`
+       WHERE frame_timestamp BETWEEN ? AND ?`
     );
     const row = stmt.get(from, to) as
       | { total: number | bigint; empty: number | bigint }

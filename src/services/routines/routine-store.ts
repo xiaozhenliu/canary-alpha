@@ -41,10 +41,6 @@ function normalizeDefinitionName(value: unknown): string | undefined {
   return normalizeRoutineName(name);
 }
 
-function isRoutineKind(value: unknown): value is RoutineDefinition['kind'] {
-  return value === 'daily_summary';
-}
-
 function isRoutineRunStatus(value: unknown): value is RoutineRunRecord['status'] {
   return value === 'success' || value === 'failed' || value === 'skipped';
 }
@@ -65,13 +61,13 @@ function parseDefinition(value: unknown, filePath: string): RoutineDefinition {
   const name = normalizeDefinitionName(value.name);
   const schedule = normalizeString(value.schedule);
   const enabled = normalizeBoolean(value.enabled);
-  const kind = value.kind;
   const prompt = normalizeString(value.prompt);
   const recentActivityMinutes = normalizeNumber(value.recentActivityMinutes);
   const createdAt = normalizeTimestamp(value.createdAt);
   const updatedAt = normalizeTimestamp(value.updatedAt);
 
-  if (!name || !schedule || typeof enabled === 'undefined' || !isRoutineKind(kind) || !prompt || typeof recentActivityMinutes === 'undefined' || !createdAt || !updatedAt) {
+  // The stale "kind" field in persisted JSON is tolerated on read and not validated.
+  if (!name || !schedule || typeof enabled === 'undefined' || !prompt || typeof recentActivityMinutes === 'undefined' || !createdAt || !updatedAt) {
     throw new Error(`Invalid routine definition at ${filePath}`);
   }
 
@@ -79,7 +75,6 @@ function parseDefinition(value: unknown, filePath: string): RoutineDefinition {
     name,
     schedule,
     enabled,
-    kind,
     prompt,
     recentActivityMinutes,
     createdAt,
@@ -219,7 +214,6 @@ export class FileRoutineStore implements RoutineStore {
       name: normalizedName,
       schedule: definition.schedule,
       enabled: definition.enabled,
-      kind: definition.kind,
       prompt: definition.prompt,
       recentActivityMinutes: definition.recentActivityMinutes,
       createdAt: existing?.createdAt ?? definition.createdAt,

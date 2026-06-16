@@ -1,7 +1,7 @@
 ---
-doc_version: 8
+doc_version: 10
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # MCP Tools
@@ -324,7 +324,7 @@ List all configured local routines. Optionally filter to only enabled or only di
 
 **Output expectations**
 
-- `structuredContent.routines` is an array of routine objects. Each item exposes `name`, `schedule`, `enabled`, `kind`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`, and optional `latestRun` (`runId`, `startedAt`, `completedAt`, `status` ∈ `success` | `failed` | `skipped`, `summary`)
+- `structuredContent.routines` is an array of routine objects. Each item exposes `name`, `schedule`, `enabled`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`, and optional `latestRun` (`runId`, `startedAt`, `completedAt`, `status` ∈ `success` | `failed` | `skipped`, `summary`)
 - `structuredContent.total` is the count of returned routines
 - `content[0].text` is a brief narrative summary (e.g. "3 routine(s) configured.")
 - Failure paths return `isError: true` with `structuredContent: { routines: [], total: 0 }`
@@ -351,11 +351,11 @@ Create a new local routine or update an existing one by name. The schedule must 
 | `prompt` | string (min 1) | yes | Prompt executed by the routine executor |
 | `schedule` | string (min 1) | yes | 5-field cron expression (e.g. `"0 8 * * *"` for daily at 08:00) |
 | `enabled` | boolean | no | Defaults to `true` |
-| `recentActivityMinutes` | positive integer | no | Look-back window for recent-activity queries; defaults to `60` |
+| `recentActivityMinutes` | positive integer | no | Look-back window in minutes. When omitted, inferred from schedule frequency: hourly→60, daily→1440, weekly→10080, monthly→43200. Explicit values always override inference. |
 
 **Output expectations**
 
-- `structuredContent.routine` returns the persisted definition: `name`, `schedule`, `enabled`, `kind`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`
+- `structuredContent.routine` returns the persisted definition: `name`, `schedule`, `enabled`, `prompt`, `recentActivityMinutes`, `createdAt`, `updatedAt`
 - `structuredContent.isNew` is `true` when the routine was created, `false` when an existing routine was updated
 - `content[0].text` states whether the routine was created or updated (e.g. `Routine "morning-standup" created.`)
 - Failure paths (invalid cron, empty name, store error) return `isError: true`

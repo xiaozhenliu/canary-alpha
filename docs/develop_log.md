@@ -1,7 +1,7 @@
 ---
-doc_version: 17
+doc_version: 18
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # Development Log
@@ -11,6 +11,70 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-06-16: Routines v2 — Prompt-Driven LLM Execution (v2.7.0)
+
+**Context**
+
+Routines MVP (v2.4.0) delivered scheduling and persistence infrastructure but the
+execution layer had a critical design flaw: the user's prompt was accepted but never
+consumed. All routines were hardcoded to `kind: 'daily_summary'` and the sole executor
+(`DailySummaryExecutor`) ignored `definition.prompt` entirely, producing identical
+session-count output regardless of the prompt.
+
+**Architecture Decisions**
+
+- **Shared `LlmClient` extraction (ROUT-H01)**: Rather than duplicating HTTP transport
+  logic, extracted a generic OpenAI-compatible `chat/completions` client into
+  `src/services/llm/llm-client.ts`. Both `RemoteLlmSummaryProvider` (session summaries)
+  and `PromptDrivenExecutor` (routine execution) consume this module. The client owns
+  timeout management (`AbortController`), structured error codes, and response parsing.
+
+- **Find + Recall + LLM approach (ROUT-E03)**: Chose the two-source retrieval strategy
+  (keyword evidence via `FindService` + session overview via `RecallService`) over
+  recall-only. The keyword path is index-served SQL with known performance
+  characteristics; semantic retrieval was deferred due to brute-force dotProduct
+  limitations on large time windows.
+
+- **`RoutineKind` removal (ROUT-G02)**: Removed the type entirely rather than adding
+  new enum members. The `kind` field was a premature abstraction — all routines now
+  share the same prompt-driven executor. Persisted JSON files with `kind: 'daily_summary'`
+  are tolerated on read (field silently discarded) for backward compatibility.
+
+- **Schedule-aware inference (ROUT-G01)**: `recentActivityMinutes` changed from
+  `.default(60)` to `.optional()` with heuristic inference from the cron expression.
+  The heuristic maps to the coarsest matching granularity (weekly/monthly/daily/sub-daily)
+  — conservative overestimates that always cover at least one full cycle.
+
+**Key Implementation Details**
+
+- **Privacy fail-closed (ROUT-GP02)**: Codex review identified that the initial
+  implementation failed open when `privacyState.read()` threw — screen evidence would
+  still be sent to the LLM. Fixed to assume paused (deny by default) on read failure.
+
+- **Secret redaction scope (ROUT-GP01)**: Codex review identified that only
+  `EvidenceItem.extractedText` was redacted but activity overview fields (`contextLabel`,
+  `summary.text`) were sent raw. Fixed to apply `redactSecrets()` to all text included
+  in the LLM prompt.
+
+- **6-field cron handling**: `node-cron` accepts both 5-field and 6-field (seconds
+  prefix) expressions. The schedule inference heuristic now normalises to 5-field
+  before parsing, preventing misclassification of daily schedules as monthly.
+
+- **Template fallback with data**: No-LLM installs now get session statistics and
+  evidence snippets in the fallback output, preserving useful output without requiring
+  an external endpoint.
+
+**Verification**
+
+- 1274 tests passing (34 new tests: 26 LlmClient + 8 PromptDrivenExecutor)
+- Independent code review via Codex MCP: 1 critical, 3 major, 1 minor, 1 nit — all
+  addressed before commit
+- TypeScript strict mode: zero errors
+- Backward compatibility: persisted definitions with `kind: 'daily_summary'` load
+  without error (integration test)
+
+**Files Changed**: 30 files (5 new, 25 modified), +2167 / -594 lines
 
 ## 2026-06-15: Dashboard Reference Documentation and Dead Link Fixes
 

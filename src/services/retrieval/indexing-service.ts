@@ -13,6 +13,7 @@ import type {
   VectorStoreRecord
 } from './types.js';
 import type { AppConfig, Logger } from '../../types/app-config.js';
+import { normalizeToUtc } from '../../lib/time.js';
 import type { ExtractionRegistry, ExtractionInput, ExtractionResult } from '../work-activity/extraction/types.js';
 import type { ExtractedContentStore } from '../work-activity/extraction/extracted-content-store.js';
 import type { SessionAggregator } from '../work-activity/sessions/aggregator.js';
@@ -234,14 +235,8 @@ function toCheckpoint(record: CaptureRecord): IndexedCheckpoint {
  */
 function toExtractionInput(record: CaptureRecord): ExtractionInput {
   return {
-    // The extraction layer expects `frameId: number` — use it when
-    // present, fall back to a numeric hash of `record.id` so OCR-only
-    // records (which carry `id: 'frame:N:offset'` but no `frameId`)
-    // still produce stable, distinct keys. The fallback collides only
-    // when two records share the same `id`, which the upstream merge
-    // already guarantees does not happen within a single batch.
     frameId: record.frameId ?? hashStringToNumericId(record.id),
-    frameTimestamp: record.timestamp,
+    frameTimestamp: normalizeToUtc(record.timestamp),
     appName: record.appName,
     windowTitle: record.windowName,
     accessibilityTreeJson: resolveAccessibilityTreeJson(record),

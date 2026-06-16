@@ -141,7 +141,7 @@ describe('RemoteLlmSummaryProvider — NOT_CONFIGURED', () => {
       kind: 'error',
       error: {
         code: 'NOT_CONFIGURED',
-        message: 'llm.base_url 或 llm.api_key 未配置'
+        message: 'llm baseUrl or apiKey is not configured'
       }
     });
     expect(fetchMock).not.toHaveBeenCalled();

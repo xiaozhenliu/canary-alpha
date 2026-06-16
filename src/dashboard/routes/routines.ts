@@ -2,6 +2,7 @@ import * as nodeCron from 'node-cron';
 import type { ApiRouter } from '../api-router.js';
 import { sendJson } from '../api-router.js';
 import type { RoutineDefinition } from '../../services/routines/types.js';
+import { inferRecentActivityMinutes } from '../../services/routines/schedule-inference.js';
 
 /**
  * Convert an arbitrary string into a URL-safe slug.
@@ -98,12 +99,11 @@ export function registerRoutinesRoutes(router: ApiRouter): void {
       name: sluggedName,
       schedule,
       enabled: typeof enabled === 'boolean' ? enabled : true,
-      kind: 'daily_summary',
       prompt,
       recentActivityMinutes:
         typeof recentActivityMinutes === 'number' && recentActivityMinutes > 0
           ? Math.floor(recentActivityMinutes)
-          : 60,
+          : inferRecentActivityMinutes(schedule as string),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };

@@ -178,7 +178,6 @@ describe('routine-create tool — update', () => {
       name: 'daily-summary',
       schedule: '0 9 * * *',
       enabled: true,
-      kind: 'daily_summary',
       prompt: 'Old prompt',
       recentActivityMinutes: 60,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -320,5 +319,88 @@ describe('routine-create tool — store error handling', () => {
     const content = result.content as Array<{ type: string; text: string }>;
     expect(content[0].text).toContain('routine-create failed');
     expect(content[0].text).toContain('disk full');
+  });
+});
+
+describe('routine-create tool — schedule-aware recentActivityMinutes inference', () => {
+  it('infers 1440 minutes for a daily schedule when recentActivityMinutes is omitted', async () => {
+    // "0 9 * * *" = daily at 09:00 → 24 hours = 1440 minutes
+    const store = new StubStore();
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineCreate(app, {
+      name: 'daily-infer',
+      prompt: 'Daily check',
+      schedule: '0 9 * * *'
+    });
+
+    expect(result).not.toMatchObject({ isError: true });
+    const structured = result.structuredContent as { routine: { recentActivityMinutes: number } };
+    expect(structured.routine.recentActivityMinutes).toBe(1440);
+  });
+
+  it('infers 60 minutes for a sub-daily schedule when recentActivityMinutes is omitted', async () => {
+    // "*/30 * * * *" = every 30 minutes → sub-daily fallback = 60 minutes
+    const store = new StubStore();
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineCreate(app, {
+      name: 'half-hourly-infer',
+      prompt: 'Frequent check',
+      schedule: '*/30 * * * *'
+    });
+
+    expect(result).not.toMatchObject({ isError: true });
+    const structured = result.structuredContent as { routine: { recentActivityMinutes: number } };
+    expect(structured.routine.recentActivityMinutes).toBe(60);
+  });
+
+  it('infers 10080 minutes for a weekly schedule when recentActivityMinutes is omitted', async () => {
+    // "0 9 * * 1" = weekly on Monday at 09:00 → 7 days = 10080 minutes
+    const store = new StubStore();
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineCreate(app, {
+      name: 'weekly-infer',
+      prompt: 'Weekly review',
+      schedule: '0 9 * * 1'
+    });
+
+    expect(result).not.toMatchObject({ isError: true });
+    const structured = result.structuredContent as { routine: { recentActivityMinutes: number } };
+    expect(structured.routine.recentActivityMinutes).toBe(10080);
+  });
+
+  it('infers 43200 minutes for a monthly schedule when recentActivityMinutes is omitted', async () => {
+    // "0 9 1 * *" = monthly on the 1st at 09:00 → 30 days = 43200 minutes
+    const store = new StubStore();
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineCreate(app, {
+      name: 'monthly-infer',
+      prompt: 'Monthly report',
+      schedule: '0 9 1 * *'
+    });
+
+    expect(result).not.toMatchObject({ isError: true });
+    const structured = result.structuredContent as { routine: { recentActivityMinutes: number } };
+    expect(structured.routine.recentActivityMinutes).toBe(43200);
+  });
+
+  it('uses explicit recentActivityMinutes when provided, overriding schedule inference', async () => {
+    // Supply explicit 120; schedule would infer 1440 for "0 9 * * *".
+    const store = new StubStore();
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineCreate(app, {
+      name: 'explicit-override',
+      prompt: 'Explicit window',
+      schedule: '0 9 * * *',
+      recentActivityMinutes: 120
+    });
+
+    expect(result).not.toMatchObject({ isError: true });
+    const structured = result.structuredContent as { routine: { recentActivityMinutes: number } };
+    expect(structured.routine.recentActivityMinutes).toBe(120);
   });
 });
