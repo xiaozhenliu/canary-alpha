@@ -44,10 +44,9 @@ tmp/
 .codex-review/
 .claude/
 .mcp.json
-# CLAUDE.md and .planning/ are tracked on dev branch
+# CLAUDE.md, AGENTS.md, and .planning/ are tracked on dev branch
 # but gitignored on public-main branch
 # see CLAUDE.md → Branch Strategy for merge procedure
-AGENTS.md
 docs/superpowers/
 docs/plan/
 
