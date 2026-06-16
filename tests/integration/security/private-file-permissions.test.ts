@@ -74,7 +74,6 @@ describe('private file permissions', () => {
         name: 'daily summary',
         schedule: '0 9 * * *',
         enabled: true,
-        kind: 'daily_summary',
         prompt: 'Summarize recent work',
         recentActivityMinutes: 60,
         createdAt: '2026-06-08T00:00:00.000Z',

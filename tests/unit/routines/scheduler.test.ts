@@ -30,7 +30,6 @@ function makeDefinition(overrides: Partial<RoutineDefinition> = {}): RoutineDefi
     name: 'daily-summary',
     schedule: '0 9 * * *',
     enabled: true,
-    kind: 'daily_summary',
     prompt: 'Summarize the day',
     recentActivityMinutes: 60,
     createdAt: now,

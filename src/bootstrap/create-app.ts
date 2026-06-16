@@ -2,7 +2,7 @@ import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { DailySummaryExecutor } from '../services/routines/executor.js';
+import { PromptDrivenExecutor } from '../services/routines/prompt-driven-executor.js';
 import { FileRoutineStore } from '../services/routines/routine-store.js';
 import { RoutineScheduler } from '../services/routines/scheduler.js';
 import { resolveRoutineDefinitionsDirectory, resolveRoutineHistoryDirectory } from '../config/paths.js';
@@ -44,6 +44,7 @@ import { SummaryWorker } from '../services/work-activity/summary/worker.js';
 import { ProviderHealthRegistry } from '../services/work-activity/observability/provider-health-registry.js';
 import { WorkActivityObservabilityService } from '../services/work-activity/observability/work-activity-observability-service.js';
 import { createCascadeDeleteCoordinator, type CascadeDeleteCoordinator } from '../services/work-activity/cascade-delete-coordinator.js';
+import { DefaultLlmClient } from '../services/llm/llm-client.js';
 import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../types/app-config.js';
 
@@ -399,10 +400,29 @@ export async function createApp(overrides?: {
   let routineScheduler: RoutineScheduler | undefined;
 
   if (config.routines.enabled) {
-    const executor = new DailySummaryExecutor({
-      find: findService,
-      recall: recallService
-    });
+    // Routines v2: build an LLM client when credentials are available,
+    // or leave it undefined so PromptDrivenExecutor falls back to template output.
+    const llmBaseUrl = config.llm.base_url;
+    const llmApiKey = config.llm.api_key;
+    const llmClient = (llmBaseUrl && llmApiKey)
+      ? new DefaultLlmClient({
+          baseUrl: llmBaseUrl,
+          apiKey: llmApiKey,
+          timeoutMs: config.analysis.summary.remoteLlmTimeoutMs
+        })
+      : undefined;
+
+    const executor = new PromptDrivenExecutor(
+      {
+        find: findService,
+        recall: recallService,
+        llmClient,
+        privacyState: privacyStore
+      },
+      undefined,
+      config.llm.model
+    );
+
     routineScheduler = new RoutineScheduler({
       routineStore,
       executor,

@@ -109,7 +109,6 @@ const routineInfoOutputSchema = z.object({
   name: z.string(),
   schedule: z.string(),
   enabled: z.boolean(),
-  kind: z.enum(['daily_summary']),
   prompt: z.string(),
   recentActivityMinutes: z.number().int().nonnegative(),
   createdAt: z.string(),
@@ -135,7 +134,6 @@ const routineCreateOutputSchema = z.object({
     name: z.string(),
     schedule: z.string(),
     enabled: z.boolean(),
-    kind: z.enum(['daily_summary']),
     prompt: z.string(),
     recentActivityMinutes: z.number().int().nonnegative(),
     createdAt: z.string(),
@@ -214,10 +212,10 @@ describe('routine-create — input schema', () => {
     prompt: z.string().min(1),
     schedule: z.string().min(1),
     enabled: z.boolean().default(true),
-    recentActivityMinutes: z.number().int().positive().default(60)
+    recentActivityMinutes: z.number().int().positive().optional()
   });
 
-  it('accepts a minimal valid input', () => {
+  it('accepts a minimal valid input (recentActivityMinutes omitted)', () => {
     const result = inputSchema.safeParse({
       name: 'morning',
       prompt: 'Check activity',
@@ -226,7 +224,7 @@ describe('routine-create — input schema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.enabled).toBe(true);
-      expect(result.data.recentActivityMinutes).toBe(60);
+      expect(result.data.recentActivityMinutes).toBeUndefined();
     }
   });
 
@@ -316,7 +314,6 @@ describe('routine-list — output structure contract', () => {
         name: 'daily-summary',
         schedule: '0 9 * * *',
         enabled: true,
-        kind: 'daily_summary',
         prompt: 'Summarize',
         recentActivityMinutes: 60,
         createdAt: now,
@@ -383,7 +380,6 @@ describe('routine-create — output structure contract', () => {
           name: 'existing',
           schedule: '0 9 * * *',
           enabled: true,
-          kind: 'daily_summary',
           prompt: 'Old',
           recentActivityMinutes: 60,
           createdAt: now,
@@ -409,6 +405,53 @@ describe('routine-create — output structure contract', () => {
     if (parsed.success) {
       expect(parsed.data.isNew).toBe(false);
     }
+  });
+});
+
+describe('routine-list — backward-compat: stale kind field stripped from output', () => {
+  it('does not include kind in output when the store returns a definition with a stale kind field', async () => {
+    // Simulate a store that returns a legacy definition containing kind:"daily_summary".
+    // The tool must strip it from the structured output.
+    const now = '2026-05-01T09:00:00.000Z';
+    const legacyDefinitionWithKind = {
+      name: 'daily-summary',
+      schedule: '0 9 * * *',
+      enabled: true,
+      prompt: 'Summarize',
+      recentActivityMinutes: 60,
+      createdAt: now,
+      updatedAt: now,
+      // Stale field that must not appear in the tool output.
+      kind: 'daily_summary' as unknown as never
+    };
+
+    // Build a mock store that returns the legacy definition directly.
+    const staleKindStore: RoutineStore = {
+      async listDefinitions(): Promise<RoutineDefinition[]> {
+        return [legacyDefinitionWithKind as unknown as RoutineDefinition];
+      },
+      async readDefinition(name: string): Promise<RoutineDefinition | undefined> {
+        return name === 'daily-summary' ? legacyDefinitionWithKind as unknown as RoutineDefinition : undefined;
+      },
+      async writeDefinition(): Promise<boolean> { return true; },
+      async appendRun(): Promise<void> {},
+      async listRuns(): Promise<RoutineRunRecord[]> { return []; }
+    };
+
+    const app = makeAppContext(staleKindStore);
+    const server = new McpServer({ name: 'test', version: '0.0.0' });
+    registerRoutineListTool(server, app);
+    const callback = getToolCallback(server, 'routine-list');
+
+    const result = await callback({});
+
+    const structured = result.structuredContent as { routines: Array<Record<string, unknown>>; total: number };
+    expect(structured.total).toBe(1);
+    const routine = structured.routines[0];
+    expect(routine).not.toHaveProperty('kind');
+    // Core fields must still be present.
+    expect(routine.name).toBe('daily-summary');
+    expect(routine.schedule).toBe('0 9 * * *');
   });
 });
 

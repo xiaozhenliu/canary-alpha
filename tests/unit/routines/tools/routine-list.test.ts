@@ -27,7 +27,6 @@ function makeDefinition(overrides: Partial<RoutineDefinition> = {}): RoutineDefi
     name: 'daily-summary',
     schedule: '0 9 * * *',
     enabled: true,
-    kind: 'daily_summary',
     prompt: 'Summarize the day',
     recentActivityMinutes: 60,
     createdAt: now,
@@ -134,7 +133,6 @@ describe('routine-list tool — basic listing', () => {
             name: 'daily-summary',
             schedule: '0 9 * * *',
             enabled: true,
-            kind: 'daily_summary',
             prompt: 'Summarize the day',
             recentActivityMinutes: 60
           }
@@ -234,6 +232,20 @@ describe('routine-list tool — enabled filter', () => {
 
     const structured = result.structuredContent as { total: number };
     expect(structured.total).toBe(2);
+  });
+});
+
+describe('routine-list tool — kind field exclusion', () => {
+  it('output does not include kind property (AC #11)', async () => {
+    const definition = makeDefinition();
+    const store = makeStubStore({ definitions: [definition] });
+    const app = makeAppContext(store);
+
+    const result = await invokeRoutineList(app);
+
+    const structured = result.structuredContent as { routines: Array<Record<string, unknown>> };
+    const routine = structured.routines[0];
+    expect(routine).not.toHaveProperty('kind');
   });
 });
 
