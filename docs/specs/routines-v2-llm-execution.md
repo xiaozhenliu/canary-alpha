@@ -1,10 +1,12 @@
 ---
-doc_version: 5
-doc_status: active
-last_updated: 2026-06-16
+doc_version: 6
+doc_status: deprecated
+last_updated: 2026-06-21
 ---
 
 # Spec: Routines v2 — Prompt-Driven LLM Execution
+
+> Delivered in v2.7.0. This document is retained as the historical specification and acceptance record.
 
 ## Background
 
