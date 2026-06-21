@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-16
 ---
 
 # Introduction
@@ -27,7 +27,7 @@ When an agent calls `recall` or `find`, the server queries the local index using
 
 ## What it is not
 
-- **Not a frontend product.** There is no web UI or desktop app. All capability is exposed exclusively through MCP tools and resources.
+- **Not a chat interface.** There is no conversational UI. Capability is exposed through MCP tools; the built-in Dashboard (`http://127.0.0.1:<port>/`) is an operations panel for managing the server, not a product interface.
 - **Not a cloud service.** The server binds to `127.0.0.1` only. Your screen data stays on your machine.
 - **Not a replacement for Screenpipe.** This server depends on Screenpipe to capture and store your screen activity. It adds the MCP interface layer on top; Screenpipe must be running for retrieval to work.
 

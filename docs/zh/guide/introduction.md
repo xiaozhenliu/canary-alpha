@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-16
 ---
 
 # 介绍
@@ -27,7 +27,7 @@ Screenpipe 守护进程
 
 ## 它不是什么
 
-- **不是前端产品。** 没有 Web UI 或桌面应用。所有能力仅通过 MCP 工具和资源暴露。
+- **不是对话界面。** 没有对话式 UI。所有能力通过 MCP 工具暴露；内置的 Dashboard（`http://127.0.0.1:<port>/`）是用于管理服务的运维面板，而非产品界面。
 - **不是云服务。** 服务仅绑定 `127.0.0.1`，你的屏幕数据留在本机。
 - **不是 Screenpipe 的替代品。** 本服务依赖 Screenpipe 采集和存储屏幕活动，在其之上提供 MCP 接口层；Screenpipe 必须运行，检索才能工作。
 

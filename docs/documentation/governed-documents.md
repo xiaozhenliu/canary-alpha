@@ -1,7 +1,7 @@
 ---
-doc_version: 23
+doc_version: 25
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-06-21
 ---
 
 # Governed Documents
@@ -84,6 +84,7 @@ Excluded from governance:
 |------|----------|----------|---------------|-------------------|
 | `docs/documentation/governed-documents.md` | Maintainers and contributors | Canonical documentation governance inventory and scope definition | adequate | none |
 | `docs/engineering/code-standards.md` | Maintainers and contributors | Engineering rules for the v1 codebase | adequate | none |
+| `docs/engineering/release-workflow.md` | Maintainers and release operators | Internal branch roles and the automated development-to-public release workflow | adequate | none |
 | `docs/engineering/bug-reports/README.md` | Maintainers | Open defect register index (per-defect records under `docs/engineering/bug-reports/`) | adequate | none |
 | `docs/engineering/tech-debt.md` | Maintainers | Structural technical debt register | adequate | none |
 | `docs/delivery/http-service.md` | Operators and integrators | Local HTTP service lifecycle and runtime contract | adequate | none |
@@ -94,7 +95,8 @@ Excluded from governance:
 | `docs/specs/routines-mvp.md` | Maintainers and contributors | Routines MVP requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/retrieval-storage-performance.md` | Maintainers and contributors | Retrieval & storage performance overhaul spec (Problems 1,2,4,5 from BUG-004) | adequate | none |
-| `docs/specs/routines-v2-llm-execution.md` | Maintainers and contributors | Routines v2 — prompt-driven LLM execution (active, delivered v2.7.0) | adequate | none |
+| `docs/specs/routines-v2-llm-execution.md` | Maintainers and contributors | Routines v2 — prompt-driven LLM execution (deprecated — delivered v2.7.0) | adequate | none |
+| `docs/specs/routine-delete.md` | Maintainers and contributors | Routine delete spec — MCP tool, Dashboard UI, REST API endpoint | adequate | none |
 | `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 | `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
 | `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |

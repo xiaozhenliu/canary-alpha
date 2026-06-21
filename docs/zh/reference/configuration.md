@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # 配置文件
@@ -200,7 +200,7 @@ capture:
 
 ### `routines`
 
-控制本地 routines 引擎。Routine 是按 cron 调度在后台运行、从既有 recent-activity 数据产出确定性摘要的任务——不需要任何外部 LLM provider。
+控制本地 routines 引擎。Routine 是按 cron 调度在后台运行的任务，每个 routine 携带一个 `prompt` 字段；调度器将该 prompt 与从近期屏幕活动中检索到的证据一起发送给已配置的 LLM，并将结果存入执行历史。若未配置 LLM，则使用模板兜底方案。
 
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
@@ -233,7 +233,7 @@ routines:
   historyPath: ~/my-data/routines/history
 ```
 
-**MVP 范围边界** —— routines MVP 不包含：meetings 或 calendar 工具、手动触发 routine 运行、routine 输出作为 MCP resources、任意 LLM-backed prompt 执行，以及跨机器同步。这些需求在项目待办中跟踪，留待后续版本实现。
+**尚未支持** —— 手动触发 routine 运行、routine 输出作为 MCP resources、跨机器同步。这些需求在项目待办中跟踪，留待后续版本实现。
 
 ## 环境变量覆盖
 

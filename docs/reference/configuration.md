@@ -1,7 +1,7 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
-last_updated: 2026-06-14
+last_updated: 2026-06-16
 ---
 
 # Configuration
@@ -200,7 +200,7 @@ In other words: pick whichever embedding endpoint you like, but the `remote-llm`
 
 ### `routines`
 
-Controls the local routines engine. Routines are background tasks that run on a cron schedule and produce deterministic summaries from existing recent-activity data — no external LLM provider is required.
+Controls the local routines engine. Routines are background tasks that run on a cron schedule. Each routine carries a `prompt` field; the scheduler passes that prompt — together with evidence retrieved from recent screen activity — to the configured LLM and stores the result in the execution history. When no LLM is configured, a template fallback is used instead.
 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
@@ -233,7 +233,7 @@ routines:
   historyPath: ~/my-data/routines/history
 ```
 
-**MVP scope boundaries** — the routines MVP does not include: meetings or calendar tools, manual trigger of a routine run, routine outputs as MCP resources, arbitrary LLM-backed prompt execution, or cross-machine sync. These are tracked in the project backlog for future releases.
+**Not yet supported** — manual trigger of a routine run, routine outputs as MCP resources, and cross-machine sync. These are tracked in the project backlog for future releases.
 
 ## Environment overrides
 
