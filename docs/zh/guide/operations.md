@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # 日常运维
@@ -80,6 +80,8 @@ npm run e2e:live -- --duration 10m
 |------|------|
 | `~/.canary-alpha-mcp/config.yaml` | 服务配置（嵌入 provider、端口等） |
 | `~/.canary-alpha-mcp/logs/` | 服务日志和维护运行记录 |
+| `~/.canary-alpha-mcp/routines/definitions/` | Routine 定义 JSON 文件（每个 routine 一个，以 slug 命名） |
+| `~/.canary-alpha-mcp/routines/history/` | Routine 执行历史 JSON 文件（每个 routine 一个，最新优先） |
 | `~/.screenpipe/` | Screenpipe 原始采集数据（由 Screenpipe 管理，非本服务） |
 
 有关采集内容及控制方式的详细信息，参见 [隐私与数据](/zh/reference/privacy)。

@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 
 # Operations
@@ -127,6 +127,8 @@ Starts any missing local dependencies, records Screenpipe activity for the given
 |------|----------|
 | `~/.canary-alpha-mcp/config.yaml` | Server configuration (embedding provider, port, etc.) |
 | `~/.canary-alpha-mcp/logs/` | Service logs and maintenance run records |
+| `~/.canary-alpha-mcp/routines/definitions/` | Routine definition JSON files (one per routine, slug-named) |
+| `~/.canary-alpha-mcp/routines/history/` | Routine execution history JSON files (one per routine, newest first) |
 | `~/.screenpipe/` | Screenpipe raw capture data (managed by Screenpipe, not this server) |
 
 For details on what gets captured and how to control it, see [Privacy & Data](/reference/privacy).
