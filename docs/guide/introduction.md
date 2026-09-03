@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-04
 ---
 
 # Introduction
@@ -12,18 +12,21 @@ The problem it solves: AI agents have no memory of what you actually did on your
 
 ## How it works
 
-Screenpipe continuously captures your screen activity and stores it locally. This server reads that data, builds a hybrid index (FTS5 keyword search + vector embeddings), and exposes retrieval through MCP tools:
+Screenpipe continuously captures your screen activity and stores it locally. This server reads visible AXTree and OCR data, turns each visible AXTree into tagged context, builds a hybrid index (FTS5 keyword search + vector embeddings), and exposes retrieval through MCP tools:
 
 ```
 Screenpipe daemon
   └─ captures screen activity → ~/.screenpipe/
        └─ computer-history-mcp
-            ├─ indexes frames (FTS5 + vector embeddings)
+            ├─ extracts [Window] / [Nav] / [Action] / [Body] context
+            ├─ keeps only session-scoped line deltas, then indexes frames (FTS5 + vector embeddings)
             └─ exposes MCP tools: find / recall / inspect / memory / ...
                   └─ any MCP client (Claude Code, Cursor, Hermes, ...)
 ```
 
-When an agent calls `recall` or `find`, the server queries the local index using hybrid retrieval (keyword match ranked by BM25, fused with vector similarity), returns evidence fragments, and never contacts an external service with your activity data.
+The four semantic domains retain different kinds of visible context: `[Window]` names the app or document, `[Nav]` captures tabs, breadcrumbs, channels, and chat partners, `[Action]` captures visible menus and dialogs, and `[Body]` captures the primary content or input. A session-scoped line-hash deduplicator stores a line only when it first appears or changes; it resets after an idle gap, so a new session starts with complete context.
+
+When an agent calls `recall` or `find`, the server queries the local index using hybrid retrieval (keyword match ranked by BM25, fused with vector similarity), returns tagged evidence fragments, and never contacts an external service with your activity data.
 
 ## What it is not
 

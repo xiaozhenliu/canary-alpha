@@ -1,7 +1,7 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # 日常运维
@@ -98,11 +98,11 @@ npm run service:logs     # 追踪服务日志
 
 ## 开发时使用服务
 
-日常运行时只保留一个 Screenpipe 录制进程和一个 Canary MCP 托管服务。所有 MCP 客户端都连接同一个 HTTP 端点，通常为 `http://127.0.0.1:18765/mcp`。多个客户端可以共享该端点和同一份派生索引；不要为每个客户端单独启动 Canary 进程。
+日常运行时只保留一个 Screenpipe 录制进程和一个 `computer-history-mcp` 托管服务。所有 MCP 客户端都连接同一个 HTTP 端点，通常为 `http://127.0.0.1:18765/mcp`。多个客户端可以共享该端点和同一份派生索引；不要为每个客户端单独启动服务器进程。
 
-Canary 的派生 SQLite 数据库、检索 checkpoint、隐私状态和运行时文件按单 writer 设计。不要让两个 Canary 进程共享同一个 `~/.computer-history-mcp` 目录。尤其不要在托管 HTTP 服务运行时，再添加一个会启动 Canary 进程的 stdio 配置。
+派生 SQLite 数据库、检索 checkpoint、隐私状态和运行时文件按单 writer 设计。不要让两个 `computer-history-mcp` 进程共享同一个 `~/.computer-history-mcp` 目录。尤其不要在托管 HTTP 服务运行时，再添加一个会启动另一服务器进程的 stdio 配置。
 
-仓库中覆盖 capture 和 embedding 边界的测试使用临时应用目录和本地 stub，不需要启动第二套真实 Screenpipe 或 Canary 服务。需要针对真实 Screenpipe API 手工开发时，只停止 Canary 托管服务，启动开发服务器，结束后再恢复托管服务：
+仓库中覆盖 capture 和 embedding 边界的测试使用临时应用目录和本地 stub，不需要启动第二套真实 Screenpipe 或 `computer-history-mcp` 服务。需要针对真实 Screenpipe API 手工开发时，只停止托管服务，启动开发服务器，结束后再恢复托管服务：
 
 ```bash
 npm run service:stop
@@ -114,14 +114,14 @@ npm run service:start
 
 整个过程中 Screenpipe 可以保持运行；开发服务器会复用它的本地 API 和已采集历史。
 
-并行运行两个 Canary 实例属于高级用法，默认不受支持。确实无法避免时，必须隔离以下内容：
+并行运行两个 `computer-history-mcp` 实例属于高级用法，默认不受支持。确实无法避免时，必须隔离以下内容：
 
 - HTTP 端口和认证 token
 - 应用 home 和 `config.yaml`
 - 派生 SQLite 数据库和向量数据
 - 检索 checkpoint、隐私状态、运行时注册表、routines 和日志
 
-在第二个实例上保持 `trim` 关闭，并且不要通过它执行 `privacy-control delete-range` 或 Screenpipe 维护。隔离派生存储可以避免 Canary writer 冲突，但两个实例仍共享上游 Screenpipe 数据，也会重复执行索引和 embedding。
+在第二个实例上保持 `trim` 关闭，并且不要通过它执行 `privacy-control delete-range` 或 Screenpipe 维护。隔离派生存储可以避免 writer 冲突，但两个实例仍共享上游 Screenpipe 数据，也会重复执行索引和 embedding。
 
 ## 诊断
 
@@ -160,6 +160,7 @@ npm run e2e:live -- --duration 10m
 | 路径 | 内容 |
 |------|------|
 | `~/.computer-history-mcp/config.yaml` | 服务配置（嵌入 provider、端口等） |
+| `~/.computer-history-mcp/data/` | 预留的本地数据目录；它可能不存在。当前默认派生制品存放在应用主目录根部，包括 `derived.sqlite`。 |
 | `~/.computer-history-mcp/logs/` | 服务日志和维护运行记录 |
 | `~/.computer-history-mcp/routines/definitions/` | Routine 定义 JSON 文件（每个 routine 一个，以 slug 命名） |
 | `~/.computer-history-mcp/routines/history/` | Routine 执行历史 JSON 文件（每个 routine 一个，最新优先） |

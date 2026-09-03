@@ -1,8 +1,8 @@
 ---
 layout: home
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 hero:
   name: computer-history-mcp
   text: 本地优先的屏幕记忆 MCP 服务
@@ -15,8 +15,10 @@ hero:
       text: 它是什么？
       link: /zh/guide/introduction
 features:
-  - title: 屏幕记忆检索
-    details: 通过 find / recall / inspect 工具，对你的工作活动进行关键词、语义和混合检索。
+  - title: 结构化屏幕记忆
+    details: 通用 AXTree 提取通过 [Window]、[Nav]、[Action]、[Body] 标签保留可见的窗口、导航、操作和正文上下文。
+  - title: 差量感知检索
+    details: 会话级行去重仅存储新出现或变化的上下文，让 find / recall / inspect 聚焦有意义的活动。
   - title: 兼容所有 MCP 客户端
     details: 支持 Claude Code、Claude Desktop、Cursor、Hermes，以及任何支持 stdio 或 Streamable HTTP 的客户端。
   - title: 本地优先设计

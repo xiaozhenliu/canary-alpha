@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-09-04
 ---
 
 # 控制面板
@@ -91,9 +91,9 @@ Schema 驱动的配置编辑器。表单由服务器的 Zod config schema 自动
 
 **路由**：`/routines`
 
-列出所有已配置的 routines，展示调度计划、启用状态和最近一次执行状态。
+列出所有已配置的 routines，展示调度计划、启用状态、prompt、推断或显式设置的回溯窗口，以及最近一次执行状态。
 
-- **创建**：定义新的 routine，包括名称、cron 调度（提供预设选项：每天 08:00、每小时、工作日 09:00，或自定义）和启用开关
+- **创建**：定义新的 routine，包括名称、prompt、cron 调度（提供预设选项：每天 08:00、每小时、工作日 09:00，或自定义）、启用开关和可选回溯窗口；未提供窗口时，服务会按调度频率自动推断。
 - **切换**：通过开关启用或禁用单个 routine
 - **历史**：查看任意 routine 的执行历史时间线——每条记录展示 run ID、时间戳、状态（success / failed / skipped）和摘要
 

@@ -1,7 +1,7 @@
 ---
-doc_version: 30
+doc_version: 31
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # Governed Documents
@@ -104,6 +104,7 @@ Excluded from governance:
 | `docs/specs/data-retention-and-storage.md` | Maintainers and contributors | Data retention and configurable storage root directory spec | adequate | none |
 | `docs/specs/capture-configuration-strategy.md` | Maintainers and contributors | Capture configuration strategy and storage dedup under new Screenpipe | adequate | none |
 | `docs/specs/project-rename-computer-history-mcp.md` | Maintainers and release operators | Project identity migration, sanitized public-history release model, and GitHub/Pages cutover | adequate | none |
+| `docs/specs/docs-site-update.md` | Maintainers and contributors | Documentation site synchronization, AXTree/Routines/OCR alignment, and GitHub Pages release spec | adequate | none |
 | `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 | `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
 | `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |

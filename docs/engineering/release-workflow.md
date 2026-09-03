@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # Internal Release Workflow
@@ -55,10 +55,18 @@ Gitleaks is a required release dependency. Install it before dry run or real rel
 The legacy `git merge dev --no-ff` publish flow is forbidden. If the script and this document differ, follow the
 script and update this document in the same change.
 
-## Public Manifest
+## Public Manifest (Strict Allowlist Principle)
 
-`scripts/public-release-manifest.txt` is the versioned allow/deny list for public releases. It is independent of
-`.gitignore`. Add explicit `include` or `exclude` rules before introducing new top-level paths.
+`scripts/public-release-manifest.txt` is the authoritative allow/deny list for public releases. It is independent of
+`.gitignore`.
+
+Public release operates strictly on an **allowlist-only (white-list) philosophy**:
+- Only paths matching explicit `include` directives are published.
+- Deny-lists (`exclude`) exist only to classify internal development paths so the classifier can verify full repository coverage and fail closed on unclassified files. Deny-listing must **never** be relied upon as a primary safety mechanism.
+- The following three categories are **strictly confidential / internal-only** and must never be published to public releases:
+  1. **Vulnerabilities & defect reports:** Internal bug reports (`docs/engineering/bug-reports/**`), internal security audits and conventions (`docs/security/**`), and structural technical debt lists (`docs/engineering/tech-debt.md`). Only the standard public reporting policy (`SECURITY.md`) is public.
+  2. **Agent collaboration & internal workflows:** Agent instructions and prompts (`AGENTS.md`, `CLAUDE.md`), workflow state (`STATE.md`, `PRD_*`), workspace metadata (`.agents/**`, `.kiro/**`, `docs/agents/**`, `.scratch/**`, `.understand-anything/**`).
+  3. **Future roadmaps, backlogs & draft specs:** Unreleased roadmap pools (`docs/specs/future-backlog.md`, `docs/specs/README.md`), draft specifications, and competitive/exploratory research documents. Only completed, delivered public feature specifications may be included.
 
 Confirmed synthetic test-fixture Gitleaks findings must be recorded in
 `scripts/public-release-gitleaks-allowlist.txt` by fingerprint. Unexpected findings still fail closed.

@@ -1,7 +1,7 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-04
 ---
 
 # 介绍
@@ -12,18 +12,21 @@ last_updated: 2026-06-16
 
 ## 工作原理
 
-Screenpipe 持续采集你的屏幕活动并存储在本地。本服务读取这些数据，构建混合索引（FTS5 关键词检索 + 向量嵌入），并通过 MCP 工具暴露检索能力：
+Screenpipe 持续采集你的屏幕活动并存储在本地。本服务读取可见 AXTree 和 OCR 数据，将每个可见 AXTree 转换为带标签的上下文，构建混合索引（FTS5 关键词检索 + 向量嵌入），并通过 MCP 工具暴露检索能力：
 
 ```
 Screenpipe 守护进程
   └─ 采集屏幕活动 → ~/.screenpipe/
        └─ computer-history-mcp
-            ├─ 索引帧数据（FTS5 + 向量嵌入）
+            ├─ 提取 [Window] / [Nav] / [Action] / [Body] 上下文
+            ├─ 仅保留会话级行增量，再索引帧数据（FTS5 + 向量嵌入）
             └─ 暴露 MCP 工具：find / recall / inspect / memory / ...
                   └─ 任意 MCP 客户端（Claude Code、Cursor、Hermes ...）
 ```
 
-当 agent 调用 `recall` 或 `find` 时，服务在本地索引上执行混合检索（BM25 关键词排名与向量相似度融合），返回证据片段，不会把你的活动数据发送给外部服务。
+四个语义域保留不同种类的可见上下文：`[Window]` 标识应用或文档，`[Nav]` 捕获标签、面包屑、频道和聊天对象，`[Action]` 捕获可见菜单和对话框，`[Body]` 捕获主要内容或输入。会话级行哈希去重器仅在一行首次出现或发生变化时存储它；空闲间隔后会重置，使新会话保留完整上下文。
+
+当 agent 调用 `recall` 或 `find` 时，服务在本地索引上执行混合检索（BM25 关键词排名与向量相似度融合），返回带标签的证据片段，不会把你的活动数据发送给外部服务。
 
 ## 它不是什么
 

@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-15
+last_updated: 2026-09-04
 ---
 
 # Dashboard
@@ -91,9 +91,9 @@ Config changes are written to disk but require a service restart to take effect.
 
 **Route**: `/routines`
 
-Lists all configured routines with their schedule, enabled state, and latest run status.
+Lists all configured routines with their schedule, enabled state, prompt, inferred or explicit look-back window, and latest run status.
 
-- **Create**: define a new routine with name, cron schedule (presets available: daily at 08:00, hourly, weekdays at 09:00, or custom), and enabled flag
+- **Create**: define a new routine with name, prompt, cron schedule (presets available: daily at 08:00, hourly, weekdays at 09:00, or custom), enabled flag, and optional look-back window. When no window is supplied, the server infers it from the schedule frequency.
 - **Toggle**: enable or disable individual routines via a switch
 - **History**: view execution history timeline for any routine — each entry shows run ID, timestamp, status (success / failed / skipped), and summary
 

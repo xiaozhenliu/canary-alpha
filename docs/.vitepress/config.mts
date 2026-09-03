@@ -5,6 +5,8 @@ export default defineConfig({
   description: 'Local-first MCP server for Screenpipe memory and automation workflows.',
   base: '/computer-history-mcp/',
   srcExclude: [
+    'agents/**',
+    'archives/**',
     'architecture.md',
     'develop_log.md',
     'architecture/**',

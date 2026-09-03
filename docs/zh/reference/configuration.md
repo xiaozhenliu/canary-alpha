@@ -1,7 +1,7 @@
 ---
-doc_version: 8
+doc_version: 9
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # 配置文件
@@ -83,9 +83,11 @@ mcp_servers:
         - memory-write
         - file-analyze
         - privacy-control
+        - routine-list
+        - routine-history
 ```
 
-自动 Hermes 配置步骤只接受 `127.0.0.1` 的 MCP 端点。如果现有 Hermes 配置是无效的 YAML，onboarding 会明确失败并保持文件不变。
+自动 Hermes 配置步骤只接受 `127.0.0.1` 的 MCP 端点，并暴露全部 10 个 onboarding 白名单工具；`screenpipe-control` 和 `routine-create` 会保持为手动启用，因为它们能改变采集或创建后台调度任务。如果现有 Hermes 配置是无效的 YAML，onboarding 会明确失败并保持文件不变。
 
 ## 手动 setup
 

@@ -1,7 +1,7 @@
 ---
-doc_version: 30
+doc_version: 33
 doc_status: active
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 ---
 
 # Changelog
@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
+
+## 2.8.0 — 2026-09-04
 
 ### Added
 - Automatic migration from `~/.canary-alpha-mcp` to `~/.computer-history-mcp` with a recoverable backup when only the legacy app home exists.
@@ -26,8 +28,12 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 - Project identity, public GitHub repository, documentation site base, repository links, and launchd plist template now use `computer-history-mcp`.
 - Public repository default branch rewritten to a clean-root filtered snapshot, preventing development-only files from being reachable in public history.
 - Managed service scripts stop and remove the legacy `com.canary-alpha-mcp` launchd label before installing the renamed service.
+- Project license changed from Apache-2.0 to MIT.
+- Installation documentation now pins the tested MIT release `screenpipe@0.3.282` and warns against substituting the unvalidated, differently licensed latest release.
+- README positioning now describes the project as a local computer-history and persistent agent-memory layer and clarifies how it differs from and complements Codex Computer Use.
 
 ### Improved
+- Documentation site content now reflects the current `npm start` and `npm run refresh:hermes` lifecycle, the full ten-tool Hermes onboarding allowlist, configurable Chinese-first OCR, custom Screenpipe paths, Routines v2 behavior, and Universal AXTree semantic extraction with session-scoped delta deduplication. English and Simplified Chinese pages are synchronized.
 - Universal AXTree indexing now carries the complete per-frame tree from the capture provider when the search response omits it, reconstructing sweep-normalized `elements` rows through `elements_ref_frame_id` when needed; it restores deduplication state for open sessions after restart and guards retries against losing structured content after embedding failures.
 - Complete AX trees are filtered for configured secure AX roles before extraction and embedding, including the restart path where uncheckpointed extraction rows are deliberately excluded from deduplication recovery.
 - Empty AX payloads retain the existing OCR/text fallback, while semantic root nodes are included in structured extraction.
@@ -101,8 +107,6 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 - `routine-create` input schema: `recentActivityMinutes` changed from
   `.default(60)` to `.optional()` so omission vs explicit `60` is distinguishable.
-
-## [Unreleased]
 
 ### Added
 

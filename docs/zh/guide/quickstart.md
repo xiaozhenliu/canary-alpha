@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 7
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # 快速开始
@@ -12,11 +12,21 @@ last_updated: 2026-06-21
 
 - macOS
 - Node.js 22+
+- 经过实测的 MIT 版本 `screenpipe@0.3.282`
 - 约 10 分钟
 
 ## 第一步——安装 Screenpipe 并授予权限
 
-从 [screenpi.pe/onboarding](https://screenpi.pe/onboarding) 安装 Screenpipe 桌面应用。授予 macOS 所请求的权限：**屏幕录制**、**辅助功能**、**麦克风**。如果 macOS 在首次启动时拦截该应用，请从 Finder 手动打开并点击 **Open** 授权。
+安装经过实测的准确版本：
+
+```bash
+npm install --global screenpipe@0.3.282
+screenpipe --version
+```
+
+版本命令必须输出 `screenpipe 0.3.282`。不要使用 `screenpipe@latest`：当前上游版本采用不同许可证，且尚未通过本项目验证。
+
+在 macOS 系统设置中为 `screenpipe` 可执行文件授予**屏幕录制**和**辅助功能**权限。只有在明确启用音频采集时才需要授予**麦克风**权限；本项目默认禁用音频。
 
 无需自行判断 Screenpipe 是否已经运行。第三步的启动命令会自动检查，并在需要时启动本仓库提供的安全后台录制进程。相关默认值参见[隐私与数据](/zh/reference/privacy)。
 
@@ -46,6 +56,24 @@ npm start
 
 预期结果：命令报告本地启动完成。首次 onboarding 期间可能询问 embedding provider 配置。
 
+### 中文 OCR
+
+需要优先识别中文时，在 `~/.computer-history-mcp/config.yaml` 中配置：
+
+```yaml
+capture:
+  ocrLanguages: [chinese, english]
+```
+
+语言顺序代表优先级；macOS Apple Vision 使用第一个语言作为主要 OCR 模式。recorder 仅在启动时读取此设置，因此修改后需要重启本仓库管理的 recorder：
+
+```bash
+npm run recorder:stop
+npm run recorder:start
+```
+
+如果使用 Screenpipe 桌面应用，请在应用中重启它。更多可用语言和自定义 Screenpipe 路径见[配置文件](/zh/reference/configuration)。
+
 默认 MCP 端点地址：
 
 ```text
@@ -62,7 +90,7 @@ http://127.0.0.1:18765/mcp
 - [通用 MCP 客户端](/zh/guide/clients/generic-mcp)
 
 ::: warning 复用托管服务
-其他客户端也应连接这个 HTTP 端点。托管服务运行时，不要再启动共享 `~/.computer-history-mcp` 的 Canary stdio 或开发进程。安全的开发流程参见[开发时使用服务](/zh/guide/operations#开发时使用服务)。
+其他客户端也应连接这个 HTTP 端点。托管服务运行时，不要再启动共享 `~/.computer-history-mcp` 的 `computer-history-mcp` stdio 或开发进程。安全的开发流程参见[开发时使用服务](/zh/guide/operations#开发时使用服务)。
 :::
 
 ## 日常使用

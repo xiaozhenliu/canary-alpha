@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Claude Code 与 Claude Desktop
@@ -65,7 +65,7 @@ Claude Desktop 通过 JSON 配置文件使用 stdio 传输。找到或创建以�
 
 ## 常见问题
 
-**服务未运行**：Claude Code 提示服务不可达。运行 `npm run service:start` 并用 `npm run service:status` 确认。
+**服务未运行**：Claude Code 提示服务不可达。运行 `npm start`，再用 `npm run service:status` 确认。
 
 **端口错误**：默认端口为 `18765`。如果在 `~/.computer-history-mcp/config.yaml` 中修改了端口，请相应更新 URL。
 

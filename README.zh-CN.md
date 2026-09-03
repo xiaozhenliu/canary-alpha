@@ -1,7 +1,7 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # computer-history-mcp
@@ -9,13 +9,13 @@ last_updated: 2026-09-02
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/generic-mcp)
 [![文档站](https://img.shields.io/badge/文档-站点-blue)](https://xiaozhenliu.github.io/computer-history-mcp/zh/)
 
-**一个本地优先的 MCP server，把 Screenpipe 历史转化为可检索、可控制隐私的 AI agent 记忆。**
+**面向 Codex、Claude、Cursor、Hermes 及其他 MCP AI agent 的开源、本地优先电脑历史与持久记忆服务。**
 
-`computer-history-mcp` 将工作活动记录、长期记忆、本地文件分析、隐私控制和运行状态诊断封装成标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。服务在本机运行，派生数据保存在本地，并通过仅监听回环地址的 Streamable HTTP 端点供 MCP 客户端调用。
+`computer-history-mcp` 把 MIT 许可的 Screenpipe 采集转化为可搜索的屏幕历史、长期记忆、本地文件分析、隐私控制和运行状态诊断，并封装成标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。服务在 Mac 本机运行，派生数据保存在本地，并通过仅监听回环地址的 Streamable HTTP 端点供 MCP 客户端调用。
 
 任何兼容 MCP 且支持连接 `http://127.0.0.1:18765/mcp` 的客户端都可以使用它。初始化流程也会自动配置 [Hermes](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/hermes)。
 
@@ -28,6 +28,20 @@ last_updated: 2026-09-02
 - 在 agent 需要更多依据时，钻取具体会话或单帧内容。
 - 在不同会话之间保存用户认可的长期记忆。
 - 在本地暂停捕获、排除应用或删除指定时间范围的数据。
+
+## Computer Use agent 的本地记忆层
+
+[Codex Computer Use](https://developers.openai.com/codex/use-cases/qa-your-app-with-computer-use) 等工具可以观察当前界面，并通过点击或输入执行操作。`computer-history-mcp` 解决的是另一个问题：持续记录并索引工作上下文，让 agent 日后可以搜索和回顾。需要的是**电脑历史与持久 agent 记忆**时，它是一个本地、开源的替代方案；它不替代实时 UI 操作能力。
+
+| 能力 | `computer-history-mcp` | Codex Computer Use |
+|---|---|---|
+| 主要用途 | 搜索和回顾过去的工作上下文 | 操作当前 UI |
+| 交互方式 | 用 MCP tools 提供检索、记忆、隐私和 routines | 通过截图及点击、输入、滚动等 UI action |
+| 历史能力 | 持久、可查询的本地索引 | 当前任务状态和截图 |
+| 客户端 | 任何兼容 MCP 的客户端 | Codex 及受支持的 OpenAI 产品界面 |
+| 数据边界 | 采集数据和派生索引默认保留在 Mac 本机 | 本地工作流在设备上运行；截图遵循 OpenAI 产品数据控制 |
+
+两者也可以组合使用：Computer Use agent 在操作当前界面前，可以先通过 `computer-history-mcp` 查询过去的上下文。
 
 ## 功能特性
 
@@ -47,7 +61,16 @@ last_updated: 2026-09-02
 
 - macOS
 - Node.js 22+
-- 已安装 [Screenpipe](https://screenpi.pe/onboarding) 并授予所需 macOS 权限
+- 已安装经过实测的 MIT 版本 `screenpipe@0.3.282`，并授予 macOS 屏幕录制和辅助功能权限
+
+安装经过实测的准确版本，并确认可执行文件已加入 `PATH`：
+
+```bash
+npm install --global screenpipe@0.3.282
+screenpipe --version
+```
+
+版本命令必须输出 `screenpipe 0.3.282`。不要改用 `screenpipe@latest`：当前上游版本采用不同许可证，且尚未通过本项目验证。
 
 安装并启动 `computer-history-mcp`：
 
@@ -108,7 +131,7 @@ hermes mcp test computer-history-mcp
 
 ## 架构
 
-`computer-history-mcp` 是一个没有前端的独立 MCP server。它读取本地 Screenpipe 数据，构建本地派生索引，并通过 stdio 和 Streamable HTTP 暴露聚焦的工具接口。
+`computer-history-mcp` 是一个带本地 Dashboard 的独立 MCP server。它读取本地 Screenpipe 数据，构建本地派生索引，并通过 stdio 和 Streamable HTTP 暴露聚焦的工具接口；Dashboard 用于本机状态查看和配置管理，不是聊天界面。
 
 ```mermaid
 flowchart LR
@@ -167,4 +190,4 @@ npm test
 
 ## License
 
-本项目使用 [Apache License 2.0](LICENSE)。
+本项目使用 [MIT License](LICENSE)。

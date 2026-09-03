@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Cursor
@@ -71,7 +71,7 @@ stdio 方式需要先运行 `npm run build`。
 
 **MCP 服务未出现**：编辑配置文件后重启 Cursor。
 
-**服务未运行**：运行 `npm run service:start` 并用 `npm run service:status` 确认。
+**服务未运行**：运行 `npm start`，再用 `npm run service:status` 确认。
 
 **stdio 入口缺失**：运行 `npm run build` 生成 `dist/src/index.js`。
 

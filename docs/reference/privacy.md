@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Privacy & Data
@@ -73,6 +73,7 @@ node scripts/privacy-control.js exclude-app --app "Claude"
 | Path | Contents |
 |------|----------|
 | `~/.computer-history-mcp/config.yaml` | Server configuration |
+| `~/.computer-history-mcp/data/` | Reserved local data directory; it may be absent. The current default derived database is `~/.computer-history-mcp/derived.sqlite`. |
 | `~/.computer-history-mcp/logs/` | Service logs and maintenance records |
 | `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` | Maintenance run records |
 | `~/.screenpipe/` | Raw Screenpipe capture data (managed by Screenpipe) |

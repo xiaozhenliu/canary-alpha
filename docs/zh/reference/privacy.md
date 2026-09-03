@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # 隐私与数据
@@ -73,6 +73,7 @@ node scripts/privacy-control.js exclude-app --app "Claude"
 | 路径 | 内容 |
 |------|------|
 | `~/.computer-history-mcp/config.yaml` | 服务配置 |
+| `~/.computer-history-mcp/data/` | 预留的本地数据目录；它可能不存在。当前默认派生数据库为 `~/.computer-history-mcp/derived.sqlite`。 |
 | `~/.computer-history-mcp/logs/` | 服务日志和维护记录 |
 | `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` | 维护运行记录 |
 | `~/.screenpipe/` | Screenpipe 原始采集数据（由 Screenpipe 管理） |

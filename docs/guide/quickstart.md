@@ -1,7 +1,7 @@
 ---
-doc_version: 16
+doc_version: 19
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # Quickstart
@@ -12,13 +12,41 @@ From a clean macOS machine to your first successful MCP tool call.
 
 - macOS
 - Node.js 22+
+- The tested MIT release, `screenpipe@0.3.282`
 - About 10 minutes
 
 ## Step 1 — Install Screenpipe and grant permissions
 
-Install the Screenpipe desktop app from [screenpi.pe/onboarding](https://screenpi.pe/onboarding). Grant macOS the requested permissions: **Screen Recording**, **Accessibility**, and **Microphone**. If macOS blocks the app on first launch, open it from Finder and click **Open** to approve it.
+Install the exact tested Screenpipe release:
+
+```bash
+npm install --global screenpipe@0.3.282
+screenpipe --version
+```
+
+The version command must report `screenpipe 0.3.282`. Do not use `screenpipe@latest`: current upstream releases use a different license and have not been validated with this project.
+
+Grant the `screenpipe` executable **Screen Recording** and **Accessibility** access in macOS System Settings. Grant **Microphone** access only if you explicitly enable audio capture; this project disables audio by default.
 
 You do not need to decide whether Screenpipe is already running. The startup command in Step 3 checks it and starts the repository's safer background recorder when needed. See [Privacy & Data](/reference/privacy) for those defaults.
+
+### OCR languages
+
+For Chinese-primary OCR, set the language order in `~/.computer-history-mcp/config.yaml`:
+
+```yaml
+capture:
+  ocrLanguages: [chinese, english]
+```
+
+The first language is Apple Vision's primary OCR mode. The recorder reads this setting only when it starts, so restart the repo-managed recorder after changing it:
+
+```bash
+npm run recorder:stop
+npm run recorder:start
+```
+
+If you use the Screenpipe desktop app instead, restart it there. See [Configuration](/reference/configuration) for supported languages and custom Screenpipe paths.
 
 ## Step 2 — Install this project
 
@@ -62,7 +90,7 @@ Connect any MCP-compatible client to `http://127.0.0.1:18765/mcp`:
 - [Generic MCP Client](/guide/clients/generic-mcp)
 
 ::: warning Reuse the managed service
-Connect additional clients to this same HTTP endpoint. Do not start another Canary stdio or development process against `~/.computer-history-mcp` while the managed service is running. For the safe development workflow, see [Use the service while developing](/guide/operations#use-the-service-while-developing).
+Connect additional clients to this same HTTP endpoint. Do not start another `computer-history-mcp` stdio or development process against `~/.computer-history-mcp` while the managed service is running. For the safe development workflow, see [Use the service while developing](/guide/operations#use-the-service-while-developing).
 :::
 
 ## Daily use

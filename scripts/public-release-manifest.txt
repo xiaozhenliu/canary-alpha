@@ -37,23 +37,13 @@ include docs/documentation/**
 include docs/delivery/**
 include docs/guide/**
 include docs/reference/**
-include docs/security/**
 include docs/zh/**
 
-# Public engineering and spec subset
-include docs/engineering/bug-reports/BUG-001-troubleshooting-doc-missing.md
-include docs/engineering/bug-reports/BUG-002-hermes-doc-path-mismatch.md
-include docs/engineering/bug-reports/BUG-003-rebuild-index-timing-race.md
-include docs/engineering/bug-reports/BUG-004-retrieval-storage-performance-degradation.md
-include docs/engineering/bug-reports/README.md
+# Public engineering and spec subset (delivered public features only)
 include docs/engineering/code-standards.md
 include docs/engineering/release-workflow.md
-include docs/engineering/tech-debt.md
-include docs/engineering/public-history-cleanup-result.md
-include docs/specs/README.md
 include docs/specs/capture-provider-decoupling.md
 include docs/specs/dashboard-web-ui.md
-include docs/specs/future-backlog.md
 include docs/specs/retrieval-storage-performance.md
 include docs/specs/routine-delete.md
 include docs/specs/routines-mvp.md
@@ -71,17 +61,26 @@ exclude STATE.md
 exclude PRD_*
 exclude experiments/**
 
-# Internal documentation and operator notes
+# Internal security audits, vulnerability reports, and technical debt (Confidential / Internal-Only)
+exclude docs/security/**
+exclude docs/engineering/bug-reports/**
+exclude docs/engineering/tech-debt.md
+exclude docs/engineering/public-history-cleanup-result.md
+
+# Internal documentation, operator notes, and draft specs
 exclude docs/agents/**
 exclude docs/archives/**
 exclude docs/superpowers/**
 exclude docs/engineering/reports/**
 exclude docs/engineering/screenpipe-version-development.md
-exclude docs/engineering/bug-reports/BUG-005-mcp-tool-descriptions-and-include-whitelist.md
-exclude docs/engineering/bug-reports/BUG-006-documentation-site-stale-lifecycle-guidance.md
+
+# Future backlog and internal planning (Confidential / Internal-Only)
+exclude docs/specs/future-backlog.md
+exclude docs/specs/README.md
 exclude docs/specs/bug-005-mcp-tool-hygiene.md
 exclude docs/specs/capture-configuration-strategy.md
 exclude docs/specs/data-retention-and-storage.md
+exclude docs/specs/docs-site-update.md
 exclude docs/specs/ocr-engine-comparison.md
 exclude docs/specs/ovis-ocr-integration.md
 exclude docs/specs/project-rename-computer-history-mcp.md

@@ -1,7 +1,7 @@
 ---
-doc_version: 12
+doc_version: 13
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # Operations
@@ -134,11 +134,11 @@ When the service is running in HTTP mode, a browser-based management panel is av
 
 ## Use the service while developing
 
-Use one Screenpipe recorder and one managed Canary MCP service for normal daily operation. Connect every MCP client to the same HTTP endpoint, normally `http://127.0.0.1:18765/mcp`. Multiple clients can share this endpoint and the same derived index; do not start a separate Canary process for each client.
+Use one Screenpipe recorder and one managed `computer-history-mcp` service for normal daily operation. Connect every MCP client to the same HTTP endpoint, normally `http://127.0.0.1:18765/mcp`. Multiple clients can share this endpoint and the same derived index; do not start a separate server process for each client.
 
-Canary's derived SQLite database, retrieval checkpoint, privacy state, and runtime files assume a single writer. Do not run two Canary processes against the same `~/.computer-history-mcp` directory. In particular, do not add a stdio configuration that launches another Canary process while the managed HTTP service is running.
+The derived SQLite database, retrieval checkpoint, privacy state, and runtime files assume a single writer. Do not run two `computer-history-mcp` processes against the same `~/.computer-history-mcp` directory. In particular, do not add a stdio configuration that launches another server process while the managed HTTP service is running.
 
-Repository tests that exercise capture and embedding boundaries use temporary application directories and local stubs. They do not require a second live Screenpipe or Canary service. For manual development against the real Screenpipe API, stop only the managed Canary service, run the development server, and restore the managed service when finished:
+Repository tests that exercise capture and embedding boundaries use temporary application directories and local stubs. They do not require a second live Screenpipe or `computer-history-mcp` service. For manual development against the real Screenpipe API, stop only the managed service, run the development server, and restore the managed service when finished:
 
 ```bash
 npm run service:stop
@@ -150,14 +150,14 @@ npm run service:start
 
 Screenpipe can remain running throughout this workflow. The development server reuses its local API and captured history.
 
-Running two Canary instances concurrently is an advanced, unsupported-by-default workflow. If it is unavoidable, isolate all of the following:
+Running two `computer-history-mcp` instances concurrently is an advanced, unsupported-by-default workflow. If it is unavoidable, isolate all of the following:
 
 - HTTP port and authentication token
 - application home and `config.yaml`
 - derived SQLite database and vector data
 - retrieval checkpoint, privacy state, runtime registry, routines, and logs
 
-Keep `trim` disabled on the secondary instance, and do not run `privacy-control delete-range` or Screenpipe maintenance from it. Separate derived stores prevent Canary writer conflicts, but both instances still share the same upstream Screenpipe data and would duplicate indexing and embedding work.
+Keep `trim` disabled on the secondary instance, and do not run `privacy-control delete-range` or Screenpipe maintenance from it. Separate derived stores prevent writer conflicts, but both instances still share the same upstream Screenpipe data and would duplicate indexing and embedding work.
 
 ## Diagnostics
 
@@ -196,6 +196,7 @@ Starts any missing local dependencies, records Screenpipe activity for the given
 | Path | Contents |
 |------|----------|
 | `~/.computer-history-mcp/config.yaml` | Server configuration (embedding provider, port, etc.) |
+| `~/.computer-history-mcp/data/` | Reserved local data directory; it may be absent. Current default derived artifacts are stored at the app-home root, including `derived.sqlite`. |
 | `~/.computer-history-mcp/logs/` | Service logs and maintenance run records |
 | `~/.computer-history-mcp/routines/definitions/` | Routine definition JSON files (one per routine, slug-named) |
 | `~/.computer-history-mcp/routines/history/` | Routine execution history JSON files (one per routine, newest first) |

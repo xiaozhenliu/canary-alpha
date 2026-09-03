@@ -1,7 +1,7 @@
 ---
-doc_version: 30
+doc_version: 31
 doc_status: active
-last_updated: 2026-09-02
+last_updated: 2026-09-04
 ---
 
 # computer-history-mcp
@@ -9,13 +9,13 @@ last_updated: 2026-09-02
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/generic-mcp)
 [![Docs](https://img.shields.io/badge/Docs-site-blue)](https://xiaozhenliu.github.io/computer-history-mcp/)
 
-**A local-first MCP server that turns your Screenpipe history into searchable, privacy-aware memory for AI agents.**
+**Open-source, local-first computer history and persistent memory for Codex, Claude, Cursor, Hermes, and other MCP-compatible AI agents.**
 
-`computer-history-mcp` exposes captured work activity, long-term memory, local file analysis, privacy controls, and runtime diagnostics as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs on your machine, stores derived data locally, and serves MCP clients over a loopback-only Streamable HTTP endpoint.
+`computer-history-mcp` turns an MIT-licensed Screenpipe capture into searchable screen history, long-term memory, local file analysis, privacy controls, and runtime diagnostics exposed as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs on your Mac, stores derived data locally, and serves MCP clients over a loopback-only Streamable HTTP endpoint.
 
 Use it with any MCP-compatible client that can connect to `http://127.0.0.1:18765/mcp`. The onboarding flow also configures [Hermes](https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/hermes) automatically.
 
@@ -28,6 +28,20 @@ AI agents are more useful when they can recover context from your actual work wi
 - Inspect individual sessions or frames when an agent needs supporting detail.
 - Persist user-approved long-term memory between conversations.
 - Pause capture, exclude applications, or delete captured ranges locally.
+
+## A local memory layer for computer-use agents
+
+[Codex Computer Use](https://developers.openai.com/codex/use-cases/qa-your-app-with-computer-use) and similar tools can observe the current interface and act by clicking or typing. `computer-history-mcp` solves a different problem: it records and indexes work context over time so an agent can search or recall it later. It is a local, open-source alternative when you need **computer history and persistent agent memory**; it does not replace live UI control.
+
+| Capability | `computer-history-mcp` | Codex Computer Use |
+|---|---|---|
+| Primary role | Search and recall past work context | Operate the current UI |
+| Interaction | MCP tools for retrieval, memory, privacy, and routines | Screenshots plus click, type, scroll, and other UI actions |
+| History | Persistent, queryable local index | Current task state and screenshots |
+| Client support | Any compatible MCP client | Codex and supported OpenAI surfaces |
+| Data boundary | Capture and derived index stay on the Mac by default | Local workflows run on-device; screenshots follow OpenAI product data controls |
+
+The two can also work together: a computer-use agent can query `computer-history-mcp` for earlier context before acting in the current interface.
 
 ## Features
 
@@ -48,7 +62,16 @@ AI agents are more useful when they can recover context from your actual work wi
 
 - macOS
 - Node.js 22+
-- A [Screenpipe](https://screenpi.pe/onboarding) installation with the required macOS permissions
+- The tested MIT release, `screenpipe@0.3.282`, with macOS Screen Recording and Accessibility permissions
+
+Install the exact tested release and confirm that its executable is on `PATH`:
+
+```bash
+npm install --global screenpipe@0.3.282
+screenpipe --version
+```
+
+The version command must report `screenpipe 0.3.282`. Do not substitute `screenpipe@latest`: current upstream releases use a different license and have not been validated with this project.
 
 Install and start `computer-history-mcp`:
 
@@ -176,4 +199,4 @@ Useful local commands:
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+Licensed under the [MIT License](LICENSE).

@@ -1,7 +1,7 @@
 ---
-doc_version: 5
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # MCP 工具
@@ -40,7 +40,7 @@ last_updated: 2026-06-21
 
 ## `find`
 
-搜索工作活动内容，返回证据片段。`mode="keyword"` 为默认值，对 `extracted_content` 运行 FTS5 关键词扫描；`semantic` 对嵌入哈希索引运行向量查询；`hybrid` 使用确定性排名器融合两者。
+搜索工作活动内容，返回证据片段。`mode="keyword"` 为默认值，对 `extracted_content` 运行 FTS5 关键词扫描；`semantic` 对嵌入哈希索引运行向量查询；`hybrid` 使用确定性排名器融合两者。来自 AXTree 的证据会保留语义前缀：`[Window]` 表示窗口或文档身份，`[Nav]` 表示标签、面包屑、频道和聊天对象，`[Action]` 表示可见菜单和对话框，`[Body]` 表示主要内容和输入。
 
 **输入**
 
@@ -73,6 +73,7 @@ last_updated: 2026-06-21
 - `structuredContent.groupedBySession`（可选）在请求 `groupBy="session"` 时按 session 分组
 - `structuredContent.narrativeText` 始终存在
 - `structuredContent.degraded`（可选）表示实际 mode 与请求 mode 不同（如 semantic→keyword 回退）或关键词扫描被截断；包含 `requestedMode`、`actualMode`、`reason`
+- AXTree 证据为会话级行增量：活动上下文中不变的带标签行只存储一次，新出现或变化的行仍可检索；经过空闲边界后，新会话会从完整上下文开始。
 
 ## `recall`
 
@@ -108,7 +109,7 @@ last_updated: 2026-06-21
 
 ## `inspect`
 
-深入查看单个 session 或帧。通过在 `target` 中传入 `sessionId` 或 `frameId` 之一来选择目标。
+深入查看单个 session 或帧。通过在 `target` 中传入 `sessionId` 或 `frameId` 之一来选择目标。对于来自 AXTree 的帧，`extractedContent.extractedText` 包含结构化提取生成的 `[Window]`、`[Nav]`、`[Action]`、`[Body]` 行，并遵循会话级差量去重。
 
 **输入**
 

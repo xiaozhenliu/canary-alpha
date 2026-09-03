@@ -1,7 +1,7 @@
 ---
-doc_version: 14
+doc_version: 15
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # Configuration
@@ -83,9 +83,11 @@ mcp_servers:
         - memory-write
         - file-analyze
         - privacy-control
+        - routine-list
+        - routine-history
 ```
 
-The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. If the existing Hermes config is invalid YAML, onboarding fails clearly and leaves the file unchanged.
+The automatic Hermes config step only accepts `127.0.0.1` MCP endpoints. It exposes all ten onboarding-whitelisted tools; `screenpipe-control` and `routine-create` remain opt-in because they can change capture or schedule background work. If the existing Hermes config is invalid YAML, onboarding fails clearly and leaves the file unchanged.
 
 ## Config file location and manual setup
 

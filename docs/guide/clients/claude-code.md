@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Claude Code & Claude Desktop
@@ -65,7 +65,7 @@ Expected: response includes `mode: stdio`.
 
 ## Common issues
 
-**Service not running**: Claude Code says the server is unreachable. Run `npm run service:start` and check with `npm run service:status`.
+**Service not running**: Claude Code says the server is unreachable. Run `npm start`, then check with `npm run service:status`.
 
 **Wrong port**: The default port is `18765`. If you changed it in `~/.computer-history-mcp/config.yaml`, update the URL accordingly.
 

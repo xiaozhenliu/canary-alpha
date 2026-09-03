@@ -1,7 +1,7 @@
 ---
-doc_version: 11
+doc_version: 12
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-04
 ---
 
 # MCP Tools
@@ -40,7 +40,7 @@ The `from` / `to` time-window bounds on `find` and `recall` are interpreted as *
 
 ## `find`
 
-Search captured work-activity content for evidence fragments. `mode="keyword"` is the default and runs an FTS5 keyword scan over `extracted_content`; `semantic` runs a vector query over the embedding hash index; `hybrid` merges both with a deterministic ranker.
+Search captured work-activity content for evidence fragments. `mode="keyword"` is the default and runs an FTS5 keyword scan over `extracted_content`; `semantic` runs a vector query over the embedding hash index; `hybrid` merges both with a deterministic ranker. AXTree-derived evidence preserves semantic prefixes: `[Window]` for window/document identity, `[Nav]` for tabs, breadcrumbs, channels, and chat partners, `[Action]` for visible menus and dialogs, and `[Body]` for primary content and input.
 
 **Input**
 
@@ -73,6 +73,7 @@ Search captured work-activity content for evidence fragments. `mode="keyword"` i
 - `structuredContent.groupedBySession` (optional) groups items by session when `groupBy="session"` was requested
 - `structuredContent.narrativeText` is always present
 - `structuredContent.degraded` (optional) signals that the actual mode differed from the requested mode (e.g., semantic→keyword fallback) or that a keyword scan truncated; carries `requestedMode`, `actualMode`, `reason`
+- AXTree evidence is session-scoped line deltas: an unchanged tagged line is stored only once in the active context, while newly appeared or changed lines remain searchable. A new session begins with a fresh full context after the idle boundary.
 
 ## `recall`
 
@@ -108,7 +109,7 @@ Recall captured work-activity sessions or aggregated time blocks for a window. `
 
 ## `inspect`
 
-Drill down into a single session or frame. Pick the target by passing exactly one of `sessionId` or `frameId` inside `target`.
+Drill down into a single session or frame. Pick the target by passing exactly one of `sessionId` or `frameId` inside `target`. For AXTree-derived frames, `extractedContent.extractedText` contains the same `[Window]`, `[Nav]`, `[Action]`, and `[Body]` lines emitted by structured extraction, subject to session-scoped delta deduplication.
 
 **Input**
 

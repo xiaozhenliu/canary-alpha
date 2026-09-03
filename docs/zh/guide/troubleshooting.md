@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 3
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # 排障
@@ -134,6 +134,30 @@ npm run rebuild-index
 3. 当 provider 需要时，核实 `providers.embeddings.apiKey`
 4. 确认 provider 从本机可达
 5. 检查 `screenpipe.url` 处的 Screenpipe 是否可达
+
+## 中文 OCR 识别不完整
+
+### 症状
+
+中文文本未被识别，或大部分内容仅以英文 OCR 结果出现。
+
+### 检查步骤
+
+在 `~/.computer-history-mcp/config.yaml` 中将中文放在优先位置：
+
+```yaml
+capture:
+  ocrLanguages: [chinese, english]
+```
+
+`ocrLanguages` 是语言名称数组，不使用 `zh-Hans` 等 locale 代码。顺序代表优先级，macOS Apple Vision 使用第一项作为主要 OCR 模式。本仓库管理的 recorder 仅在启动时读取该设置，请运行：
+
+```bash
+npm run recorder:stop
+npm run recorder:start
+```
+
+如果使用 Screenpipe 桌面应用，请在应用中重启它；如果自定义了 Screenpipe 可执行文件或数据目录，也同时检查 `screenpipe.binaryPath` 和 `screenpipe.dataDirectory` 是否指向同一套录制器与数据。
 
 ## 未找到日志
 

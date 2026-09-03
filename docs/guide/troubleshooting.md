@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Troubleshooting
@@ -134,6 +134,30 @@ Retrieval tools fail or return actionable error text.
 3. Verify `providers.embeddings.apiKey` when your provider requires one
 4. Confirm the provider is reachable from your machine
 5. Check whether Screenpipe itself is reachable at `screenpipe.url`
+
+## Chinese OCR is incomplete
+
+### Symptom
+
+Chinese text is missing or is mostly recognized as English OCR output.
+
+### Checks
+
+Put Chinese first in `~/.computer-history-mcp/config.yaml`:
+
+```yaml
+capture:
+  ocrLanguages: [chinese, english]
+```
+
+`ocrLanguages` uses language names, not locale codes such as `zh-Hans`. Order is priority, and macOS Apple Vision uses the first entry as its primary OCR mode. The repo-managed recorder reads this setting only at startup, so apply it with:
+
+```bash
+npm run recorder:stop
+npm run recorder:start
+```
+
+If you use the Screenpipe desktop app, restart it there. When using custom Screenpipe paths, also verify that `screenpipe.binaryPath` and `screenpipe.dataDirectory` point to the same recorder and data set.
 
 ## No logs found
 

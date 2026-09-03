@@ -1,7 +1,7 @@
 ---
-doc_version: 39
+doc_version: 40
 doc_status: active
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 ---
 
 # Development Log
@@ -11,6 +11,19 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-09-04: Public Positioning, Screenpipe Prerequisite, and MIT License
+
+**Result**
+
+- Updated the English and Simplified Chinese project entry points to position `computer-history-mcp` as a local computer-history and persistent agent-memory layer, with a factual comparison to Codex Computer Use.
+- Pinned installation guidance to the live-tested, MIT-licensed `screenpipe@0.3.282`; untested Screenpipe `0.4.15` development builds remain outside the public prerequisite.
+- Changed the project license and package metadata from Apache-2.0 to MIT and synchronized the governed quickstart documentation.
+
+**Verification**
+
+- `npm run docs:build` and `git diff --check` passed.
+- Independent Codex review (`gpt-5.6-sol`, medium) approved the scoped documentation and metadata changes with no blocking or substantive findings.
 
 ## 2026-09-03: Filtered Public History Rewrite Published
 

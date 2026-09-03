@@ -1,7 +1,7 @@
 ---
-doc_version: 1
+doc_version: 2
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-09-04
 ---
 
 # Cursor
@@ -71,7 +71,7 @@ Expected: response includes `status: ok`.
 
 **MCP server not listed**: Restart Cursor after editing the config file.
 
-**Service not running**: Run `npm run service:start` and confirm with `npm run service:status`.
+**Service not running**: Run `npm start` and confirm with `npm run service:status`.
 
 **stdio entry point missing**: Run `npm run build` to produce `dist/src/index.js`.
 

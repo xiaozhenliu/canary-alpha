@@ -114,4 +114,4 @@ Keep pull requests focused and explain:
 - any documentation, configuration, or compatibility impact.
 
 By submitting a contribution, you agree that your contribution is licensed
-under the repository's [Apache License 2.0](LICENSE).
+under the repository's [MIT License](LICENSE).
