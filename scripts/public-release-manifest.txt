@@ -37,6 +37,7 @@ include docs/documentation/**
 include docs/delivery/**
 include docs/guide/**
 include docs/reference/**
+include docs/releases/**
 include docs/zh/**
 
 # Public engineering and spec subset (delivered public features only)

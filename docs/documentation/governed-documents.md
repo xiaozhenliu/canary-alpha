@@ -1,5 +1,5 @@
 ---
-doc_version: 31
+doc_version: 33
 doc_status: active
 last_updated: 2026-09-04
 ---
@@ -42,6 +42,7 @@ Excluded from governance:
 | `CODE_OF_CONDUCT.md` | Contributors and maintainers | Community participation standards | Contributor Covenant 2.1, enforcement scope, private reporting path | adequate | none |
 | `SECURITY.md` | Security reporters and maintainers | Private vulnerability reporting policy | Supported versions, GitHub Security Advisory path, disclosure constraints | adequate | none |
 | `CHANGELOG.md` | Users, evaluators, and maintainers | User-facing release history | Notable changes organized by semantic version and release date | adequate | none |
+| `docs/releases/v2.8.0.md` | Users and evaluators | First public release overview | Product purpose, capabilities, requirements, quick start, and release highlights | adequate | none |
 
 ### Documentation site — English (docs site pages)
 
@@ -55,6 +56,7 @@ Excluded from governance:
 | `docs/guide/clients/hermes.md` | Hermes users | Hermes-specific walkthrough | Prerequisites, verify, hermes:verify, failure modes | adequate | none |
 | `docs/guide/clients/generic-mcp.md` | Any MCP client integrators | Generic client setup | Transport expectations, checklist, first calls, common mistakes | adequate | none |
 | `docs/guide/operations.md` | Operators | Day-to-day management | Service management, diagnostics, index maintenance, e2e check, disk layout | adequate | none |
+| `docs/guide/routines.md` | Operators | Scheduled routine management | Prompt-driven routines, inferred look-back windows, privacy pauses, and execution history | adequate | none |
 | `docs/guide/troubleshooting.md` | Operators and maintainers | Operational diagnosis and recovery | Service unreachable, provider errors, rebuild path, log inspection, capture observability | adequate | none |
 | `docs/reference/tools.md` | MCP client integrators | Tool surface area and contracts | Tool purpose, input schema, output expectations | adequate | none |
 | `docs/reference/configuration.md` | Users configuring the server | Configuration contract | Config file location, fields, defaults, provider examples, config CLI commands, validation rules | adequate | none |
@@ -73,11 +75,13 @@ Excluded from governance:
 | `docs/zh/guide/clients/hermes.md` | Hermes users | Hermes walkthrough (ZH) |
 | `docs/zh/guide/clients/generic-mcp.md` | Any MCP client integrators | Generic client setup (ZH) |
 | `docs/zh/guide/operations.md` | Operators | Operations (ZH) |
+| `docs/zh/guide/routines.md` | Operators | Routines (ZH) |
 | `docs/zh/guide/troubleshooting.md` | Operators and maintainers | Troubleshooting (ZH) |
 | `docs/zh/reference/tools.md` | MCP client integrators | MCP Tools reference (ZH) |
 | `docs/zh/reference/configuration.md` | Users configuring the server | Configuration reference (ZH) |
 | `docs/zh/reference/dashboard.md` | Operators | Dashboard (ZH) |
 | `docs/zh/reference/privacy.md` | All users | Privacy & Data (ZH) |
+| `docs/zh/releases/v2.8.0.md` | Chinese-speaking users and evaluators | First public release overview (ZH) |
 
 ### Internal / repo-only documents (not part of docs site)
 

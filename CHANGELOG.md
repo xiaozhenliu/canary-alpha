@@ -1,5 +1,5 @@
 ---
-doc_version: 33
+doc_version: 34
 doc_status: active
 last_updated: 2026-09-04
 ---
@@ -13,7 +13,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-## 2.8.0 — 2026-09-04
+## [2.8.0](docs/releases/v2.8.0.md) — 2026-09-04
 
 ### Added
 - Automatic migration from `~/.canary-alpha-mcp` to `~/.computer-history-mcp` with a recoverable backup when only the legacy app home exists.

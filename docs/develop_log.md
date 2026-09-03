@@ -1,5 +1,5 @@
 ---
-doc_version: 40
+doc_version: 41
 doc_status: active
 last_updated: 2026-09-04
 ---
@@ -11,6 +11,21 @@ compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-09-04: Documentation Site Synchronization Published
+
+**Result**
+
+- Synchronized the English and Simplified Chinese documentation site with the state-aware `npm start` lifecycle, `npm run refresh:hermes`, all ten Hermes onboarding tools, Universal AXTree semantic tags and session-scoped delta deduplication, Routines v2, Chinese-priority OCR, and custom Screenpipe paths.
+- Updated the Dashboard Routines form so an empty look-back field invokes server-side cron inference and listed routines show their prompt and resolved look-back window.
+- Published filtered public release `89640aa4f55da08f322a411770a5e83aabc09d3e` from source `622777d5c845fcb06c8923ea71c1ba572293cdea`; the public tree matched the already deployed Pages tree, so its path-filtered workflow did not require a second run.
+- Resolved BUG-006 after live English and Simplified Chinese smoke assertions confirmed the updated lifecycle, AXTree, and OCR content.
+
+**Verification**
+
+- `npm run docs:build`, `npm run typecheck:all`, `npm run build:dashboard`, and `npm run test:contract` passed.
+- `npm run release:public:dry-run` validated the filtered candidate, fresh checkout, and Gitleaks allowlist; `npm run release:public` pushed the recorded candidate.
+- Independent Codex review (`gpt-5.6-sol`, medium) findings were corrected before publication.
 
 ## 2026-09-04: Public Positioning, Screenpipe Prerequisite, and MIT License
 
