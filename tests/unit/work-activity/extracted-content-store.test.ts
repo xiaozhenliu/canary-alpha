@@ -94,6 +94,14 @@ describe('SqliteExtractedContentStore.upsert', () => {
     expect(fetched[0]).toEqual(e);
   });
 
+  it('round-trips the original capture cursor for checkpoint recovery', async () => {
+    const e = makeExtraction({ frameId: 8, captureCursor: 'capture-8' });
+    await store.upsert(e);
+
+    const fetched = await store.getByFrameIds([8]);
+    expect(fetched[0].captureCursor).toBe('capture-8');
+  });
+
   it('replaces an existing row keyed by frameId (INSERT OR REPLACE)', async () => {
     const initial = makeExtraction({
       frameId: 7,

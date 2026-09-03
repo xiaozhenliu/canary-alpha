@@ -1,10 +1,12 @@
 ---
-doc_version: 5
-doc_status: active
-last_updated: 2026-06-15
+doc_version: 6
+doc_status: deprecated
+last_updated: 2026-06-22
 ---
 
 # Spec: Retrieval & Storage Performance Overhaul
+
+> **状态：已完成（2026-06-15）。** 本 spec 范围内的 BUG-004 Problems 1/2/4/5（时间戳标准化、向量存储 SQLite 增量迁移、读路径索引化、相关收敛）已随 `feat(perf): retrieval & storage performance overhaul (BUG-004)`（commit `cb321c1`）交付。Problem 3（关键词 FTS）按本 spec 设计**明确 deferred**，作为 BUG-004 报告中的已知问题保留，不在本 spec 完成判定内。frontmatter 此前误留为 `active`，于 2026-06-22 收口为 `deprecated`。
 
 ## Background & Motivation
 

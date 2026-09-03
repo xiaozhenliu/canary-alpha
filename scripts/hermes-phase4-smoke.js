@@ -20,11 +20,11 @@ const execFileAsync = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'phases', '04-delivery-setup-recovery', 'evidence', 'hermes');
-const appDirectory = join(homedir(), '.canary-alpha-mcp');
-const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
+const appDirectory = join(homedir(), '.computer-history-mcp');
+const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.computer-history-mcp.plist');
 const configPath = join(appDirectory, 'config.yaml');
 const hermesCommand = 'hermes';
-const hermesServerName = 'canary-alpha-mcp-phase4';
+const hermesServerName = 'computer-history-mcp-phase4';
 
 function fail(message, code = 1) {
   console.error(message);
@@ -91,7 +91,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'computer-history-mcp-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;

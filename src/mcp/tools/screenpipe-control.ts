@@ -20,7 +20,7 @@ export function registerScreenpipeControlTool(server: McpServer, app: AppContext
     'screenpipe-control',
     {
       title: 'Screenpipe Control',
-      description: 'Check, start, or stop the local Screenpipe recording process.',
+      description: "Check, start, or stop the local Screenpipe recording process. action='status' is read-only; 'start' and 'stop' have side effects — they launch or terminate the screen-capture daemon on this machine.",
       inputSchema
     },
     async (input) => {

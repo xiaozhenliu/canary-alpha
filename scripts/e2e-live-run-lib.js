@@ -54,8 +54,8 @@ const EMPTY_RECALL_SIGNALS = [
   '未返回任何'
 ];
 
-export const RECALL_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_recall';
-export const FIND_TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_find';
+export const RECALL_TOOL_MARKER = 'preparing mcp_computer_history_mcp_recall';
+export const FIND_TOOL_MARKER = 'preparing mcp_computer_history_mcp_find';
 
 /**
  * @typedef {Object} RetrievalProbe

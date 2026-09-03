@@ -8,7 +8,7 @@ last_updated: 2026-06-12
 
 ## Prerequisites
 
-The `canary-alpha-mcp` service must be running. If you haven't done so yet, follow the [Quickstart](/guide/quickstart) first.
+The `computer-history-mcp` service must be running. If you haven't done so yet, follow the [Quickstart](/guide/quickstart) first.
 
 Verify the service is healthy:
 
@@ -20,7 +20,7 @@ npm run service:status
 
 Open Cursor Settings → **MCP** → **Add new MCP server**.
 
-- Name: `canary-alpha-mcp`
+- Name: `computer-history-mcp`
 - Type: **HTTP**
 - URL: `http://127.0.0.1:18765/mcp`
 
@@ -39,7 +39,7 @@ Both files share the same `mcpServers` structure. Choose HTTP transport for the 
 ```json
 {
   "mcpServers": {
-    "canary-alpha-mcp": {
+    "computer-history-mcp": {
       "url": "http://127.0.0.1:18765/mcp"
     }
   }
@@ -51,7 +51,7 @@ Or stdio transport pointing at the built entry point (replace `<repo-path>` with
 ```json
 {
   "mcpServers": {
-    "canary-alpha-mcp": {
+    "computer-history-mcp": {
       "command": "node",
       "args": ["<repo-path>/dist/src/index.js", "--mode", "stdio"]
     }

@@ -57,6 +57,6 @@ printed = (await printLog(rotatedRecorderLogPath, 'recorder log (rotated)')) || 
 // A running recorder with an empty log (just started) is still a healthy state,
 // so only treat "no status and no log" as an error.
 if (!printed && !running) {
-  console.error('No recorder log output found yet under ~/.canary-alpha-mcp/logs/.');
+  console.error('No recorder log output found yet under ~/.computer-history-mcp/logs/.');
   process.exit(1);
 }

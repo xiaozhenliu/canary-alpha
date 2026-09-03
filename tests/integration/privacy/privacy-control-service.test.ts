@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 
 import { DefaultPrivacyControlService } from '../../../src/services/privacy/privacy-control-service.js';
@@ -113,45 +117,57 @@ describe('privacy control service', () => {
   });
 
   it('appends a deterministic last-hour suppressed range for confirmed delete-range requests', async () => {
-    const now = new Date('2026-04-13T12:05:00.000Z');
-    const store = new InMemoryPrivacyStore({
-      paused: false,
-      excludedApps: ['Claude'],
-      suppressedRanges: [
-        {
-          from: '2026-04-13T10:00:00.000Z',
-          to: '2026-04-13T10:15:00.000Z'
-        }
-      ]
-    });
-    const service = new DefaultPrivacyControlService(store, () => now);
+    const tempDir = await mkdtemp(join(tmpdir(), 'privacy-test-'));
+    try {
+      const db = new DatabaseSync(join(tempDir, 'db.sqlite'));
+      db.exec(`
+        CREATE TABLE frames (id INTEGER PRIMARY KEY, timestamp TEXT);
+        CREATE TABLE elements (id INTEGER PRIMARY KEY, frame_id INTEGER);
+      `);
+      db.close();
 
-    const result = await service.execute({ action: 'delete-range', range: 'last_1h', confirm: true });
+      const now = new Date('2026-04-13T12:05:00.000Z');
+      const store = new InMemoryPrivacyStore({
+        paused: false,
+        excludedApps: ['Claude'],
+        suppressedRanges: [
+          {
+            from: '2026-04-13T10:00:00.000Z',
+            to: '2026-04-13T10:15:00.000Z'
+          }
+        ]
+      });
+      const service = new DefaultPrivacyControlService(store, () => now, { screenpipeDirectory: tempDir });
 
-    expect(result).toMatchObject({
-      action: 'delete-range',
-      confirmed: true,
-      requestedRange: 'last_1h',
-      paused: false,
-      excludedApps: ['Claude']
-    });
-    expect(result.error).toBeUndefined();
-    await expect(store.read()).resolves.toEqual({
-      paused: false,
-      excludedApps: ['Claude'],
-      pauseStartedAt: undefined,
-      suppressedRanges: [
-        {
-          from: '2026-04-13T10:00:00.000Z',
-          to: '2026-04-13T10:15:00.000Z'
-        },
-        {
-          from: '2026-04-13T11:05:00.000Z',
-          to: '2026-04-13T12:05:00.000Z',
-          reason: 'delete-range'
-        }
-      ]
-    });
+      const result = await service.execute({ action: 'delete-range', range: 'last_1h', confirm: true });
+
+      expect(result).toMatchObject({
+        action: 'delete-range',
+        confirmed: true,
+        requestedRange: 'last_1h',
+        paused: false,
+        excludedApps: ['Claude']
+      });
+      expect(result.error).toBeUndefined();
+      await expect(store.read()).resolves.toEqual({
+        paused: false,
+        excludedApps: ['Claude'],
+        pauseStartedAt: undefined,
+        suppressedRanges: [
+          {
+            from: '2026-04-13T10:00:00.000Z',
+            to: '2026-04-13T10:15:00.000Z'
+          },
+          {
+            from: '2026-04-13T11:05:00.000Z',
+            to: '2026-04-13T12:05:00.000Z',
+            reason: 'delete-range'
+          }
+        ]
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('keeps wider confirmed delete-range requests unavailable', async () => {

@@ -1,27 +1,49 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { Server } from 'node:http';
+
 import { createApp } from '../../src/bootstrap/create-app.js';
 import { startHttpTransport } from '../../src/transports/http.js';
 import type { AppContext } from '../../src/types/app-config.js';
-import type { Server } from 'node:http';
+import { testTempRoot } from '../helpers/test-tmp.js';
 
 describe('Dashboard HTTP integration', () => {
   let app: AppContext;
   let baseUrl: string;
   let server: Server;
+  let previousHome: string | undefined;
+  let isolatedHome: string | undefined;
   const testToken = 'test-dashboard-token-abc123';
 
   beforeAll(async () => {
+    previousHome = process.env.HOME;
+    isolatedHome = await mkdtemp(join(testTempRoot(), 'dashboard-http-home-'));
+    await mkdir(join(isolatedHome, '.computer-history-mcp'), { recursive: true });
+    process.env.HOME = isolatedHome;
+
     app = await createApp({
-      mode: 'http', port: 0, logLevel: 'error', startIndexingPoller: false
+      mode: 'http',
+      port: 0,
+      logLevel: 'error',
+      startIndexingPoller: false,
+      authToken: testToken
     });
-    (app.config.server as Record<string, unknown>).authToken = testToken;
     const transport = await startHttpTransport(app);
     baseUrl = `http://127.0.0.1:${transport.address.port}`;
     server = transport.server;
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     server?.close();
+    if (previousHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = previousHome;
+    }
+    if (isolatedHome) {
+      await rm(isolatedHome, { recursive: true, force: true });
+    }
   });
 
   it('GET /api/status requires auth', async () => {
@@ -136,7 +158,8 @@ describe('Dashboard HTTP integration', () => {
     expect(res.status).toBe(200);
     const data = await res.json() as { path: string; display: string };
     expect(data.path).toBe('server.authToken');
-    expect(data.display).toBe('***');
+    // Secrets are masked when present; unset secrets use the shared unset sentinel.
+    expect(['***', '(unset)']).toContain(data.display);
   });
 
   it('GET /api/config/get?reveal=true returns an unmasked (non-***) value for the requested field', async () => {

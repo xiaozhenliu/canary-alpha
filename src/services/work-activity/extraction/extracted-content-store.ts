@@ -9,6 +9,7 @@
  *   CREATE TABLE extracted_content (
  *     frame_id              INTEGER PRIMARY KEY,
  *     frame_timestamp       TEXT NOT NULL,
+ *     capture_cursor        TEXT,
  *     app_name              TEXT,
  *     context_label         TEXT NOT NULL,
  *     context_key           TEXT NOT NULL,
@@ -109,6 +110,7 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
       `INSERT OR REPLACE INTO extracted_content (
         frame_id,
         frame_timestamp,
+        capture_cursor,
         app_name,
         context_label,
         context_key,
@@ -116,11 +118,12 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
         extracted_text_hash,
         extraction_rule_kind,
         source_types
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     stmt.run(
       e.frameId,
       e.frameTimestamp,
+      e.captureCursor ?? null,
       e.appName ?? null,
       e.contextLabel,
       e.contextKey,
@@ -149,6 +152,7 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
         `SELECT
             frame_id,
             frame_timestamp,
+            capture_cursor,
             app_name,
             context_label,
             context_key,
@@ -195,6 +199,7 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
       `SELECT
           frame_id,
           frame_timestamp,
+          capture_cursor,
           app_name,
           context_label,
           context_key,
@@ -257,11 +262,13 @@ export class SqliteExtractedContentStore implements ExtractedContentStore {
  * Raw shape of a row returned by `node:sqlite` queries against the
  * `extracted_content` table. Columns map 1:1 to the schema; `source_types`
  * is stored as a JSON-encoded string array (per design §1) and parsed
- * here.
+ * here. `capture_cursor` is optional for compatibility with rows created
+ * before same-timestamp checkpoint recovery was added.
  */
 interface ExtractedContentRow {
   frame_id: number | bigint;
   frame_timestamp: string;
+  capture_cursor?: string | null;
   app_name: string | null;
   context_label: string;
   context_key: string;
@@ -275,6 +282,9 @@ function rowToExtractionResult(row: ExtractedContentRow): ExtractionResult {
   return {
     frameId: Number(row.frame_id),
     frameTimestamp: row.frame_timestamp,
+    ...(row.capture_cursor !== undefined && row.capture_cursor !== null
+      ? { captureCursor: row.capture_cursor }
+      : {}),
     // SQL stores `null` for missing appName; the `ExtractionResult`
     // contract uses `undefined` (TypeScript convention), so coerce.
     appName: row.app_name ?? undefined,

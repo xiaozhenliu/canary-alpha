@@ -1,15 +1,15 @@
 {
-  "_comment": "Ground truth for ide-vscode fixture. App: VS Code (Code), window: TypeScript file editor. Generic heuristic should find AXWebArea and extract its value text.",
+  "_comment": "Ground truth for ide-vscode fixture. App: VS Code (Code), window: TypeScript file editor. Universal structured extraction preserves the window title and labels the AXWebArea body.",
   "frame_id": 1001,
-  "extractedText": "import { ExtractionRegistry } from './extraction/registry';\nimport { SessionAggregator } from './sessions/aggregator';\n\nexport class WorkActivityAnalysisService {\n  constructor(\n    private readonly extractionRegistry: ExtractionRegistry,\n    private readonly sessionAggregator: SessionAggregator\n  ) {}\n\n  async processFrame(frame: ScreenPipeFrame): Promise<void> {\n    const extraction = this.extractionRegistry.extract(toExtractionInput(frame));\n    await this.sessionAggregator.handleExtraction(extraction);\n  }\n}",
+  "extractedText": "[Window] work-activity-analysis.ts — computer-history-mcp\n[Body] import { ExtractionRegistry } from './extraction/registry';\n[Body] import { SessionAggregator } from './sessions/aggregator';\n[Body] export class WorkActivityAnalysisService {\n[Body] constructor(\n[Body] private readonly extractionRegistry: ExtractionRegistry,\n[Body] private readonly sessionAggregator: SessionAggregator\n[Body] ) {}\n[Body] async processFrame(frame: ScreenPipeFrame): Promise<void> {\n[Body] const extraction = this.extractionRegistry.extract(toExtractionInput(frame));\n[Body] await this.sessionAggregator.handleExtraction(extraction);\n[Body] }\n[Body] }",
   "extractionRuleKind": "generic",
-  "contextLabel": "work-activity-analysis.ts — canary-alpha-mcp",
-  "contextKey": "code::work-activity-analysis.ts — canary-alpha-mcp",
+  "contextLabel": "work-activity-analysis.ts — computer-history-mcp",
+  "contextKey": "code::work-activity-analysis.ts — computer-history-mcp",
   "session_count": 1,
   "session_boundaries": [
     {
       "app_name": "Code",
-      "context_key": "code::work-activity-analysis.ts — canary-alpha-mcp",
+      "context_key": "code::work-activity-analysis.ts — computer-history-mcp",
       "frame_ids": [1001]
     }
   ],

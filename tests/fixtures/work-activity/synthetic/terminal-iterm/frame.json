@@ -3,5 +3,5 @@
   "timestamp": "2024-01-15T10:05:00.000Z",
   "app_name": "iTerm2",
   "window_name": "bash — 80×24",
-  "accessibility_tree_json": "{\"_synthetic\":true,\"role\":\"AXApplication\",\"title\":\"iTerm2\",\"children\":[{\"role\":\"AXWindow\",\"title\":\"bash — 80×24\",\"children\":[{\"role\":\"AXGroup\",\"children\":[{\"role\":\"AXTextArea\",\"title\":\"Terminal Output\",\"value\":\"$ npm run test\\n\\n> canary-alpha-mcp@1.0.0 test\\n> vitest run\\n\\n RUN  v1.0.0\\n\\n✓ tests/unit/work-activity/extraction-registry.test.ts (12 tests) 45ms\\n✓ tests/unit/work-activity/session-aggregator.test.ts (8 tests) 32ms\\n\\nTest Files  2 passed (2)\\nTests       20 passed (20)\\nDuration    1.23s\\n$ \",\"children\":[]}]}]}]}"
+  "accessibility_tree_json": "{\"_synthetic\":true,\"role\":\"AXApplication\",\"title\":\"iTerm2\",\"children\":[{\"role\":\"AXWindow\",\"title\":\"bash — 80×24\",\"children\":[{\"role\":\"AXGroup\",\"children\":[{\"role\":\"AXTextArea\",\"title\":\"Terminal Output\",\"value\":\"$ npm run test\\n\\n> computer-history-mcp@1.0.0 test\\n> vitest run\\n\\n RUN  v1.0.0\\n\\n✓ tests/unit/work-activity/extraction-registry.test.ts (12 tests) 45ms\\n✓ tests/unit/work-activity/session-aggregator.test.ts (8 tests) 32ms\\n\\nTest Files  2 passed (2)\\nTests       20 passed (20)\\nDuration    1.23s\\n$ \",\"children\":[]}]}]}]}"
 }

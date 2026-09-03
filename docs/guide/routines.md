@@ -14,7 +14,7 @@ Typical use cases: morning standup prep, competitor research digest, end-of-day 
 
 ### 1. Enable the scheduler
 
-Routines are disabled by default. Add the following to `~/.canary-alpha-mcp/config.yaml`:
+Routines are disabled by default. Add the following to `~/.computer-history-mcp/config.yaml`:
 
 ```yaml
 routines:

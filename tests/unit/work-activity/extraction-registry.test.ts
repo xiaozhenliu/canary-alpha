@@ -2,7 +2,7 @@
  * Property-based + example tests for the extraction registry chain.
  *
  * Task 3.3 (work-activity-analysis): wires `TerminalRefinementRule` in
- * front of `GenericHeuristicRule` and exposes the chain via
+ * front of `UniversalStructuredExtractor` and exposes the chain via
  * `createExtractionRegistry()`. The properties below correspond to the
  * three R1-level invariants in the design document
  * (`work-activity-analysis/design.md`, §"Correctness Properties"):
@@ -91,7 +91,7 @@ describe('createExtractionRegistry — chain order (examples)', () => {
       })
     );
     expect(result.extractionRuleKind).toBe('terminal');
-    expect(result.extractedText).toBe('zsh prompt body');
+    expect(result.extractedText).toBe('[Body] zsh prompt body');
     // contextLabel uses the raw window title, un-normalised.
     expect(result.contextLabel).toBe('~/code (zsh)');
   });
@@ -110,7 +110,7 @@ describe('createExtractionRegistry — chain order (examples)', () => {
       })
     );
     expect(result.extractionRuleKind).toBe('generic');
-    expect(result.extractedText).toBe('browser body');
+    expect(result.extractedText).toContain('browser body');
   });
 
   it('routes frames without appName to the generic rule', () => {
@@ -126,15 +126,13 @@ describe('createExtractionRegistry — chain order (examples)', () => {
       })
     );
     expect(result.extractionRuleKind).toBe('generic');
-    expect(result.extractedText).toBe('no-app body');
+    expect(result.extractedText).toContain('no-app body');
   });
 
-  it('returns Empty_Extraction with terminal kind when terminal AX tree has no AXTextArea', () => {
+  it('uses universal body roles when terminal AX tree has no AXTextArea', () => {
     const registry = createExtractionRegistry();
-    // AXScrollArea is a generic anchor but the terminal rule looks for
-    // AXTextArea specifically — so the rule matches (appName is in the
-    // set) and produces an Empty_Extraction tagged 'terminal' rather
-    // than falling through to the generic rule.
+    // AXScrollArea is a universal body role, so terminal routing must still
+    // retain it instead of applying the old AXTextArea-only shortcut.
     const tree: NodeShape = {
       role: 'AXApplication',
       children: [{ role: 'AXScrollArea', value: 'scroll body' }]
@@ -147,15 +145,41 @@ describe('createExtractionRegistry — chain order (examples)', () => {
       })
     );
     expect(result.extractionRuleKind).toBe('terminal');
-    expect(result.extractedText).toBe('');
-    expect(result.extractedTextHash).toBeNull();
+    expect(result.extractedText).toBe('[Body] scroll body');
+    expect(result.extractedTextHash).not.toBeNull();
     expect(result.contextLabel).toBe('Terminal');
   });
 
+  it('retains every universal semantic domain for terminal frames', () => {
+    const result = createExtractionRegistry().extract(
+      buildInput({
+        appName: 'Terminal',
+        windowTitle: 'Shell',
+        accessibilityTreeJson: jsonOf({
+          role: 'AXApplication',
+          children: [{
+            role: 'AXWindow',
+            title: 'Shell',
+            children: [
+              { role: 'AXToolbar', value: 'Profile' },
+              { role: 'AXMenu', children: [{ role: 'AXMenuItem', value: 'Export' }] },
+              { role: 'AXTextArea', value: 'output' }
+            ]
+          }]
+        })
+      })
+    );
+
+    expect(result.extractionRuleKind).toBe('terminal');
+    expect(result.extractedText).toContain('[Window] Shell');
+    expect(result.extractedText).toContain('[Nav] Profile');
+    expect(result.extractedText).toContain('[Action] Export');
+    expect(result.extractedText).toContain('[Body] output');
+  });
+
   it('terminal rule output can differ from generic rule output for the same frame', () => {
-    // The generic rule would prefer a focused AXScrollArea; the terminal
-    // rule ignores focus and takes the first AXTextArea body. This is
-    // the subtle case the W3 (Refinement_Override) property protects.
+    // The universal extractor keeps the complete terminal window, including
+    // both the terminal buffer and the focused popup body.
     const tree: NodeShape = {
       role: 'AXApplication',
       children: [
@@ -177,7 +201,8 @@ describe('createExtractionRegistry — chain order (examples)', () => {
 
     const fromTerminal = new TerminalRefinementRule().extract(input);
     const fromGeneric = new GenericHeuristicRule().extract(input);
-    expect(fromTerminal.extractedText).toBe('terminal buffer body');
+    expect(fromTerminal.extractedText).toContain('[Body] terminal buffer body');
+    expect(fromTerminal.extractedText).toContain('[Body] focused popup body');
     expect(fromGeneric.extractedText).toBe('focused popup body');
 
     // Registry chain should pick the terminal output (W3).
@@ -186,7 +211,7 @@ describe('createExtractionRegistry — chain order (examples)', () => {
     expect(result.extractedText).toBe(fromTerminal.extractedText);
   });
 
-  it('uses the first AXTextArea when multiple are present', () => {
+  it('retains all AXTextArea body regions when multiple are present', () => {
     const registry = createExtractionRegistry();
     const tree: NodeShape = {
       role: 'AXApplication',
@@ -203,7 +228,7 @@ describe('createExtractionRegistry — chain order (examples)', () => {
       })
     );
     expect(result.extractionRuleKind).toBe('terminal');
-    expect(result.extractedText).toBe('first buffer');
+    expect(result.extractedText).toBe('[Body] first buffer\n[Body] second buffer');
   });
 });
 
@@ -212,11 +237,8 @@ describe('createExtractionRegistry — chain order (examples)', () => {
 //
 // Each row asserts that the listed `accessibilityTreeJson` payload
 // collapses to an `Empty_Extraction` tagged with `extractionRuleKind:
-// 'terminal'`. The set covers the failure modes both `terminal.ts`'s
-// local `isAccessibilityNode` / `childrenOf` helpers and the AXTextArea
-// search must handle defensively. The PBT generators above hit the
-// same paths probabilistically; this table ensures CI flags a
-// regression even when the fuzzer happens not to draw the case.
+// 'terminal'. Universal body roles such as AXScrollArea are intentionally
+// excluded because terminal frames now use the complete structured walker.
 // ---------------------------------------------------------------------------
 
 describe('createExtractionRegistry — terminal rule failure modes (examples)', () => {
@@ -224,11 +246,6 @@ describe('createExtractionRegistry — terminal rule failure modes (examples)', 
     role: 'AXApplication',
     children: [{ role: 'AXTextArea', value: '   ' }]
   });
-  const noTextAreaJson = JSON.stringify({
-    role: 'AXApplication',
-    children: [{ role: 'AXScrollArea', value: 'scroll body' }]
-  });
-
   // [name, accessibilityTreeJson] tuples. Using `it.each` so the row
   // name shows up in test output and a regression points at the exact
   // payload that broke.
@@ -239,7 +256,6 @@ describe('createExtractionRegistry — terminal rule failure modes (examples)', 
     ['JSON null root', 'null'],
     ['primitive root (number)', '42'],
     ['primitive root (string)', '"oops"'],
-    ['no AXTextArea anywhere', noTextAreaJson],
     ['AXTextArea present but blank text', blankBufferJson]
   ];
 

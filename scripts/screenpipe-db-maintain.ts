@@ -1,12 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { createAxTreeMaintenanceService } from '../src/services/maintenance/ax-tree-maintenance-service.js';
 import { runVacuumInit } from '../src/services/maintenance/vacuum-init.js';
+import { loadConfig } from '../src/config/load-config.js';
+import { resolveScreenpipeDirectory } from '../src/config/paths.js';
 
-const DB_PATH = process.env.SCREENPIPE_DB_PATH ?? join(homedir(), '.screenpipe', 'db.sqlite');
-const BACKUP_DIR = join(homedir(), '.screenpipe', 'backup');
+const config = await loadConfig();
+const dataDirectory = resolveScreenpipeDirectory(config.screenpipe.dataDirectory);
+const DB_PATH = process.env.SCREENPIPE_DB_PATH ?? join(dataDirectory, 'db.sqlite');
+const BACKUP_DIR = process.env.SCREENPIPE_BACKUP_DIR ?? join(dataDirectory, 'backup');
 
 function probeScreenpipeRunning(): boolean {
   try {

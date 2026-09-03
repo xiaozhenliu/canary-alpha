@@ -4,7 +4,7 @@ doc_version: 1
 doc_status: active
 last_updated: 2026-06-12
 hero:
-  name: canary-alpha-mcp
+  name: computer-history-mcp
   text: 本地优先的屏幕记忆 MCP 服务
   tagline: 让任何兼容 MCP 的 AI agent 都能检索和摘要你的屏幕活动——所有数据本地存储。
   actions:

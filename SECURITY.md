@@ -21,7 +21,7 @@ Do not report suspected vulnerabilities through public GitHub issues,
 discussions, or pull requests.
 
 Use the repository's private
-[GitHub Security Advisory form](https://github.com/xiaozhenliu/canary-alpha/security/advisories/new)
+[GitHub Security Advisory form](https://github.com/xiaozhenliu/computer-history-mcp/security/advisories/new)
 to report a vulnerability. Include:
 
 - the affected version or commit;

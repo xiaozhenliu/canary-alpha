@@ -45,7 +45,7 @@ import type {
 import type { SummaryWorker } from '../summary/worker.js';
 import type { SummaryStatus } from '../summary/types.js';
 import type { PrivacyStateReader } from '../../privacy/types.js';
-import { collectActiveCascadeFailureIntervals } from '../find/find-service.js';
+import { collectActiveCascadeFailureIntervals } from '../suppression.js';
 
 // ---------------------------------------------------------------------------
 // Public types

@@ -1,13 +1,16 @@
 import { readFile, stat } from 'node:fs/promises';
 import YAML from 'yaml';
 
+import { ensureAppHomeReady } from './app-home-migration.js';
 import {
   resolveConfigPath,
   resolveDerivedDatabasePath,
   resolveLogDirectory,
   resolveLogFilePath,
   resolveRoutineDefinitionsDirectory,
-  resolveRoutineHistoryDirectory
+  resolveRoutineHistoryDirectory,
+  resolveScreenpipeBinaryPath,
+  resolveScreenpipeDirectory
 } from './paths.js';
 import { appConfigSchema, logLevelSchema, serverModeSchema } from './schema.js';
 import type { AppConfig } from '../types/app-config.js';
@@ -35,6 +38,8 @@ export async function loadConfig(overrides?: {
   logLevel?: AppConfig['logging']['level'];
   vectorStorePath?: string;
 }): Promise<AppConfig> {
+  await ensureAppHomeReady({ failOnConflict: true });
+
   const configFile = resolveConfigPath();
   const logDirectory = resolveLogDirectory();
   const serviceLogFile = resolveLogFilePath();
@@ -118,7 +123,9 @@ export async function loadConfig(overrides?: {
     },
     screenpipe: {
       url: screenpipeBaseUrl,
-      apiKey: screenpipeApiKey
+      apiKey: screenpipeApiKey,
+      binaryPath: resolveScreenpipeBinaryPath(parsed.data.screenpipe.binaryPath),
+      dataDirectory: resolveScreenpipeDirectory(parsed.data.screenpipe.dataDirectory)
     },
     providers: {
       embeddings: {
@@ -157,7 +164,8 @@ export async function loadConfig(overrides?: {
     capture: {
       provider: parsed.data.capture.provider,
       livenessThresholdSeconds: parsed.data.capture.livenessThresholdSeconds,
-      permissionsGracePeriodSeconds: parsed.data.capture.permissionsGracePeriodSeconds
+      permissionsGracePeriodSeconds: parsed.data.capture.permissionsGracePeriodSeconds,
+      ocrLanguages: parsed.data.capture.ocrLanguages
     },
     storage: {
       diskBudgetBytes: parsed.data.storage.diskBudgetBytes,

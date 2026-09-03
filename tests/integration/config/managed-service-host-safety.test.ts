@@ -51,7 +51,7 @@ describe('managed service host safety', () => {
       mode: 'http'
     });
 
-    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
+    const configPath = join(homeDir, '.computer-history-mcp', 'config.yaml');
 
     // overwrite only the host field to simulate a later unsafe edit
     const unsafeConfig = [
@@ -102,7 +102,7 @@ describe('managed service host safety', () => {
       mode: 'http'
     });
 
-    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
+    const configPath = join(homeDir, '.computer-history-mcp', 'config.yaml');
     const unsafeConfig = [
       'server:',
       '  mode: http',
@@ -151,7 +151,7 @@ describe('managed service host safety', () => {
       mode: 'http'
     });
 
-    const configPath = join(homeDir, '.canary-alpha-mcp', 'config.yaml');
+    const configPath = join(homeDir, '.computer-history-mcp', 'config.yaml');
     const noAuthConfig = [
       'server:',
       '  mode: http',

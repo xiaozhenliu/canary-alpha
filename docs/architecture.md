@@ -1,14 +1,14 @@
 ---
-doc_version: 8
+doc_version: 15
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-02
 ---
 
-# canary-alpha-mcp 架构文档
+# computer-history-mcp 架构文档
 
 ## 1. 概览与核心价值
 
-`canary-alpha-mcp`（包名 `canary-alpha-mcp`）是一个**本地优先的独立 MCP server**。它把 Screenpipe 的屏幕记忆能力——逐帧 accessibility（AX）/OCR 捕获、工作活动会话、长期记忆、文件分析、隐私控制——封装成一组标准 MCP 工具，供任意 MCP 兼容 agent（Claude Code、Claude Desktop、Hermes、Cursor、OpenClaw 等）直接调用。
+`computer-history-mcp`（包名 `computer-history-mcp`）是一个**本地优先的独立 MCP server**。它把 Screenpipe 的屏幕记忆能力——逐帧 accessibility（AX）/OCR 捕获、工作活动会话、长期记忆、文件分析、隐私控制——封装成一组标准 MCP 工具，供任意 MCP 兼容 agent（Claude Code、Claude Desktop、Hermes、Cursor、OpenClaw 等）直接调用。
 
 核心约束决定了它的形态：
 
@@ -38,7 +38,7 @@ last_updated: 2026-06-21
 
 ### 2.3 MCP 边界层（工具注册 / 校验）
 
-- `src/mcp/create-server.ts`：`createMcpServer()` 构造 `McpServer`（`name: 'canary-alpha-mcp'`、`version: getPackageVersion()`），**仅声明 `logging` capability**，并附带本机 screen memory 的使用边界说明。两种传输共享。
+- `src/mcp/create-server.ts`：`createMcpServer()` 构造 `McpServer`（`name: 'computer-history-mcp'`、`version: getPackageVersion()`），**仅声明 `logging` capability**，并附带本机 screen memory 的使用边界说明。两种传输共享。
 - `src/mcp/register-tools.ts`：`registerTools(server, app)` 按序注册 **12 个工具**。
 - `src/mcp/tools/*`：每个工具一个文件，co-located zod 输入/输出 schema，handler 通过 `app.services` 拿到领域服务，返回统一的 `CallToolResult`（text content + structuredContent）。
 - `src/mcp/tools/shared.ts`：共享响应格式化器与降级封装。
@@ -67,7 +67,7 @@ last_updated: 2026-06-21
 - 索引轮询：`startIndexingPoller` → `DefaultIndexingService.runOnce()`。
 - Trim/retention 轮询：`startTrimPoller` → `src/services/capture/providers/screenpipe/trim-service.ts`（仅当 provider 的 `capabilities.retentionTrim` 为 true 时调度，上游 db 路径经 `CaptureProvider.upstreamDatabasePath` 注入）。
 - Routines 调度：`config.routines.enabled` 为 true 时，组合根构造 `RoutineScheduler` 并调用 `start()` 加载 enabled definitions；`routine-create` 写入后调用 `refresh()` 热更新 cron jobs。
-- CLI safe-record 维护：`scripts/screenpipe-safe-record.js` 在 `screenpipe@latest record` 旁路启动 `scripts/screenpipe-db-maintain.ts run`，默认每 10 分钟执行一次，并在 recorder 退出后执行一次 final pass。维护运行结果写入 `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`，该 JSONL 日志保留 7 天且超过 1 MB 时轮转到 `.1`。周期性维护不阻塞 recorder 生命周期；final pass 会等待维护日志落盘后再结束 wrapper。
+- CLI safe-record 维护：`scripts/screenpipe-safe-record.js` 从 `screenpipe.binaryPath` 启动 `record`，将 `screenpipe.dataDirectory` 同时注入 `--data-dir` 和维护子进程，避免 recorder 与 SQLite 消费者指向不同数据集。维护默认每 10 分钟执行一次，并在 recorder 退出后执行一次 final pass；结果写入 `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl`，保留 7 天且超过 1 MB 时轮转到 `.1`。
 - 会话聚合 / 摘要 / cascade-delete：均在 work-activity 子系统内，由索引循环与工具调用驱动。
 
 ## 3. 运行模式与传输
@@ -79,7 +79,7 @@ last_updated: 2026-06-21
 
 `serve` 路径下，`createApp` 完成组合根装配后，`main` 安装运行时守卫与信号处理器（SIGINT→130、SIGTERM→143、exit，均幂等调用 `runtimeGuard.releaseSync()`），调用 `ensureRebuildLockNotHeld`、`registerRuntimeProcess`、`startIndexingPoller`，再按 `config.server.mode` 分派到 `startHttpTransport` 或 `startStdioTransport`。
 
-**Managed 服务与绑定守卫**：当 `CANARY_ALPHA_MCP_MANAGED_SERVICE === '1'` 时，`create-app.ts` 的守卫强制 host 必须为 `127.0.0.1`，否则启动失败；logger 同时改为写文件并静默 stderr。launchd 集成解析 `~/Library/LaunchAgents/com.canary-alpha-mcp.plist`。
+**Managed 服务与绑定守卫**：当 `CANARY_ALPHA_MCP_MANAGED_SERVICE === '1'` 时，`create-app.ts` 的守卫强制 host 必须为 `127.0.0.1`，否则启动失败；logger 同时改为写文件并静默 stderr。launchd 集成解析 `~/Library/LaunchAgents/com.computer-history-mcp.plist`。
 
 **rebuild-index 离线恢复路径**：与传输层独立。它先 `acquireRebuildLock` 取文件锁，再 `ensureRecoveryTargetIsOffline`——通过 `@modelcontextprotocol/client` 探测 `http://host:port/mcp` 并调用 `internal-status`，同时用 `ps` 扫描 legacy 进程，确认没有 live/managed/legacy server 仍持有检索 artifacts；随后直接清空 SQLite `vectors` 表与 checkpoint，重放全量 backlog，并输出包含 reset 目标、checkpoint 前后状态和 recovery status 的 JSON 报告。
 
@@ -124,14 +124,14 @@ last_updated: 2026-06-21
 1. `startIndexingPoller` 周期触发 `DefaultIndexingService.runOnce()`：读 checkpoint、flush 空闲 session。首次启动时执行 priority catch-up（最多 10 轮连续 `runOnce`）快速清理积压。
 2. `fetchCandidateRecords` 在稳态用 `screenpipe-client.recent(windowMinutes)`、在 backlog 追赶时分页 `search()`。Screenpipe client 对 `/search` 双查询（accessibility 主 + ocr 兜底），`mergeByFrameId`（AX 优先）合并。
 3. 过滤晚于 checkpoint 的记录 → 剪除 secure-AX 子树。
-4. **Step 1（串行）**：逐帧 `extraction 规则注册表`（`TerminalRefinementRule → GenericHeuristicRule`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**），同时写 derived SQLite（`extracted_content`）并折叠到 `SessionAggregator`。隐私状态逐帧刷新，被阻断的记录进入 blocked 队列。
+4. **Step 1（串行）**：逐帧 `extraction 规则注册表`（`TerminalRefinementRule → UniversalStructuredExtractor`）产出**每帧一个 `ExtractionResult`**（**无 chunker、无 audio/转录**）；索引器优先使用捕获 provider 的完整 frame-detail AX 树（包括 sweep 将 JSON 转入 `elements` 后通过 `elements_ref_frame_id` 重建的树），缺失时才使用兼容性文本兜底，并在进入任一提取规则前按 `privacy.secureAxRoles` 递归裁剪安全字段子树。随后经过 `LineDeltaDeduplicator` 会话级行级差量去重（静态导航/标题仅首次写入，相同帧 0 字节输出，空闲超时自动重置；重启时从仍开放 session 的 `started_at` 读取至持久化 checkpoint（含 checkpoint 行），同时间戳按持久化的 `capture_cursor` 排序，待重试行不参与恢复；仅在成功 checkpoint 后提交本轮预览），同时写 derived SQLite（`extracted_content`）并折叠到 `SessionAggregator`。隐私状态逐帧刷新，被阻断的记录进入 blocked 队列。
 5. **Step 2（并发）**：通过 `computeEmbedding()` 发起并发 embedding 调用（滑动窗口 promise 池，并发度由 `providers.embeddings.concurrency` 控制，默认 `DEFAULT_EMBEDDING_CONCURRENCY=2`），仅计算 embedding 向量，不写 vector store。按 SHA256 在 `embedding_hash_index` 去重（命中复用向量）。
 6. **Step 3（串行）**：将所有成功的 embedding 批量写入当前 vector store；默认落入 `derived.sqlite` 的 `vectors` 表（id=`extracted:${frameId}`，单次 `upsert` 调用）。
 7. 推进 checkpoint（provider-unavailable 时回退保持，extraction/session 行仍持久化，embedding 稍后重试）。blocked 记录释放后走串行 `embedExtraction` 路径。
 
 ### (c) work-activity 端到端
 
-raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 ExtractionResult，含规范化 `contextKey`/`contextLabel`）→ `SessionAggregator.handleExtraction` 按 `(appName, contextKey)` 在 idle 阈值内扩展或开新 session（追加 `evidence_frame_ids`、累加 clamp 后的 `active_seconds`）→ 两路消费：`EmbeddingService` 做去重+向量化、`SummaryWorker` 按需生成摘要 → 读侧 `recall` / `find` / `inspect` 工具消费。
+raw Screenpipe AX 帧 → `extraction` 规则注册表（`UniversalStructuredExtractor` 进行四大语义域 `[Window]`/`[Nav]`/`[Action]`/`[Body]` 结构化提取与会话导航富化）→ `LineDeltaDeduplicator` 行级差量去重 → `SessionAggregator.handleExtraction` 按 `(appName, contextKey)` 在 idle 阈值内扩展或开新 session（追加 `evidence_frame_ids`、累加 clamp 后的 `active_seconds`）→ 两路消费：`EmbeddingService` 做去重+向量化、`SummaryWorker` 按需生成摘要 → 读侧 `recall` / `find` / `inspect` 工具消费。
 
 ### (d) memory 读写
 
@@ -149,7 +149,7 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 
 ### 6.1 配置加载与优先级
 
-`src/config/load-config.ts` 的 `loadConfig(overrides?)` 是唯一加载入口：读取 `~/.canary-alpha-mcp/config.yaml`（`YAML.parse`，文件缺失即 ENOENT 时回退空对象），再用 `appConfigSchema.safeParse` 校验，校验失败抛出带文件路径的明确错误。生效优先级（高→低）：
+`src/config/load-config.ts` 的 `loadConfig(overrides?)` 是唯一加载入口：读取 `~/.computer-history-mcp/config.yaml`（`YAML.parse`，文件缺失即 ENOENT 时回退空对象），再用 `appConfigSchema.safeParse` 校验，校验失败抛出带文件路径的明确错误。生效优先级（高→低）：
 
 1. **代码 overrides**（`createApp` 传入的 `mode` / `port` / `logLevel` / `vectorStorePath`，主要供 CLI 与测试）
 2. **环境变量**：`MCP_MODE`、`MCP_PORT`（经 `parseOptionalPort` 校验）、`CANARY_ALPHA_MCP_MANAGED_SERVICE`
@@ -174,16 +174,16 @@ raw Screenpipe AX 帧 → `extraction` 规则注册表（每帧一个 Extraction
 
 | 路径 | 内容 |
 |------|------|
-| `~/.canary-alpha-mcp/config.yaml` | 用户配置（`CONFIG_PATH_SEGMENT`） |
-| `~/.canary-alpha-mcp/derived.sqlite` | derived DB：`sessions` / `extracted_content` / `embedding_hash_index` / `vectors`（可经 `paths.derivedDatabase` 覆盖） |
-| `~/.canary-alpha-mcp/vector-store.json.migrated` | 从 legacy JSON vector store 首次迁移到 SQLite 后保留的备份；新安装不会创建 |
-| `~/.canary-alpha-mcp/retrieval-checkpoint.<provider>.json` | 索引 checkpoint（按 capture provider 命名空间，如 `retrieval-checkpoint.screenpipe.json`；旧的 `retrieval-checkpoint.json` 升级时被一次性接管） |
-| `~/.canary-alpha-mcp/privacy-state.json` | 隐私状态 / suppressed-range tombstone |
-| `~/.canary-alpha-mcp/memory/{memory,user}.md` | 长期记忆（每 scope 一文件） |
-| `~/.canary-alpha-mcp/logs/service.log` | 结构化日志（大小轮转） |
-| `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` | safe-record 维护任务 JSONL 日志（7 天保留，1 MB 轮转） |
-| `~/.canary-alpha-mcp/routines/{definitions,history}/` | Routine 定义与执行历史 |
-| `~/.canary-alpha-mcp/runtime-processes/<pid>.json` + `rebuild-index.lock` | 跨进程注册与 rebuild 单持有者锁 |
+| `~/.computer-history-mcp/config.yaml` | 用户配置（`CONFIG_PATH_SEGMENT`） |
+| `~/.computer-history-mcp/derived.sqlite` | derived DB：`sessions` / `extracted_content` / `embedding_hash_index` / `vectors`（可经 `paths.derivedDatabase` 覆盖） |
+| `~/.computer-history-mcp/vector-store.json.migrated` | 从 legacy JSON vector store 首次迁移到 SQLite 后保留的备份；新安装不会创建 |
+| `~/.computer-history-mcp/retrieval-checkpoint.<provider>.json` | 索引 checkpoint（按 capture provider 命名空间，如 `retrieval-checkpoint.screenpipe.json`；旧的 `retrieval-checkpoint.json` 升级时被一次性接管） |
+| `~/.computer-history-mcp/privacy-state.json` | 隐私状态 / suppressed-range tombstone |
+| `~/.computer-history-mcp/memory/{memory,user}.md` | 长期记忆（每 scope 一文件） |
+| `~/.computer-history-mcp/logs/service.log` | 结构化日志（大小轮转） |
+| `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` | safe-record 维护任务 JSONL 日志（7 天保留，1 MB 轮转） |
+| `~/.computer-history-mcp/routines/{definitions,history}/` | Routine 定义与执行历史 |
+| `~/.computer-history-mcp/runtime-processes/<pid>.json` + `rebuild-index.lock` | 跨进程注册与 rebuild 单持有者锁 |
 | `~/.screenpipe/db.sqlite` | **Screenpipe 源数据库**（只读检索 + 受 privacy/trim 删除） |
 
 ## 7. 已规划但未实现

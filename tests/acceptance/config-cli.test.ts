@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,6 +28,38 @@ beforeEach(async () => { home = await mkdtemp(join(tmpdir(), 'cfg-acc-')); });
 afterEach(async () => { await rm(home, { recursive: true, force: true }); });
 
 describe('config CLI (acceptance)', () => {
+  it('migrates legacy app home before config set', async () => {
+    const legacyDir = join(home, '.canary-alpha-mcp');
+    await mkdir(legacyDir, { recursive: true });
+    await writeFile(join(legacyDir, 'config.yaml'), [
+      'server:',
+      '  mode: http',
+      '  host: 127.0.0.1',
+      '  port: 8765',
+      'logging:',
+      '  level: info',
+      'screenpipe:',
+      '  url: http://127.0.0.1:3030',
+      'providers:',
+      '  embeddings:',
+      '    kind: openai-compatible',
+      '    baseUrl: http://127.0.0.1:11434/v1',
+      '    model: test-model',
+      'vectorStore:',
+      '  kind: chroma',
+      'retrieval:',
+      '  freshnessWindowMinutes: 15',
+      '  pollIntervalSeconds: 30',
+      '  maxCatchUpBatches: 3',
+      '  maxCatchUpRecords: 500'
+    ].join('\n'), 'utf8');
+
+    expect((await run(['config', 'set', 'storage.retentionDays', '21'])).code).toBe(0);
+    expect(existsSync(legacyDir)).toBe(false);
+    const migrated = await readFile(join(home, '.computer-history-mcp', 'config.yaml'), 'utf8');
+    expect(migrated).toContain('retentionDays: 21');
+  });
+
   it('set then get a number', async () => {
     expect((await run(['config', 'set', 'storage.retentionDays', '21'])).code).toBe(0);
     const got = await run(['config', 'get', 'storage.retentionDays']);
@@ -53,10 +86,10 @@ describe('config CLI (acceptance)', () => {
   });
   it('add/remove array items', async () => {
     await run(['config', 'add', 'privacy.excludeApps', 'Slack']);
-    const cfg = await readFile(join(home, '.canary-alpha-mcp', 'config.yaml'), 'utf8');
+    const cfg = await readFile(join(home, '.computer-history-mcp', 'config.yaml'), 'utf8');
     expect(cfg).toContain('Slack');
     await run(['config', 'remove', 'privacy.excludeApps', 'Slack']);
-    expect(await readFile(join(home, '.canary-alpha-mcp', 'config.yaml'), 'utf8')).not.toContain('Slack');
+    expect(await readFile(join(home, '.computer-history-mcp', 'config.yaml'), 'utf8')).not.toContain('Slack');
   });
   it('does not crash under illegal env', async () => {
     const r = await run(['config', 'get', 'server.port'], { MCP_PORT: 'abc' });

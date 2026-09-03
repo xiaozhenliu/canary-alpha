@@ -4,7 +4,7 @@ doc_version: 1
 doc_status: active
 last_updated: 2026-06-12
 hero:
-  name: canary-alpha-mcp
+  name: computer-history-mcp
   text: Local-first MCP server for your screen memory
   tagline: Give any MCP-compatible agent searchable, summarizable access to what you saw and did — all stored locally.
   actions:

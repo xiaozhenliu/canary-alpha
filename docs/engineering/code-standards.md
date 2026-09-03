@@ -1,10 +1,10 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: active
-last_updated: 2026-05-27
+last_updated: 2026-09-02
 ---
 
-# canary-alpha-mcp Crimson Engineering Standards
+# computer-history-mcp Crimson Engineering Standards
 
 ## Purpose and scope
 
@@ -228,6 +228,7 @@ Use this checklist when reviewing changes against the current Crimson standards:
 - Does the code use structured actionable errors on agent-facing paths instead of transport-breaking exceptions?
 - Did the change add acceptance or integration coverage at the boundary it modified?
 - Did the change avoid widening scope beyond the Crimson MCP server surface?
+- Has the change passed mandatory Codex review via `codex exec review -m gpt-5.6-sol -c model_reasoning_effort="medium"` before closure?
 
 ## What this document is not
 

@@ -9,7 +9,7 @@ import YAML from 'yaml';
 
 import { ONBOARDING_TOOL_INCLUDES } from './hermes-tool-includes.js';
 
-export const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
+export const APP_DIRECTORY_NAME = '.computer-history-mcp';
 export const CONFIG_FILE_NAME = 'config.yaml';
 export const LOG_DIRECTORY_NAME = 'logs';
 export const ROUTINES_DIRECTORY_NAME = 'routines';
@@ -17,7 +17,8 @@ export const ROUTINE_DEFINITIONS_DIRECTORY_NAME = 'definitions';
 export const ROUTINE_HISTORY_DIRECTORY_NAME = 'history';
 export const HERMES_DIRECTORY_NAME = '.hermes';
 export const HERMES_CONFIG_FILE_NAME = 'config.yaml';
-export const DEFAULT_HERMES_SERVER_NAME = 'canary-alpha-mcp';
+export const DEFAULT_HERMES_SERVER_NAME = 'computer-history-mcp';
+export const LEGACY_HERMES_SERVER_NAME = 'canary-alpha-mcp';
 export const DEFAULT_HERMES_TOOL_INCLUDE = ONBOARDING_TOOL_INCLUDES;
 export const MINIMUM_NODE_MAJOR = 22;
 
@@ -46,7 +47,7 @@ export function parseNodeMajorVersion(version) {
 export function ensureSupportedNodeVersion(version = process.versions.node) {
   const majorVersion = parseNodeMajorVersion(version);
   if (majorVersion < MINIMUM_NODE_MAJOR) {
-    throw new Error(`canary-alpha-mcp requires Node ${MINIMUM_NODE_MAJOR}+ (found ${version}).`);
+    throw new Error(`computer-history-mcp requires Node ${MINIMUM_NODE_MAJOR}+ (found ${version}).`);
   }
 }
 
@@ -132,6 +133,61 @@ export async function writeHermesConfigFile(configPath, endpoint, options = {}) 
   };
 }
 
+/**
+ * Rename a pre-rename Hermes MCP server registration to the canonical name.
+ * Preserves the existing server entry when only the legacy key is present.
+ */
+export async function migrateLegacyHermesServerRegistration(options = {}) {
+  const homeDirectory = options.homeDirectory ?? homedir();
+  const legacyName = options.legacyServerName ?? LEGACY_HERMES_SERVER_NAME;
+  const targetName = options.serverName ?? DEFAULT_HERMES_SERVER_NAME;
+  const { configPath } = resolveHermesPaths(homeDirectory);
+
+  if (!existsSync(configPath)) {
+    return { status: 'skipped', reason: 'missing-config', configPath };
+  }
+
+  const existingConfig = await readHermesConfigIfPresent(configPath);
+  const existingServers = existingConfig.mcp_servers
+    && typeof existingConfig.mcp_servers === 'object'
+    && !Array.isArray(existingConfig.mcp_servers)
+    ? { ...existingConfig.mcp_servers }
+    : null;
+
+  if (!existingServers || !(legacyName in existingServers)) {
+    return { status: 'skipped', reason: 'legacy-absent', configPath };
+  }
+
+  if (targetName in existingServers) {
+    delete existingServers[legacyName];
+    const yaml = YAML.stringify({
+      ...existingConfig,
+      mcp_servers: existingServers
+    });
+    await writeFile(configPath, yaml, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
+    return {
+      status: 'removed-legacy-duplicate',
+      configPath,
+      legacyServerName: legacyName,
+      serverName: targetName
+    };
+  }
+
+  existingServers[targetName] = existingServers[legacyName];
+  delete existingServers[legacyName];
+  const yaml = YAML.stringify({
+    ...existingConfig,
+    mcp_servers: existingServers
+  });
+  await writeFile(configPath, yaml, { encoding: 'utf8', mode: PRIVATE_FILE_MODE });
+  return {
+    status: 'renamed',
+    configPath,
+    legacyServerName: legacyName,
+    serverName: targetName
+  };
+}
+
 export function createOllamaEmbeddingsConfig(options = {}) {
   return {
     kind: 'ollama',
@@ -164,6 +220,8 @@ export function buildConfigObject(options = {}) {
     },
     screenpipe: {
       url: options.screenpipeUrl ?? DEFAULT_SCREENPIPE_URL,
+      binaryPath: options.screenpipeBinaryPath ?? 'screenpipe',
+      dataDirectory: options.screenpipeDataDirectory ?? '~/.screenpipe',
       ...(options.screenpipeApiKey ? { apiKey: options.screenpipeApiKey } : {})
     },
     providers: {

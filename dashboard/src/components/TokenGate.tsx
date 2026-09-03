@@ -29,7 +29,7 @@ export function TokenGate({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center justify-center h-screen bg-background">
       <div className="border border-border rounded-lg p-8 max-w-sm w-full">
-        <h1 className="text-lg font-semibold mb-1 font-mono">canary-alpha-mcp</h1>
+        <h1 className="text-lg font-semibold mb-1 font-mono">computer-history-mcp</h1>
         <p className="text-xs text-muted-foreground mb-6">Enter your server auth token to continue.</p>
         <input
           type="password"

@@ -2,11 +2,10 @@ import * as z from 'zod';
 import type { CallToolResult, McpServer } from '@modelcontextprotocol/server';
 
 import type { AppContext } from '../../types/app-config.js';
-import {
-  FindModeNotImplementedError,
-  type EvidenceItem,
-  type FindRequest,
-  type FindResult
+import type {
+  EvidenceItem,
+  FindRequest,
+  FindResult
 } from '../../services/work-activity/find/find-service.js';
 
 // ---------------------------------------------------------------------------
@@ -121,31 +120,12 @@ export function registerFindTool(server: McpServer, app: AppContext): void {
       try {
         result = await findService.find(request);
       } catch (error) {
-        // Task 8.3 wires semantic mode; until then, surface a typed
-        // "implementation pending" result rather than letting the
-        // exception bubble up and crash the MCP channel.
-        if (error instanceof FindModeNotImplementedError) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: `find: mode "${error.mode}" is not implemented yet (task 8.3 pending).`
-              }
-            ],
-            structuredContent: emptyStructuredContent(
-              `find: mode "${error.mode}" is not implemented yet.`
-            )
-          };
-        }
-
-        // Defensive catch: any other error (derived database
-        // unreadable, malformed JSON in `evidence_frame_ids`, etc.)
-        // returns the documented degraded shape rather than letting
-        // the MCP channel break. This preserves the R7.15 / W20
-        // invariant that `narrativeText` is always a string in the
-        // structured payload, matching design.md "派生数据当前不可访问" failure
-        // mode for all three work-activity tools.
+        // Defensive catch: any error (derived database unreadable,
+        // malformed JSON in `evidence_frame_ids`, etc.) returns the
+        // documented degraded shape rather than letting the MCP
+        // channel break. This preserves the R7.15 / W20 invariant
+        // that `narrativeText` is always a string in the structured
+        // payload.
         const message = error instanceof Error ? error.message : String(error);
         app.logger.warn('find tool failed; returning degraded result', {
           message
@@ -155,11 +135,11 @@ export function registerFindTool(server: McpServer, app: AppContext): void {
           content: [
             {
               type: 'text',
-              text: '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+              text: '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
             }
           ],
           structuredContent: emptyStructuredContent(
-            '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+            '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
           )
         };
       }

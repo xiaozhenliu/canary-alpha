@@ -30,6 +30,8 @@ const repositoryRoot = dirname(dirname(dirname(dirname(dirname(scriptDirectory))
 export class DefaultScreenpipeControlService implements ScreenpipeControlService, CaptureLifecyclePort {
   private child: ChildProcess | null = null;
 
+  constructor(private readonly options: { url?: string } = {}) {}
+
   async execute(request: ScreenpipeControlRequest): Promise<ScreenpipeControlResult> {
     switch (request.action) {
       case 'status': return this.status();
@@ -40,7 +42,10 @@ export class DefaultScreenpipeControlService implements ScreenpipeControlService
 
   private async status(): Promise<ScreenpipeControlResult> {
     try {
-      const response = await fetch('http://127.0.0.1:3030/health', { signal: AbortSignal.timeout(2000) });
+      const baseUrl = this.options.url ?? 'http://127.0.0.1:3030';
+      const response = await fetch(new URL('health', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`), {
+        signal: AbortSignal.timeout(2000)
+      });
       if (response.ok) {
         return { action: 'status', running: true, pid: this.child?.pid };
       }

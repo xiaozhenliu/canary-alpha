@@ -15,7 +15,7 @@ export function registerMemoryWriteTool(server: McpServer, app: AppContext): voi
     'memory-write',
     {
       title: 'Write Memory',
-      description: 'Append or replace long-term memory content.',
+      description: "Append or replace long-term memory content. mode='append' adds to existing content; mode='replace' overwrites it entirely. Scope selects the memory partition to write to ('memory' or 'user').",
       inputSchema
     },
     async (input) => {

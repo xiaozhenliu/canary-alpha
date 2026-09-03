@@ -132,6 +132,7 @@ export function initDerivedSchema(db: DerivedDatabase): void {
   db.exec(EMBEDDING_HASH_INDEX_DDL);
   db.exec(VECTORS_DDL);
   migrateDerivedSchemaV1(db);
+  ensureExtractedContentCaptureCursor(db);
 }
 
 /**
@@ -178,10 +179,23 @@ function migrateDerivedSchemaV1(db: DerivedDatabase): void {
   }
 }
 
+/**
+ * Adds the original capture cursor needed to order same-timestamp rows
+ * during line-deduplication recovery. This schema guard is independent of
+ * `user_version` because that pragma is also used by the vector-store JSON
+ * migration.
+ */
+function ensureExtractedContentCaptureCursor(db: DerivedDatabase): void {
+  const columns = db.prepare('PRAGMA table_info(extracted_content)').all() as unknown as Array<{ name: string }>;
+  if (columns.some((column) => column.name === 'capture_cursor')) return;
+  db.exec('ALTER TABLE extracted_content ADD COLUMN capture_cursor TEXT');
+}
+
 const EXTRACTED_CONTENT_DDL = /* sql */ `
   CREATE TABLE IF NOT EXISTS extracted_content (
     frame_id              INTEGER PRIMARY KEY,
     frame_timestamp       TEXT NOT NULL,
+    capture_cursor        TEXT,
     app_name              TEXT,
     context_label         TEXT NOT NULL,
     context_key           TEXT NOT NULL,

@@ -26,6 +26,10 @@ interface ScreenpipeSearchResponseItem {
     ocr_text?: string;
     text?: string;
     timestamp?: string;
+    accessibility_tree_json?: unknown;
+    accessibilityTreeJson?: unknown;
+    accessibility_tree?: unknown;
+    accessibilityTree?: unknown;
   };
   appName?: string;
   app_name?: string;
@@ -34,9 +38,47 @@ interface ScreenpipeSearchResponseItem {
   id?: string;
   text?: string;
   timestamp?: string;
+  accessibility_tree_json?: unknown;
+  accessibilityTreeJson?: unknown;
+  accessibility_tree?: unknown;
+  accessibilityTree?: unknown;
 }
 
 const DEFAULT_PAGE_SIZE = 500;
+
+const EXTRACTABLE_AX_ROLES = new Set([
+  'AXWindow',
+  'AXMainWindow',
+  'AXDocument',
+  'AXApplication',
+  'AXStandardWindow',
+  'AXToolbar',
+  'AXTabGroup',
+  'AXTab',
+  'AXRadioButton',
+  'AXHeading',
+  'AXBanner',
+  'AXNavigationBar',
+  'AXTitleBar',
+  'AXMenu',
+  'AXMenuItem',
+  'AXMenuBar',
+  'AXMenuBarItem',
+  'AXPopUpButton',
+  'AXSheet',
+  'AXDialog',
+  'AXAlert',
+  'AXTextArea',
+  'AXWebArea',
+  'AXScrollArea',
+  'AXTextField',
+  'AXTable',
+  'AXList',
+  'AXOutline',
+  'AXStaticText',
+  'AXGroup',
+  'AXSplitGroup'
+]);
 
 function buildScreenpipeUrl(baseUrl: string, path: string): URL {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -88,15 +130,25 @@ function normalizeScreenpipeRecord(
   item: ScreenpipeSearchResponseItem,
   contentType: ScreenpipeContentType
 ): ScreenpipeRecord | null {
-  if (typeof item.id === 'string' && typeof item.text === 'string' && typeof item.timestamp === 'string') {
+  const topLevelAccessibilityTreeJson = normalizeAccessibilityTreeJson(item);
+  const topLevelText = typeof item.text === 'string' ? item.text : undefined;
+  if (
+    typeof item.id === 'string' &&
+    typeof item.timestamp === 'string' &&
+    (topLevelText !== undefined && topLevelText.trim() !== '' ||
+      (contentType === 'accessibility' && isUsableAccessibilityTreeJson(topLevelAccessibilityTreeJson)))
+  ) {
     return {
       id: item.id,
-      text: item.text,
+      text: topLevelText ?? '',
       timestamp: item.timestamp,
       appName: item.appName ?? item.app_name,
       windowName: typeof item.window_name === 'string' ? item.window_name : undefined,
       frameId: typeof item.frame_id === 'number' ? item.frame_id : undefined,
-      sourceTypes: [contentType]
+      sourceTypes: [contentType],
+      ...(topLevelAccessibilityTreeJson !== undefined
+        ? { accessibilityTreeJson: topLevelAccessibilityTreeJson }
+        : {})
     };
   }
 
@@ -104,9 +156,17 @@ function normalizeScreenpipeRecord(
     return null;
   }
 
+  const accessibilityTreeJson = normalizeAccessibilityTreeJson(item.content);
   const text = item.content.text ?? item.content.ocr_text;
   const timestamp = item.content.timestamp;
-  if (!text || !timestamp) {
+  const normalizedText = typeof text === 'string' ? text : undefined;
+  const hasUsableTree =
+    contentType === 'accessibility' && isUsableAccessibilityTreeJson(accessibilityTreeJson);
+  if (
+    (normalizedText === undefined || normalizedText.trim() === '') && !hasUsableTree ||
+    typeof timestamp !== 'string' ||
+    timestamp === ''
+  ) {
     return null;
   }
 
@@ -116,13 +176,77 @@ function normalizeScreenpipeRecord(
 
   return {
     id: `frame:${frameId}:${offsetIndex}`,
-    text,
+    text: normalizedText ?? '',
     timestamp,
     appName: item.content.app_name,
     windowName: typeof item.content.window_name === 'string' ? item.content.window_name : undefined,
     frameId: typeof rawFrameId === 'number' ? rawFrameId : undefined,
-    sourceTypes: [contentType]
+    sourceTypes: [contentType],
+    ...(accessibilityTreeJson !== undefined ? { accessibilityTreeJson } : {})
   };
+}
+
+function normalizeAccessibilityTreeJson(
+  value: Pick<ScreenpipeSearchResponseItem, 'accessibility_tree_json' | 'accessibilityTreeJson' | 'accessibility_tree' | 'accessibilityTree'>
+): string | null | undefined {
+  const raw = [
+    value.accessibility_tree_json,
+    value.accessibilityTreeJson,
+    value.accessibility_tree,
+    value.accessibilityTree
+  ].find((candidate) => candidate !== undefined);
+
+  if (raw === undefined || raw === null) return raw;
+  if (typeof raw === 'string') return raw;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+function isUsableAccessibilityTreeJson(value: string | null | undefined): value is string {
+  if (value === undefined || value === null || value.trim() === '') return false;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return hasExtractableAccessibilityNode(parsed);
+  } catch {
+    return false;
+  }
+}
+
+function hasExtractableAccessibilityNode(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasExtractableAccessibilityNode(item));
+  }
+  if (value === null || typeof value !== 'object') return false;
+
+  const node = value as Record<string, unknown>;
+  if (!isVisibleAccessibilityNode(node)) return false;
+
+  const role = typeof node.role === 'string' ? node.role : undefined;
+  const hasText = ['value', 'text', 'title', 'description'].some(
+    (key) => typeof node[key] === 'string' && (node[key] as string).trim() !== ''
+  );
+  if (hasText && (role === undefined || EXTRACTABLE_AX_ROLES.has(role))) {
+    return true;
+  }
+
+  return Array.isArray(node.children) && node.children.some((child) =>
+    hasExtractableAccessibilityNode(child)
+  );
+}
+
+function isVisibleAccessibilityNode(node: Record<string, unknown>): boolean {
+  if (node.onScreen === false || node.on_screen === false) return false;
+  const bounds = node.bounds;
+  if (bounds === null || typeof bounds !== 'object' || Array.isArray(bounds)) return true;
+
+  const typedBounds = bounds as Record<string, unknown>;
+  return !(
+    (typeof typedBounds.width === 'number' && typedBounds.width <= 0) ||
+    (typeof typedBounds.height === 'number' && typedBounds.height <= 0)
+  );
 }
 
 function normalizeSearchResponse(payload: unknown, contentType: ScreenpipeContentType): ScreenpipeRecord[] {

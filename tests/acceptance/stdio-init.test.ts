@@ -62,7 +62,7 @@ describe('stdio MCP initialization', () => {
     });
 
     const connection = await connectStdioClient({ HOME: homeDir });
-    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.computer-history-mcp', 'runtime-processes');
 
     await connection.client.listTools();
     expect((await readdir(runtimeDir)).length).toBeGreaterThan(0);
@@ -110,7 +110,7 @@ describe('stdio MCP initialization', () => {
     await connection.client.listTools();
     await connection.close();
 
-    await expect(access(join(homeDir, '.canary-alpha-mcp', 'logs', 'service.log'))).rejects.toMatchObject({
+    await expect(access(join(homeDir, '.computer-history-mcp', 'logs', 'service.log'))).rejects.toMatchObject({
       code: 'ENOENT'
     });
   });

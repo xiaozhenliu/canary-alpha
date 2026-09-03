@@ -23,6 +23,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createIndexingService } from '../../../src/services/retrieval/indexing-service.js';
+import { createExtractionRegistry } from '../../../src/services/work-activity/extraction/registry.js';
 import type {
   CheckpointStore,
   EmbeddingProvider,
@@ -38,6 +39,7 @@ import type {
   ExtractionRegistry,
   ExtractionResult
 } from '../../../src/services/work-activity/extraction/types.js';
+import type { CaptureFrameDetailPort } from '../../../src/services/capture/types.js';
 import type {
   ExtractedContentStore
 } from '../../../src/services/work-activity/extraction/extracted-content-store.js';
@@ -55,7 +57,7 @@ import {
   buildContextKey,
   deriveContextLabel
 } from '../../../src/services/work-activity/sessions/context-key.js';
-import { hashStringToNumericId } from '../../../src/services/retrieval/indexing-service.js';
+import { hashStringToNumericId } from '../../../src/lib/hash.js';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -124,7 +126,10 @@ class StubCaptureClient {
  * `computeEmbedding()` has a non-empty string to act on.
  */
 class PassthroughExtractionRegistry implements ExtractionRegistry {
+  constructor(private readonly onInput?: (input: ExtractionInput) => void) {}
+
   extract(input: ExtractionInput): ExtractionResult {
+    this.onInput?.(input);
     return {
       frameId: input.frameId,
       frameTimestamp: input.frameTimestamp,
@@ -132,6 +137,22 @@ class PassthroughExtractionRegistry implements ExtractionRegistry {
       contextLabel: deriveContextLabel(input.windowTitle, input.appName),
       contextKey: buildContextKey(input.appName, input.windowTitle),
       extractedText: `text-for-frame-${input.frameId}`,
+      extractedTextHash: null,
+      extractionRuleKind: 'generic',
+      sourceTypes: input.sourceTypes
+    };
+  }
+}
+
+class StaticExtractionRegistry implements ExtractionRegistry {
+  extract(input: ExtractionInput): ExtractionResult {
+    return {
+      frameId: input.frameId,
+      frameTimestamp: input.frameTimestamp,
+      appName: input.appName,
+      contextLabel: deriveContextLabel(input.windowTitle, input.appName),
+      contextKey: buildContextKey(input.appName, input.windowTitle),
+      extractedText: 'same static line',
       extractedTextHash: null,
       extractionRuleKind: 'generic',
       sourceTypes: input.sourceTypes
@@ -279,6 +300,9 @@ function makeDeps(overrides: {
   embeddingService?: EmbeddingService;
   embeddingConcurrency?: number;
   checkpointStore?: CheckpointStore;
+  extractionRegistry?: ExtractionRegistry;
+  captureFrameDetail?: CaptureFrameDetailPort;
+  sessionIdleThresholdSeconds?: number;
 }) {
   const records = overrides.records ?? makeRecords(5);
   const vectorStore = overrides.vectorStore ?? new RecordingVectorStore();
@@ -287,18 +311,20 @@ function makeDeps(overrides: {
 
   return {
     captureClient: new StubCaptureClient(records),
+    captureFrameDetail: overrides.captureFrameDetail,
     vectorStore,
     checkpointStore: overrides.checkpointStore ?? new InMemoryCheckpointStore(),
     embeddingProvider: new StubEmbeddingProvider(),
     freshnessWindowMinutes: 60,
     maxCatchUpBatches: 10,
     maxCatchUpRecords: 100,
-    extractionRegistry: new PassthroughExtractionRegistry(),
+    extractionRegistry: overrides.extractionRegistry ?? new PassthroughExtractionRegistry(),
     extractedContentStore: new NoopExtractedContentStore(),
     sessionAggregator: new NoopSessionAggregator(),
     embeddingService,
     embeddingConcurrency: overrides.embeddingConcurrency ?? 3,
-    captureProviderName: 'screenpipe' as const
+    captureProviderName: 'screenpipe' as const,
+    sessionIdleThresholdSeconds: overrides.sessionIdleThresholdSeconds
   };
 }
 
@@ -307,6 +333,152 @@ function makeDeps(overrides: {
 // ---------------------------------------------------------------------------
 
 describe('concurrent embedding pool', () => {
+  it('loads the complete AX tree from the capture frame-detail port', async () => {
+    const records = makeRecords(1);
+    const tree = JSON.stringify({
+      role: 'AXWindow',
+      title: 'Slack',
+      children: [{ role: 'AXHeading', title: '#incident' }]
+    });
+    const inputs: ExtractionInput[] = [];
+    const frameDetail: CaptureFrameDetailPort = {
+      async getFrame(frameId) {
+        return {
+          id: Number(frameId),
+          timestamp: records[0].timestamp,
+          appName: records[0].appName,
+          windowName: records[0].windowName,
+          accessibilityTreeJson: tree
+        };
+      }
+    };
+    const deps = makeDeps({
+      records,
+      captureFrameDetail: frameDetail,
+      extractionRegistry: new PassthroughExtractionRegistry((input) => inputs.push(input))
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(1_700_000_010_000));
+
+    expect(inputs[0]?.accessibilityTreeJson).toBe(tree);
+  });
+
+  it('removes secure AX descendants before structured extraction', async () => {
+    const records = makeRecords(1);
+    const tree = JSON.stringify({
+      role: 'AXWindow',
+      title: 'Password Manager',
+      children: [
+        { role: 'AXTextArea', value: 'Public note' },
+        { role: 'AXSecureTextField', value: 'super-secret-password' }
+      ]
+    });
+    const frameDetail: CaptureFrameDetailPort = {
+      async getFrame(frameId) {
+        return {
+          id: Number(frameId),
+          timestamp: records[0].timestamp,
+          appName: records[0].appName,
+          windowName: records[0].windowName,
+          accessibilityTreeJson: tree
+        };
+      }
+    };
+    const vectorStore = new RecordingVectorStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      captureFrameDetail: frameDetail,
+      extractionRegistry: createExtractionRegistry()
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(1_700_000_010_000));
+
+    const indexedText = vectorStore.upserts[0]?.[0]?.text ?? '';
+    expect(indexedText).toContain('Public note');
+    expect(indexedText).not.toContain('super-secret-password');
+  });
+
+  it('does not fall back to raw text when the AX tree itself is secure', async () => {
+    const records = makeRecords(1).map((record) => ({
+      ...record,
+      text: 'super-secret-password'
+    }));
+    const frameDetail: CaptureFrameDetailPort = {
+      async getFrame(frameId) {
+        return {
+          id: Number(frameId),
+          timestamp: records[0].timestamp,
+          appName: records[0].appName,
+          windowName: records[0].windowName,
+          accessibilityTreeJson: JSON.stringify({
+            role: 'AXSecureTextField',
+            value: 'super-secret-password'
+          })
+        };
+      }
+    };
+    const vectorStore = new RecordingVectorStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      captureFrameDetail: frameDetail,
+      extractionRegistry: createExtractionRegistry()
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(1_700_000_010_000));
+
+    expect(vectorStore.upserts).toHaveLength(0);
+  });
+
+  it('falls back to OCR text when frame detail has no usable AX tree', async () => {
+    const records = makeRecords(1);
+    const frameDetail: CaptureFrameDetailPort = {
+      async getFrame(frameId) {
+        return {
+          id: Number(frameId),
+          timestamp: records[0].timestamp,
+          appName: records[0].appName,
+          windowName: records[0].windowName,
+          accessibilityTreeJson: null
+        };
+      }
+    };
+    const vectorStore = new RecordingVectorStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      captureFrameDetail: frameDetail,
+      extractionRegistry: createExtractionRegistry()
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(1_700_000_010_000));
+
+    expect(vectorStore.upserts[0]?.[0]?.text).toContain('content for record 0');
+  });
+
+  it('falls back to provider text when a non-empty AX tree cannot be extracted', async () => {
+    const records = makeRecords(1).map((record) => ({
+      ...record,
+      accessibilityTreeJson: '{malformed-ax-tree'
+    }));
+    const vectorStore = new RecordingVectorStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      extractionRegistry: createExtractionRegistry()
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(1_700_000_010_000));
+
+    expect(vectorStore.upserts[0]?.[0]?.text).toContain('content for record 0');
+  });
+
   it('processes multiple records with concurrency > 1 and indexes all of them', async () => {
     const n = 10;
     const perRecordDelayMs = 40;
@@ -378,6 +550,62 @@ describe('concurrent embedding pool', () => {
     // 4 records succeed (all except frameId=3): their embeddings are stored
     // even though the checkpoint doesn't advance past the failure.
     expect(vectorStore.upserts[0]).toHaveLength(4);
+  });
+
+  it('does not commit line-dedup state for records that must be retried', async () => {
+    const baseMs = 1_700_000_000_000;
+    const records = makeRecords(2, baseMs);
+    const vectorStore = new RecordingVectorStore();
+    let shouldFail = true;
+    const embeddingService = new DelayedEmbeddingService(0, vectorStore, (frameId) => {
+      return frameId === 1 && shouldFail ? 'fail' : 'ok';
+    });
+    const checkpointStore = new InMemoryCheckpointStore();
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      embeddingService,
+      checkpointStore,
+      embeddingConcurrency: 2
+    });
+    const service = createIndexingService(deps);
+    const now = new Date(baseMs + 10 * 1_000);
+
+    await service.runOnce(now);
+    expect(vectorStore.upserts[0]).toHaveLength(1);
+
+    shouldFail = false;
+    await service.runOnce(now);
+
+    // The second run must see both full extractions. If the first run had
+    // committed its previews before the failure, both retries would be empty
+    // and no second vector batch would be written.
+    expect(vectorStore.upserts[1]).toHaveLength(2);
+  });
+
+  it('uses the configured session idle threshold for line deduplication', async () => {
+    const baseMs = 1_700_000_000_000;
+    const records = makeRecords(2, baseMs).map((record, index) => ({
+      ...record,
+      timestamp: new Date(baseMs + index * 2_000).toISOString()
+    }));
+    const vectorStore = new RecordingVectorStore();
+    const embeddingService = new DelayedEmbeddingService(0, vectorStore);
+    const deps = makeDeps({
+      records,
+      vectorStore,
+      embeddingService,
+      embeddingConcurrency: 1,
+      extractionRegistry: new StaticExtractionRegistry(),
+      sessionIdleThresholdSeconds: 1
+    });
+    const service = createIndexingService(deps);
+
+    await service.runOnce(new Date(baseMs + 10 * 1_000));
+
+    // The frames are two seconds apart. A one-second configured threshold
+    // starts a new dedup session, so the repeated line is emitted twice.
+    expect(vectorStore.upserts[0]).toHaveLength(2);
   });
 
   it('batches vector-store upsert into a single call per runOnce()', async () => {

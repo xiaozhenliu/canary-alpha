@@ -10,7 +10,7 @@ last_updated: 2026-06-17
 
 Routines MVP（v2.4.0，[routines-mvp.md](./routines-mvp.md)）与 Routines v2（v2.7.0，[routines-v2-llm-execution.md](./routines-v2-llm-execution.md)）均只定义了创建与更新操作（ROUT-02），从未规定删除路径。这是一个规格遗漏，不是有意推迟的决策。
 
-当前状态：用户可通过 MCP 工具 `routine-create`（create or update）和 Dashboard 表单管理 routine，但无法删除任何 routine——无论通过 MCP 还是 Dashboard。唯一的替代手段是直接删除 `~/.canary-alpha-mcp/routines/definitions/` 下的定义文件，这对 MCP 客户端用户不可接受，对 Dashboard 用户完全不可见。
+当前状态：用户可通过 MCP 工具 `routine-create`（create or update）和 Dashboard 表单管理 routine，但无法删除任何 routine——无论通过 MCP 还是 Dashboard。唯一的替代手段是直接删除 `~/.computer-history-mcp/routines/definitions/` 下的定义文件，这对 MCP 客户端用户不可接受，对 Dashboard 用户完全不可见。
 
 `FileRoutineStore` 内部已把定义（`definitions/`）与执行历史（`history/`）分开存储，因此删除操作天然需要区分两个行为：移除定义（必然）与清除历史（可选）。
 
@@ -87,8 +87,8 @@ Dashboard Routines 页面为每个 routine 提供删除操作。
 
 ## 实现参考（非规范性）
 
-- 定义文件存储路径：`~/.canary-alpha-mcp/routines/definitions/<slug>.json`（`src/services/routines/file-routine-store.ts`）
-- 历史文件存储路径：`~/.canary-alpha-mcp/routines/history/<slug>/`（同文件）
+- 定义文件存储路径：`~/.computer-history-mcp/routines/definitions/<slug>.json`（`src/services/routines/file-routine-store.ts`）
+- 历史文件存储路径：`~/.computer-history-mcp/routines/history/<slug>/`（同文件）
 - 调度器刷新入口：`src/services/routines/scheduler.ts` — `RoutineScheduler.refresh()`
 - Dashboard API 路由注册：`src/dashboard/routes/routines.ts`
 - MCP 工具注册：`src/mcp/register-tools.ts`，工具实现放 `src/mcp/tools/routine-delete.ts`

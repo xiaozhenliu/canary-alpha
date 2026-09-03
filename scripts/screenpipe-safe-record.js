@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process';
-import { appendFile, chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, mkdir, open, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 
 const MAINTAIN_INTERVAL_MS = 10 * 60 * 1000;
 const MAINTAIN_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -31,12 +32,26 @@ const VISION_INTENT_OPTIONS = [
   '--use-all-monitors',
   '--included-windows'
 ];
-const SCREENPIPE_PACKAGE = 'screenpipe@latest';
 const SCREENPIPE_RECORD_COMMAND = 'record';
+const DEFAULT_SCREENPIPE_BINARY_PATH = 'screenpipe';
+const DEFAULT_SCREENPIPE_DATA_DIRECTORY = join(homedir(), '.screenpipe');
+const DEFAULT_SCREENPIPE_URL = 'http://localhost:3030';
+
+const CONFIG_PATH = join(homedir(), '.computer-history-mcp', 'config.yaml');
+// Schema default for capture.ocrLanguages. MUST stay in sync with
+// DEFAULT_OCR_LANGUAGES in src/config/schema.ts (a consistency test guards drift).
+export const DEFAULT_OCR_LANGUAGES = ['english'];
+// MUST stay in sync with ocrLanguageSchema in src/config/schema.ts
+// (a consistency test guards drift).
+export const OCR_LANGUAGE_ALLOWLIST = new Set([
+  'english', 'chinese', 'japanese', 'korean', 'french', 'german',
+  'spanish', 'russian', 'portuguese', 'italian', 'arabic'
+]);
+const CONFIG_MAX_BYTES = 1_000_000;
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const MAINTAIN_SCRIPT = join(scriptDirectory, 'screenpipe-db-maintain.ts');
-const MAINTAIN_LOG_PATH = join(homedir(), '.canary-alpha-mcp', 'logs', 'screenpipe-maintenance.jsonl');
+const MAINTAIN_LOG_PATH = join(homedir(), '.computer-history-mcp', 'logs', 'screenpipe-maintenance.jsonl');
 const pendingMaintenanceLogWrites = new Map();
 
 function truncateText(value) {
@@ -132,7 +147,7 @@ export function killProcessGroup(pid, signal = 'SIGTERM') {
   }
 }
 
-function spawnMaintainRun({ unref = true, trigger = 'periodic' } = {}) {
+function spawnMaintainRun({ unref = true, trigger = 'periodic', environment = process.env } = {}) {
   const startedAt = new Date();
   void writeMaintenanceLogEntry({
     at: startedAt.toISOString(),
@@ -142,6 +157,7 @@ function spawnMaintainRun({ unref = true, trigger = 'periodic' } = {}) {
 
   const child = spawn(process.execPath, ['--import', 'tsx', MAINTAIN_SCRIPT, 'run'], {
     cwd: repositoryRoot,
+    env: environment,
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let resolveLogDone;
@@ -206,12 +222,82 @@ function hasVisionCaptureIntent(argv) {
   return VISION_INTENT_OPTIONS.some((option) => hasOption(argv, option));
 }
 
-export function buildScreenpipeSafeRecordArgs(argv = process.argv.slice(2)) {
+/**
+ * Read capture.ocrLanguages from config.yaml, distinguishing two cases:
+ *   - field absent / not an array → schema default (['english'])
+ *   - file missing / unreadable / parse error / oversized → fail-open ([])
+ *     so we never force --language onto screenpipe when config state is unknown.
+ * Any invalid value (not in the allowlist) makes the WHOLE array fall back to
+ * the default — we do not silently keep a "valid subset" and never pass an
+ * unknown language to screenpipe.
+ */
+export async function readOcrLanguagesFromConfig(configPath = CONFIG_PATH) {
+  let handle;
+  try {
+    // Open ONCE and stat/read the same file handle (same inode) so the size check
+    // cannot be bypassed by swapping the file (or symlink target) between stat and read.
+    handle = await open(configPath, 'r');
+    const info = await handle.stat();
+    if (info.size > CONFIG_MAX_BYTES) return []; // oversized → fail-open
+    const doc = parseYaml(await handle.readFile('utf8'));
+    const langs = doc?.capture?.ocrLanguages;
+    if (langs === undefined) return [...DEFAULT_OCR_LANGUAGES]; // field absent → schema default
+    if (!Array.isArray(langs)) return [...DEFAULT_OCR_LANGUAGES];
+    if (langs.length === 0) {
+      // Empty list is meaningless; treat like a missing field rather than silently disabling OCR.
+      console.warn('[safe-record] empty capture.ocrLanguages; falling back to default (english)');
+      return [...DEFAULT_OCR_LANGUAGES];
+    }
+    const allValid = langs.every((l) => typeof l === 'string' && OCR_LANGUAGE_ALLOWLIST.has(l));
+    if (!allValid) {
+      console.warn('[safe-record] invalid capture.ocrLanguages; falling back to default (english)');
+      return [...DEFAULT_OCR_LANGUAGES]; // any invalid → whole-array fallback (no silent subset)
+    }
+    return langs;
+  } catch {
+    return []; // missing file / read / parse error / oversized → fail-open, no --language
+  } finally {
+    await handle?.close();
+  }
+}
+
+function expandHomePath(value) {
+  return value.startsWith('~/') ? join(homedir(), value.slice(2)) : value;
+}
+
+export async function readScreenpipeRuntimeConfig(configPath = CONFIG_PATH) {
+  try {
+    const raw = await readFile(configPath, 'utf8');
+    if (Buffer.byteLength(raw, 'utf8') > CONFIG_MAX_BYTES) {
+      throw new Error('config file is too large');
+    }
+    const screenpipe = parseYaml(raw)?.screenpipe;
+    return {
+      url: typeof screenpipe?.url === 'string' && screenpipe.url.length > 0
+        ? screenpipe.url
+        : DEFAULT_SCREENPIPE_URL,
+      binaryPath: typeof screenpipe?.binaryPath === 'string' && screenpipe.binaryPath.length > 0
+        ? expandHomePath(screenpipe.binaryPath)
+        : DEFAULT_SCREENPIPE_BINARY_PATH,
+      dataDirectory: typeof screenpipe?.dataDirectory === 'string' && screenpipe.dataDirectory.length > 0
+        ? expandHomePath(screenpipe.dataDirectory)
+        : DEFAULT_SCREENPIPE_DATA_DIRECTORY
+    };
+  } catch {
+    return {
+      url: DEFAULT_SCREENPIPE_URL,
+      binaryPath: DEFAULT_SCREENPIPE_BINARY_PATH,
+      dataDirectory: DEFAULT_SCREENPIPE_DATA_DIRECTORY
+    };
+  }
+}
+
+export function buildScreenpipeSafeRecordArgs(argv = process.argv.slice(2), ocrLanguages = []) {
   if (hasFlag(argv, '--help') || hasFlag(argv, '-h')) {
-    return [SCREENPIPE_PACKAGE, SCREENPIPE_RECORD_COMMAND, ...argv];
+    return [SCREENPIPE_RECORD_COMMAND, ...argv];
   }
 
-  const args = [SCREENPIPE_PACKAGE, SCREENPIPE_RECORD_COMMAND];
+  const args = [SCREENPIPE_RECORD_COMMAND];
 
   if (!hasFlag(argv, '--use-pii-removal')) {
     args.push('--use-pii-removal');
@@ -241,14 +327,63 @@ export function buildScreenpipeSafeRecordArgs(argv = process.argv.slice(2)) {
     args.push('--audio-transcription-engine', 'disabled');
   }
 
+  // Inject configured OCR languages unless the operator passed --language/-l explicitly
+  // (explicit argv always wins). screenpipe accepts repeated --language flags.
+  if (!hasOption(argv, '--language') && !hasOption(argv, '-l') && Array.isArray(ocrLanguages)) {
+    for (const lang of ocrLanguages) {
+      args.push('--language', lang);
+    }
+  }
+
   return [...args, ...argv];
 }
 
+export function buildScreenpipeRuntimeArgs(argv, dataDirectory, baseUrl) {
+  const args = [...argv];
+  const separateIndex = args.indexOf('--data-dir');
+  if (separateIndex >= 0 && typeof args[separateIndex + 1] === 'string') {
+    args[separateIndex + 1] = expandHomePath(args[separateIndex + 1]);
+  } else {
+    const equalsIndex = args.findIndex((token) => token.startsWith('--data-dir='));
+    if (equalsIndex >= 0) {
+    const value = args[equalsIndex].slice('--data-dir='.length);
+    args[equalsIndex] = `--data-dir=${expandHomePath(value)}`;
+    } else {
+      args.unshift('--data-dir', dataDirectory);
+    }
+  }
+  const hasShortPort = args.some((token) => /^-p(?:=)?\d+$/u.test(token));
+  if (baseUrl && !hasOption(args, '--port') && !hasOption(args, '-p') && !hasShortPort) {
+    const port = new URL(baseUrl).port;
+    if (port) args.unshift('--port', port);
+  }
+  return args;
+}
+
+export function readScreenpipeDataDirectoryArg(argv) {
+  const separateIndex = argv.indexOf('--data-dir');
+  if (separateIndex >= 0 && typeof argv[separateIndex + 1] === 'string') {
+    return argv[separateIndex + 1];
+  }
+  const equalsValue = argv.find((token) => token.startsWith('--data-dir='));
+  return equalsValue?.slice('--data-dir='.length);
+}
+
 export async function run(argv = process.argv.slice(2), options = {}) {
-  const command = options.command ?? 'npx';
+  const runtimeConfig = options.runtimeConfig ?? await readScreenpipeRuntimeConfig();
+  const command = options.command ?? runtimeConfig.binaryPath;
   const cwd = options.cwd ?? repositoryRoot;
   const env = options.env ?? process.env;
-  const args = buildScreenpipeSafeRecordArgs(argv);
+  const ocrLanguages = options.ocrLanguages ?? await readOcrLanguagesFromConfig();
+  const runtimeArgv = buildScreenpipeRuntimeArgs(argv, runtimeConfig.dataDirectory, runtimeConfig.url);
+  const args = buildScreenpipeSafeRecordArgs(runtimeArgv, ocrLanguages);
+  const effectiveDataDirectory = readScreenpipeDataDirectoryArg(runtimeArgv)
+    ?? runtimeConfig.dataDirectory;
+  const maintenanceEnvironment = {
+    ...env,
+    SCREENPIPE_DB_PATH: join(effectiveDataDirectory, 'db.sqlite'),
+    SCREENPIPE_BACKUP_DIR: join(effectiveDataDirectory, 'backup')
+  };
 
   await new Promise((resolve, reject) => {
     let settling = false;
@@ -260,7 +395,7 @@ export async function run(argv = process.argv.slice(2), options = {}) {
     });
 
     const maintainTimer = setInterval(() => {
-      spawnMaintainRun();
+      spawnMaintainRun({ environment: maintenanceEnvironment });
     }, MAINTAIN_INTERVAL_MS);
     maintainTimer.unref?.();
 
@@ -281,7 +416,11 @@ export async function run(argv = process.argv.slice(2), options = {}) {
     process.on('SIGINT', onSigint);
 
     const runFinalMaintenance = (done) => {
-      const last = spawnMaintainRun({ unref: false, trigger: 'final' });
+      const last = spawnMaintainRun({
+        unref: false,
+        trigger: 'final',
+        environment: maintenanceEnvironment
+      });
       let finalizing = false;
       const finalize = () => {
         if (finalizing) {

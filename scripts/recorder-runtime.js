@@ -4,7 +4,7 @@
 // (recorder:start / recorder:stop / recorder:status / recorder:logs).
 //
 // Paths mirror the managed MCP service: everything lives under
-// ~/.canary-alpha-mcp/ so the recorder and the launchd-managed service share a
+// ~/.computer-history-mcp/ so the recorder and the launchd-managed service share a
 // single private app directory. HOME is resolved via os.homedir() so the
 // integration tests can redirect the whole tree by overriding HOME.
 
@@ -13,7 +13,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
+const APP_DIRECTORY_NAME = '.computer-history-mcp';
 const PRIVATE_DIR_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 

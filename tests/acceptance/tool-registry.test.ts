@@ -43,10 +43,9 @@ describe('tool registry visibility', () => {
 
     const result = await connection.client.listTools();
     const actualNames = result.tools.map((tool) => tool.name).sort();
-    // TOOL_MANIFEST includes all registered tools (including routine-list,
-    // routine-create, routine-history) plus screenpipe-control which is
-    // registered directly without appearing in the manifest.
-    const expectedNames = [...TOOL_MANIFEST.map((tool) => tool.name), 'screenpipe-control'].sort();
+    // TOOL_MANIFEST includes all 12 registered tools (including routine-list,
+    // routine-create, routine-history, and screenpipe-control).
+    const expectedNames = [...TOOL_MANIFEST.map((tool) => tool.name)].sort();
 
     expect(actualNames).toEqual(expectedNames);
   });

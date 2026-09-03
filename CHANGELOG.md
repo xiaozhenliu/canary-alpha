@@ -1,15 +1,68 @@
 ---
-doc_version: 16
+doc_version: 30
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-03
 ---
 
 # Changelog
 
-All notable user-facing changes to `canary-alpha-mcp` are documented here.
+All notable user-facing changes to `computer-history-mcp` are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Version numbers follow [Semantic Versioning](https://semver.org/).
+
+## Unreleased
+
+### Added
+- Automatic migration from `~/.canary-alpha-mcp` to `~/.computer-history-mcp` with a recoverable backup when only the legacy app home exists.
+- Filtered public release flow driven by `scripts/public-release-manifest.txt`, replacing the unsafe `dev` merge publish path.
+- Local clean-root public history rewrite candidate generator (`scripts/prepare-public-history-rewrite.sh`).
+- Configurable Screenpipe executable and data directory (`screenpipe.binaryPath`, `screenpipe.dataDirectory`) so stable and development recorder builds can coexist without replacing the global command or sharing a mutable capture database.
+- **Universal AXTree Structured Extraction Engine** (`UniversalStructuredExtractor`): Replaces generic single-node heuristic with full-window 4-domain semantic tagging (`[Window]`, `[Nav]`, `[Action]`, `[Body]`), capturing active chat partners/topics, IDE file paths & tabs, popover menus, and modal dialogs while gracefully degrading for shallow/GPUI trees.
+- **Session Label Enrichment** (`deriveEnrichedWindowTitle`): Automatically incorporates top navigation contexts into coarse window titles (e.g. WeChat, Slack, Discord) for precise session grouping and naming.
+- **Session-Scoped Line-Level Delta Deduplication** (`LineDeltaDeduplicator`): Deduplicates structured lines within active session contexts, emitting 0 bytes on identical frames and only incremental delta lines on changes, with automatic reset across idle thresholds.
+
+### Changed
+- Project identity, public GitHub repository, documentation site base, repository links, and launchd plist template now use `computer-history-mcp`.
+- Public repository default branch rewritten to a clean-root filtered snapshot, preventing development-only files from being reachable in public history.
+- Managed service scripts stop and remove the legacy `com.canary-alpha-mcp` launchd label before installing the renamed service.
+
+### Improved
+- Universal AXTree indexing now carries the complete per-frame tree from the capture provider when the search response omits it, reconstructing sweep-normalized `elements` rows through `elements_ref_frame_id` when needed; it restores deduplication state for open sessions after restart and guards retries against losing structured content after embedding failures.
+- Complete AX trees are filtered for configured secure AX roles before extraction and embedding, including the restart path where uncheckpointed extraction rows are deliberately excluded from deduplication recovery.
+- Empty AX payloads retain the existing OCR/text fallback, while semantic root nodes are included in structured extraction.
+- Durable extraction rows preserve the original capture cursor so same-timestamp checkpoint retries remain ordered and lossless.
+- Extracted keyword and semantic query pipelines from `find-service.ts` (1061→612 lines) into `keyword-queries.ts` and `semantic-queries.ts`; removed dead `FindModeNotImplementedError` class (GRO-171)
+- Extracted shared suppression utility (`collectActiveCascadeFailureIntervals`) into `work-activity/suppression.ts`, breaking the false `recall → find` cross-module dependency (GRO-167, refactor series 1/4)
+- Split `storage-diagnostics.ts` (1639 lines) into 7 domain sub-modules under `diagnostics/screenpipe/`, with 29 new parser unit tests (GRO-168, refactor series 2/4)
+- Extracted `stripSecureAxSubtrees` and `hashStringToNumericId` from `indexing-service.ts` into dedicated modules (GRO-169, refactor series 3/4)
+
+## 2.7.3 — 2026-06-22
+
+### Added
+- Configurable OCR recognition languages via `capture.ocrLanguages` (config CLI + schema). The recorder reads the configured language names and passes them to Screenpipe as repeated `screenpipe record --language <name>` flags, so Apple Vision can recognize Chinese (and other non-English scripts) instead of English-only. Defaults to `['english']` (existing behavior unchanged); set `[chinese, english]` to enable Chinese-primary capture. **Order is priority** — on macOS the first language becomes Apple Vision's primary OCR mode. Values are validated against an allowlist (a subset of Screenpipe's ~76 `Language` names); any invalid value makes the recorder fall back wholesale to English rather than passing an unknown language downstream. The dashboard displays the field read-only in this release. See [Configuration › capture](https://xiaozhenliu.github.io/computer-history-mcp/reference/configuration).
+
+## 2.7.2 — 2026-06-22
+
+### Added
+- OCR engine comparison experiment (`experiments/ocr-compare/`) — compares macOS Vision, PP-OCRv6, PaddleOCR-VL-1.6, and Doubao 2.0 Pro on Zed GPUI screenshots, with Qwen 3.7 Plus as independent judge. Final results: Doubao 10/10, Vision 2-3/10, PP-OCRv6 0.5/10, PaddleOCR-VL 1/10. Conclusion: single-pass local OCR cannot read GPUI-rendered content; only cloud multimodal LLMs do well.
+- Local two-stage OCR pipeline (`experiments/ocr-compare/local/`) — ONNX PP-DocLayoutV2 layout split → MLX-quantized PaddleOCR-VL-1.5 per-block greedy recognition → reuse of the shared `axtree` assembler, emitting the same `screen→panel→region` tree and Custom OCR contract (`{text, structured_data, confidence}`) as the Baidu path. Registered as `OCR_ENGINE=local` in `ocr_server.py`. Benchmarked on three Zed GPUI screenshots against the Baidu cloud anchor with a two-way blind Qwen judge: local vs Baidu = 6/7, 7/5, 8/6 (local wins 2 of 3). Greedy decoding is deterministic (K=3 → `distinct_text_hashes == 1`), 0 degraded crops, ~1.95 GiB peak RSS / ~1.17 GiB model resident footprint (fits 16 GB Macs), recognition ~44–47 s/image (≈106 sequential per-block MLX calls dominate). **This qualifies the prior "all local OCR fails" conclusion: a two-stage layout-split + per-block VL pipeline matches the cloud anchor on quality locally; latency is the only blocker to real-time integration.** Each module is independently runnable; see `experiments/ocr-compare/local/RESULTS.md`.
+
+## 2.7.1
+
+### Improved
+- Rewrote MCP tool descriptions for `memory-read`, `memory-write`, `file-analyze`, `privacy-control`, `screenpipe-control`, and `internal-status` to include data boundaries, key parameters, and usage guidance
+- Expanded onboarding tool whitelist from 7 to 10 tools — added `inspect`, `routine-list`, `routine-history`
+- `npm run refresh:hermes` now syncs `tools.include` in Hermes config with the current whitelist
+
+### Fixed
+- `internal-status` outputSchema missing `recentHeavyGrowth` field in `screenpipeStorage` — caused schema validation warnings in strict MCP clients
+- `screenpipe-control` missing from `tool-manifest.ts` registry (11 vs 12 tool count mismatch)
+
+### Documentation
+- Added tool whitelist explanation to Hermes client guide (EN + ZH)
+- Added "Onboarding" column to MCP tools reference table (EN + ZH)
+- Added exclusion rationale comments to `hermes-tool-includes.js`
 
 ## [2.7.0] — 2026-06-16
 
@@ -50,6 +103,21 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   `.default(60)` to `.optional()` so omission vs explicit `60` is distinguishable.
 
 ## [Unreleased]
+
+### Added
+
+- Added `npm run resume`, an idempotent no-build startup path that checks the
+  managed MCP service and Screenpipe in parallel, reuses healthy components,
+  starts only missing components, and waits for both to become ready.
+- Added `npm start` as the single state-aware user entry point. It automatically
+  chooses first-time onboarding, one-time build recovery, or the fast resume
+  path, so users and agents no longer need to diagnose local startup state. An
+  explicit completion marker distinguishes a setup-created config from completed
+  onboarding, with compatibility detection for existing launchd installations.
+- Added `npm run refresh:hermes` as the source-update entry point. It rebuilds
+  current source, reinstalls and restarts the managed MCP service, restores the
+  shared Screenpipe stack, and requires a real Hermes `internal-status` tool
+  call before reporting success.
 
 ### Performance
 
@@ -140,7 +208,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   Screenpipe HTTP stub and the SQLite fixture is verified directly.
 - Added HTTP runtime marker lifecycle acceptance test in
   `tests/acceptance/http-init.test.ts` (GRO-46). The test verifies that an HTTP
-  server creates a runtime marker file in `~/.canary-alpha-mcp/runtime-processes/`
+  server creates a runtime marker file in `~/.computer-history-mcp/runtime-processes/`
   on startup and removes it after SIGTERM shutdown, using an isolated temp HOME
   directory consistent with the existing stdio marker test pattern.
 
@@ -280,8 +348,8 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
   `npm run recorder:start` / `recorder:stop` / `recorder:status` /
   `recorder:logs`, plus `npm run up -- --detach` to bring the stack up with the
   recorder detached. Output is written to
-  `~/.canary-alpha-mcp/logs/recorder.log` and the PID to
-  `~/.canary-alpha-mcp/recorder.pid`.
+  `~/.computer-history-mcp/logs/recorder.log` and the PID to
+  `~/.computer-history-mcp/recorder.pid`.
 - `npm run down:all` for a one-command graceful teardown that stops the recorder
   (SIGTERM with a final maintenance pass) and then the managed MCP service.
 
@@ -299,7 +367,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/).
 - Community contribution guidelines, Contributor Covenant 2.1, a security
   policy, structured GitHub issue forms, and a pull-request template.
 - Screenpipe safe-record maintenance run logging under
-  `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`, with 7-day pruning
+  `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl`, with 7-day pruning
   and 1 MB rotation.
 
 ### Changed

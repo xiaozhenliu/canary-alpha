@@ -1,4 +1,4 @@
-# canary-alpha-mcp configuration example
+# computer-history-mcp configuration example
 # Copy this file to config.yaml and adjust values as needed.
 # All fields are optional — defaults are shown below.
 #
@@ -32,7 +32,7 @@ providers:
 
 vectorStore:
   kind: chroma
-  # path: ~/.canary-alpha-mcp/chroma
+  # path: ~/.computer-history-mcp/chroma
 
 retrieval:
   freshnessWindowMinutes: 15
@@ -65,8 +65,8 @@ privacy:
 
 routines:
   enabled: false
-  # definitionsPath: ~/.canary-alpha-mcp/routines.json
-  # historyPath: ~/.canary-alpha-mcp/routines-history.json
+  # definitionsPath: ~/.computer-history-mcp/routines.json
+  # historyPath: ~/.computer-history-mcp/routines-history.json
 
 # work-activity-analysis 派生数据存储与会话/摘要/embedding 参数。
 # 全部字段带默认值，整个 analysis 段省略也能正常运行（向后兼容）。
@@ -97,9 +97,9 @@ analysis:
 #   model: deepseek-chat
 
 # 派生存储路径（work-activity-analysis）。
-# 默认：~/.canary-alpha-mcp/derived.sqlite。一般无需覆盖。
+# 默认：~/.computer-history-mcp/derived.sqlite。一般无需覆盖。
 # paths:
-#   derivedDatabase: ~/.canary-alpha-mcp/derived.sqlite
+#   derivedDatabase: ~/.computer-history-mcp/derived.sqlite
 
 # Security note: the file-analyze MCP tool reads files within the server's
 # working directory by default. Symlink traversal and path escape are blocked

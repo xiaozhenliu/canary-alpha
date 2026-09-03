@@ -8,16 +8,16 @@ last_updated: 2026-06-12
 
 ## 数据本地化
 
-`canary-alpha-mcp` 在设计上完全本地化：
+`computer-history-mcp` 在设计上完全本地化：
 
 - 托管 HTTP 服务仅绑定 `127.0.0.1`，拒绝来自其他机器的连接。
-- 所有派生数据（索引、配置、日志）存储在本机的 `~/.canary-alpha-mcp/` 下。
+- 所有派生数据（索引、配置、日志）存储在本机的 `~/.computer-history-mcp/` 下。
 - 服务除你配置的嵌入端点（默认为本地 Ollama）外，不向任何外部网络发出请求。
 - 无遥测，无使用报告。
 
 ## 采集内容
 
-Screenpipe 负责采集你的屏幕活动，`canary-alpha-mcp` 读取并索引这些数据，不控制 Screenpipe 采集什么。
+Screenpipe 负责采集你的屏幕活动，`computer-history-mcp` 读取并索引这些数据，不控制 Screenpipe 采集什么。
 
 使用 `npm run screenpipe:safe-record` 启动 Screenpipe 时，本仓库的 wrapper 会应用更安全的本地开发默认值：
 
@@ -72,9 +72,9 @@ node scripts/privacy-control.js exclude-app --app "Claude"
 
 | 路径 | 内容 |
 |------|------|
-| `~/.canary-alpha-mcp/config.yaml` | 服务配置 |
-| `~/.canary-alpha-mcp/logs/` | 服务日志和维护记录 |
-| `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` | 维护运行记录 |
+| `~/.computer-history-mcp/config.yaml` | 服务配置 |
+| `~/.computer-history-mcp/logs/` | 服务日志和维护记录 |
+| `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` | 维护运行记录 |
 | `~/.screenpipe/` | Screenpipe 原始采集数据（由 Screenpipe 管理） |
 
 **维护日志轮转**：`screenpipe-maintenance.jsonl` 裁剪保留最近 7 天，超过 1 MB 时轮转到 `screenpipe-maintenance.jsonl.1`。

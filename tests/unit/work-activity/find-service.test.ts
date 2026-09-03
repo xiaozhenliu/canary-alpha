@@ -35,7 +35,8 @@
  * **Validates: Requirements 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.15**
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as keywordQueries from '../../../src/services/work-activity/find/keyword-queries.js';
 
 import {
   initDerivedSchema,
@@ -44,13 +45,11 @@ import {
 } from '../../../src/services/work-activity/derived-database.js';
 import { SqliteExtractedContentStore } from '../../../src/services/work-activity/extraction/extracted-content-store.js';
 import { SqliteSessionStore } from '../../../src/services/work-activity/sessions/session-store.js';
-import {
-  DefaultFindService,
-  FindModeNotImplementedError
-} from '../../../src/services/work-activity/find/find-service.js';
+import { DefaultFindService } from '../../../src/services/work-activity/find/find-service.js';
 import { InMemoryVectorStore } from '../../../src/services/retrieval/vector-store.js';
 import type {
   EmbeddingProvider,
+  VectorStore,
   VectorStoreRecord
 } from '../../../src/services/retrieval/types.js';
 import type { ExtractionResult } from '../../../src/services/work-activity/extraction/types.js';
@@ -304,8 +303,8 @@ describe('DefaultFindService.find — keyword mode', () => {
     // ceiling, so production traffic will not see truncation under
     // expected workloads.
     //
-    // To keep the test fast, we install a stub that overrides the
-    // private `collectKeywordMatches` to return `truncated: true`.
+    // To keep the test fast, we mock the standalone
+    // `collectKeywordMatches` to return `truncated: true`.
     const stubResult = {
       rows: [
         {
@@ -319,10 +318,8 @@ describe('DefaultFindService.find — keyword mode', () => {
       ],
       truncated: true
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const svc = service as any;
-    const original = svc.collectKeywordMatches.bind(service);
-    svc.collectKeywordMatches = async () => stubResult;
+    const spy = vi.spyOn(keywordQueries, 'collectKeywordMatches')
+      .mockResolvedValueOnce(stubResult);
     try {
       const result = await service.find({ query: 'oauth' });
       expect(result.degraded).toBeDefined();
@@ -330,7 +327,7 @@ describe('DefaultFindService.find — keyword mode', () => {
       expect(result.degraded?.actualMode).toBe('keyword');
       expect(result.degraded?.reason).toMatch(/truncated/);
     } finally {
-      svc.collectKeywordMatches = original;
+      spy.mockRestore();
     }
   });
 });
@@ -877,6 +874,56 @@ describe('DefaultFindService.find — semantic mode', () => {
     expect(result.degraded).toBeUndefined();
   });
 
+  it('falls back to keyword with degraded marker when the vector store query throws (R7.6)', async () => {
+    await extracted.upsert(
+      makeExtraction({ frameId: 1, extractedText: 'oauth flows' })
+    );
+
+    const throwingVectorStore: VectorStore = {
+      kind: 'throwing-stub',
+      async upsert() {},
+      async reset() {},
+      async query() { throw new Error('vector store unavailable'); }
+    };
+    const svc = new DefaultFindService({
+      db,
+      embeddingProvider: new StubEmbeddingProvider([1, 0, 0]),
+      vectorStore: throwingVectorStore,
+      extractedContentStore: extracted
+    });
+
+    const result = await svc.find({ query: 'oauth', mode: 'semantic' });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].matchSource).toBe('keyword');
+    expect(result.degraded).toBeDefined();
+    expect(result.degraded?.requestedMode).toBe('semantic');
+    expect(result.degraded?.actualMode).toBe('keyword');
+  });
+
+  it('falls back to keyword without degraded marker when vector store throws under hybrid', async () => {
+    await extracted.upsert(
+      makeExtraction({ frameId: 1, extractedText: 'oauth flows' })
+    );
+
+    const throwingVectorStore: VectorStore = {
+      kind: 'throwing-stub',
+      async upsert() {},
+      async reset() {},
+      async query() { throw new Error('vector store unavailable'); }
+    };
+    const svc = new DefaultFindService({
+      db,
+      embeddingProvider: new StubEmbeddingProvider([1, 0, 0]),
+      vectorStore: throwingVectorStore,
+      extractedContentStore: extracted
+    });
+
+    const result = await svc.find({ query: 'oauth', mode: 'hybrid' });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].matchSource).toBe('keyword');
+    expect(result.degraded).toBeUndefined();
+  });
+
   it('drops vector hits whose extracted_content row has been cascade-deleted', async () => {
     // The vector store has a hit for frame 99, but no extracted_content
     // row exists. The service must drop the hit silently rather than
@@ -1040,15 +1087,5 @@ describe('DefaultFindService.find — mode defaults', () => {
     const result = await service.find({ query: 'oauth' });
     expect(result.data).toHaveLength(1);
     expect(result.data[0].matchSource).toBe('keyword');
-  });
-
-  it('keeps FindModeNotImplementedError exported for callers that import it (compat shim)', () => {
-    // The error class is no longer thrown by the service (task 8.3
-    // wired semantic + hybrid as honest fallbacks rather than typed
-    // errors). It remains exported so existing callers — notably the
-    // `find` MCP tool — can still pattern-match on it without a
-    // breaking import change. Asserting the export is enough; we do
-    // not exercise an error path that no longer exists.
-    expect(typeof FindModeNotImplementedError).toBe('function');
   });
 });

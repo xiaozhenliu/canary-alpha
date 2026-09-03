@@ -53,6 +53,11 @@ export const TOOL_MANIFEST = [
     name: 'routine-history',
     title: 'Routine Execution History',
     category: 'routines'
+  },
+  {
+    name: 'screenpipe-control',
+    title: 'Screenpipe Control',
+    category: 'screenpipe'
   }
 ] as const;
 

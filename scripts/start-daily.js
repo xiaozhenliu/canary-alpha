@@ -17,7 +17,7 @@
 //
 // Pass `--detach` (alias `--background`) to start the recorder detached from the
 // terminal instead, so the launching window can be closed. In that mode capture
-// output goes to ~/.canary-alpha-mcp/logs/recorder.log; stop it gracefully with
+// output goes to ~/.computer-history-mcp/logs/recorder.log; stop it gracefully with
 // `npm run recorder:stop`.
 //
 // Tear down with `npm run down` (stops the managed service). Stop the recorder
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
-const configPath = join(homedir(), '.canary-alpha-mcp', 'config.yaml');
+const configPath = join(homedir(), '.computer-history-mcp', 'config.yaml');
 const DEFAULT_SCREENPIPE_URL = 'http://localhost:3030';
 
 function log(step, message) {

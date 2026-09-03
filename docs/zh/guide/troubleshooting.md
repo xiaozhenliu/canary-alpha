@@ -142,7 +142,7 @@ npm run rebuild-index
 `npm run service:logs` 打印：
 
 ```text
-No log output found yet under ~/.canary-alpha-mcp/logs/.
+No log output found yet under ~/.computer-history-mcp/logs/.
 ```
 
 ### 含义
@@ -153,7 +153,7 @@ No log output found yet under ~/.canary-alpha-mcp/logs/.
 
 - 运行 `npm run service:start`
 - 重新运行 `npm run service:status`
-- 检查 `~/.canary-alpha-mcp/logs/` 是否存在
+- 检查 `~/.computer-history-mcp/logs/` 是否存在
 
 ## Screenpipe 维护状态不明
 
@@ -166,7 +166,7 @@ No log output found yet under ~/.canary-alpha-mcp/logs/.
 1. 读取维护 JSONL 日志：
 
 ```bash
-tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
+tail -n 50 ~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl
 ```
 
 2. 查找 `maintenance-run-start`、`maintenance-run-exit` 或 `maintenance-run-error`。
@@ -174,7 +174,7 @@ tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
    - `periodic`：录制持续期间 10 分钟后台维护间隔触发。
    - `final`：录制器退出后 wrapper 最后运行了一次维护。
 4. 如果 `screenpipe-maintenance.jsonl` 不存在但 `npm run screenpipe:safe-record` 未退出且运行时间不足 10 分钟，等待下一个间隔或干净地停止 wrapper 以触发最终维护。
-5. 如果日志已轮转，检查 `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl.1`。
+5. 如果日志已轮转，检查 `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl.1`。
 
 活跃日志保留 7 天有效的 JSONL 条目，超过 1 MB 时轮转。格式异常或过旧的条目在下次写入时丢弃。
 
@@ -222,7 +222,7 @@ tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
 
 `diskBudget.warning` 为非空字符串
 
-数据库超过 `storage.diskBudgetBytes`，且没有早于 `storage.retentionDays` 的行可删除。在 `~/.canary-alpha-mcp/config.yaml` 中提高配额（`storage.diskBudgetBytes`）或缩短保留窗口（`storage.retentionDays`）。
+数据库超过 `storage.diskBudgetBytes`，且没有早于 `storage.retentionDays` 的行可删除。在 `~/.computer-history-mcp/config.yaml` 中提高配额（`storage.diskBudgetBytes`）或缩短保留窗口（`storage.retentionDays`）。
 
 **AX / OCR 摄入比例严重失衡**
 

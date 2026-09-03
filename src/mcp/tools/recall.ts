@@ -162,14 +162,14 @@ export function registerRecallTool(server: McpServer, app: AppContext): void {
           content: [
             {
               type: 'text',
-              text: '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+              text: '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
             }
           ],
           structuredContent: {
             granularity: input.granularity,
             sessions: input.granularity === 'session' ? [] : undefined,
             blocks: input.granularity !== 'session' ? [] : undefined,
-            narrativeText: '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+            narrativeText: '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
           }
         };
       }

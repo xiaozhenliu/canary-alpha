@@ -1,14 +1,14 @@
 ---
-doc_version: 2
+doc_version: 3
 doc_status: deprecated
-last_updated: 2026-06-15
+last_updated: 2026-06-22
 ---
 
 # Spec: Dashboard Web UI
 
 ## 背景
 
-canary-alpha-mcp 当前的运维与配置管理完全依赖 CLI（config 子命令 8 个、`npm run service:*` 脚本、`internal-status` MCP 工具）。随着 MCP 工具面扩展到 12 个、Routines 子系统上线、配置项日益增多，纯 CLI 操作在日常巡检和配置调整时效率递减，且不适合快速浏览全局运行时状态。需要一个轻量级的本地 Web Dashboard，把 CLI 能力可视化并提供交互式管理入口。
+computer-history-mcp 当前的运维与配置管理完全依赖 CLI（config 子命令 8 个、`npm run service:*` 脚本、`internal-status` MCP 工具）。随着 MCP 工具面扩展到 12 个、Routines 子系统上线、配置项日益增多，纯 CLI 操作在日常巡检和配置调整时效率递减，且不适合快速浏览全局运行时状态。需要一个轻量级的本地 Web Dashboard，把 CLI 能力可视化并提供交互式管理入口。
 
 future-backlog.md 的"历史范围裁剪"中曾标注 "UI/dashboard —— 产品保持 MCP-only、面向 agent"。本 spec 将 dashboard 定位为**运维管理面板**而非产品功能面——它不替代 MCP 工具，而是为本地操作者提供一个浏览器可达的管控界面。
 
@@ -141,7 +141,7 @@ future-backlog.md 的"历史范围裁剪"中曾标注 "UI/dashboard —— 产�
 
 ## 已知缺陷（实施后审计发现）
 
-- [`docs/superpowers/specs/2026-06-15-codex-design-review-audit.md`](../superpowers/specs/2026-06-15-codex-design-review-audit.md) — Codex 设计缺陷审查（2026-06-15），涉及 Dashboard 的发现：Finding #1（config reveal API 全量 secret 暴露，GRO-162）、Finding #2（Logs API 读取整个文件到内存，GRO-161）、Finding #4（config 写入无文件锁，GRO-164）、Finding #5（Privacy 缺少 remove-excluded-app，GRO-165）。
+- [`docs/security/audit-2026-06-15.md`](../security/audit-2026-06-15.md) — Codex 设计缺陷审查（2026-06-15）的正式留档（原始 superpowers 审计产物未入库），涉及 Dashboard 的发现：Finding #1（config reveal API 全量 secret 暴露，GRO-162）、Finding #2（Logs API 读取整个文件到内存，GRO-161）、Finding #4（config 写入无文件锁，GRO-164）、Finding #5（Privacy 缺少 remove-excluded-app，GRO-165）。
 
 ## 实现参考（非规范性）
 

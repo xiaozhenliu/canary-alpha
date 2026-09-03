@@ -1,27 +1,27 @@
 ---
-doc_version: 6
+doc_version: 10
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-02
 ---
 
-# canary-alpha-mcp
+# computer-history-mcp
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp)
-[![文档站](https://img.shields.io/badge/文档-站点-blue)](https://xiaozhenliu.github.io/canary-alpha/zh/)
+[![MCP: Streamable HTTP](https://img.shields.io/badge/MCP-Streamable_HTTP-6f42c1)](https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/generic-mcp)
+[![文档站](https://img.shields.io/badge/文档-站点-blue)](https://xiaozhenliu.github.io/computer-history-mcp/zh/)
 
 **一个本地优先的 MCP server，把 Screenpipe 历史转化为可检索、可控制隐私的 AI agent 记忆。**
 
-`canary-alpha-mcp` 将工作活动记录、长期记忆、本地文件分析、隐私控制和运行状态诊断封装成标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。服务在本机运行，派生数据保存在本地，并通过仅监听回环地址的 Streamable HTTP 端点供 MCP 客户端调用。
+`computer-history-mcp` 将工作活动记录、长期记忆、本地文件分析、隐私控制和运行状态诊断封装成标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。服务在本机运行，派生数据保存在本地，并通过仅监听回环地址的 Streamable HTTP 端点供 MCP 客户端调用。
 
-任何兼容 MCP 且支持连接 `http://127.0.0.1:18765/mcp` 的客户端都可以使用它。初始化流程也会自动配置 [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes)。
+任何兼容 MCP 且支持连接 `http://127.0.0.1:18765/mcp` 的客户端都可以使用它。初始化流程也会自动配置 [Hermes](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/hermes)。
 
-## 为什么使用 canary-alpha-mcp？
+## 为什么使用 computer-history-mcp？
 
-当 AI agent 能够恢复真实工作上下文时，它会更有用；但这不代表必须把完整活动记录发送给托管服务。`canary-alpha-mcp` 把记忆层保留在本地，并提供聚焦的 MCP 接口：
+当 AI agent 能够恢复真实工作上下文时，它会更有用；但这不代表必须把完整活动记录发送给托管服务。`computer-history-mcp` 把记忆层保留在本地，并提供聚焦的 MCP 接口：
 
 - 从已捕获的屏幕活动中检索证据片段。
 - 回顾工作会话，并汇总有限时间窗口。
@@ -31,10 +31,11 @@ last_updated: 2026-06-16
 
 ## 功能特性
 
-- **本地优先设计**：托管 HTTP 模式仅绑定 `127.0.0.1`，派生数据保存在 `~/.canary-alpha-mcp/`。
+- **本地优先设计**：托管 HTTP 模式仅绑定 `127.0.0.1`，派生数据保存在 `~/.computer-history-mcp/`。
 - **工作活动检索**：通过 `find`、`recall` 和 `inspect` 完成关键词、语义和混合检索。
 - **长期记忆持久化**：使用独立的 `memory` 和 `user` scope 读写本地记忆。
 - **隐私控制**：暂停或恢复采集、排除应用、删除时间范围，并使用更安全的默认参数启动 Screenpipe。
+- **OCR 识别语言可配置**：可选择录制进程使用的识别语言（`capture.ocrLanguages`）——默认仅英文，设为 `[chinese, english]` 即启用中文优先采集。详见[配置文档](https://xiaozhenliu.github.io/computer-history-mcp/zh/reference/configuration)。
 - **Provider 配置化**：可用时默认使用本地 Ollama，也可以配置任意 OpenAI-compatible embedding endpoint。
 - **运行状态可观测**：检查采集健康状态、摄取比例、磁盘预算告警和索引恢复状态。
 - **Prompt 驱动的 Routines**：通过自然语言 prompt 加 cron 表达式调度定期任务——执行器检索相关屏幕证据并调用配置的 LLM 生成定制简报，未配置 LLM 时自动降级为确定性摘要。
@@ -46,24 +47,18 @@ last_updated: 2026-06-16
 
 - macOS
 - Node.js 22+
-- 已安装并运行 [Screenpipe](https://screenpi.pe/onboarding)
+- 已安装 [Screenpipe](https://screenpi.pe/onboarding) 并授予所需 macOS 权限
 
-启动 Screenpipe，并确认本地 API 正常：
-
-```bash
-curl http://localhost:3030/health
-```
-
-然后安装并初始化 `canary-alpha-mcp`：
+安装并启动 `computer-history-mcp`：
 
 ```bash
-git clone https://github.com/xiaozhenliu/canary-alpha.git
-cd canary-alpha
+git clone https://github.com/xiaozhenliu/computer-history-mcp.git
+cd computer-history-mcp
 npm install
-npm run onboard
+npm start
 ```
 
-`npm run onboard` 会检查 Screenpipe、配置 embedding provider、写入 `~/.canary-alpha-mcp/config.yaml`、构建 MCP server、启动托管服务、验证 MCP endpoint，并把服务注册到 Hermes。
+`npm start` 是普通用户唯一需要使用的启动入口。它会自动识别首次配置、构建产物缺失和已有安装，并根据本地状态启动 Screenpipe、执行 onboarding、补构建产物或只恢复缺失服务。
 
 默认 MCP endpoint：
 
@@ -71,7 +66,7 @@ npm run onboard
 http://127.0.0.1:18765/mcp
 ```
 
-完整的首次安装流程、Screenpipe 权限说明、更安全的命令行采集默认值和故障排查步骤，请阅读[快速开始指南](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart)。
+完整的首次安装流程、Screenpipe 权限说明、更安全的命令行采集默认值和故障排查步骤，请阅读[快速开始指南](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/quickstart)。
 
 ## MCP 工具
 
@@ -92,7 +87,7 @@ http://127.0.0.1:18765/mcp
 | `routine-create` | 通过 prompt 和 cron 计划创建或更新 routine；省略回溯窗口时自动根据调度频率推断 |
 | `routine-history` | 按名称获取某 routine 的近期执行历史，newest-first 排序 |
 
-输入 schema 和返回结果约定请阅读 [MCP 工具参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools)。
+输入 schema 和返回结果约定请阅读 [MCP 工具参考](https://xiaozhenliu.github.io/computer-history-mcp/zh/reference/tools)。
 
 ## 连接 MCP 客户端
 
@@ -106,18 +101,18 @@ http://127.0.0.1:18765/mcp
 
 ```bash
 hermes mcp list
-hermes mcp test canary-alpha-mcp
+hermes mcp test computer-history-mcp
 ```
 
-其他客户端请参考[通用 MCP 客户端配置](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp)；Hermes 用户请参考 [Hermes 指南](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes)。
+其他客户端请参考[通用 MCP 客户端配置](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/generic-mcp)；Hermes 用户请参考 [Hermes 指南](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/hermes)。
 
 ## 架构
 
-`canary-alpha-mcp` 是一个没有前端的独立 MCP server。它读取本地 Screenpipe 数据，构建本地派生索引，并通过 stdio 和 Streamable HTTP 暴露聚焦的工具接口。
+`computer-history-mcp` 是一个没有前端的独立 MCP server。它读取本地 Screenpipe 数据，构建本地派生索引，并通过 stdio 和 Streamable HTTP 暴露聚焦的工具接口。
 
 ```mermaid
 flowchart LR
-  SP["Screenpipe<br/>本地采集"] --> MCP["canary-alpha-mcp<br/>本地 MCP server"]
+  SP["Screenpipe<br/>本地采集"] --> MCP["computer-history-mcp<br/>本地 MCP server"]
   MCP --> DATA["本地派生数据<br/>会话、索引、记忆"]
   CLIENT["兼容 MCP 的 agent"] -->|"stdio 或 127.0.0.1 HTTP"| MCP
 ```
@@ -126,17 +121,17 @@ flowchart LR
 
 ## 文档导航
 
-完整文档请访问 **[xiaozhenliu.github.io/canary-alpha/zh](https://xiaozhenliu.github.io/canary-alpha/zh/)**。
+完整文档请访问 **[xiaozhenliu.github.io/computer-history/zh](https://xiaozhenliu.github.io/computer-history-mcp/zh/)**。
 
 | 文档 | 内容 |
 |------|------|
-| [快速开始](https://xiaozhenliu.github.io/canary-alpha/zh/guide/quickstart) | 首次安装、初始化与验证 |
-| [配置参考](https://xiaozhenliu.github.io/canary-alpha/zh/reference/configuration) | 配置字段与 embedding provider |
-| [控制面板](https://xiaozhenliu.github.io/canary-alpha/zh/reference/dashboard) | 状态监控、配置管理、Routines 与日志的 Web UI |
-| [MCP 工具](https://xiaozhenliu.github.io/canary-alpha/zh/reference/tools) | 工具 schema 与返回约定 |
-| [通用 MCP 客户端](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/generic-mcp) | Streamable HTTP 客户端配置 |
-| [Hermes](https://xiaozhenliu.github.io/canary-alpha/zh/guide/clients/hermes) | Hermes 初始化与验证 |
-| [故障排查](https://xiaozhenliu.github.io/canary-alpha/zh/guide/troubleshooting) | 服务、provider、采集与索引恢复 |
+| [快速开始](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/quickstart) | 首次安装、初始化与验证 |
+| [配置参考](https://xiaozhenliu.github.io/computer-history-mcp/zh/reference/configuration) | 配置字段与 embedding provider |
+| [控制面板](https://xiaozhenliu.github.io/computer-history-mcp/zh/reference/dashboard) | 状态监控、配置管理、Routines 与日志的 Web UI |
+| [MCP 工具](https://xiaozhenliu.github.io/computer-history-mcp/zh/reference/tools) | 工具 schema 与返回约定 |
+| [通用 MCP 客户端](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/generic-mcp) | Streamable HTTP 客户端配置 |
+| [Hermes](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/clients/hermes) | Hermes 初始化与验证 |
+| [故障排查](https://xiaozhenliu.github.io/computer-history-mcp/zh/guide/troubleshooting) | 服务、provider、采集与索引恢复 |
 | [架构](docs/architecture.md) | 运行分层、数据流和本地存储 |
 
 ## 社区
@@ -160,7 +155,10 @@ npm test
 
 | 命令 | 用途 |
 |------|------|
-| `npm run onboard` | 配置、构建、启动并验证本地托管服务 |
+| `npm start` | 自动处理首次安装、构建恢复和日常启动 |
+| `npm run onboard` | 高级：强制执行交互式配置和验证流程 |
+| `npm run resume` | 高级：跳过安装检测，恢复已有安装 |
+| `npm run refresh:hermes` | 修改源码后重新构建并重启 MCP、恢复 Screenpipe，再验证 Hermes 真实工具调用 |
 | `npm run service:status` | 检查托管服务和 MCP endpoint 健康状态 |
 | `npm run service:logs` | 查看托管服务日志 |
 | `npm run rebuild-index` | 从本地 Screenpipe 数据重建检索索引 |

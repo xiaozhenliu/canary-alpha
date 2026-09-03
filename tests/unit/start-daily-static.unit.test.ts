@@ -58,6 +58,18 @@ describe('start-daily.js orchestration', () => {
 });
 
 describe('package.json daily-use scripts', () => {
+  it('exposes `start` as the state-aware universal entry point', () => {
+    expect(PACKAGE.scripts.start).toBe('node scripts/start-local.js');
+  });
+
+  it('exposes `resume` for a no-build, idempotent stack bring-up', () => {
+    expect(PACKAGE.scripts.resume).toBe('node scripts/resume-stack.js');
+  });
+
+  it('exposes `refresh:hermes` for source refresh and real Hermes verification', () => {
+    expect(PACKAGE.scripts['refresh:hermes']).toBe('node scripts/refresh-hermes.js');
+  });
+
   it('exposes `up` pointing at the orchestrator', () => {
     expect(PACKAGE.scripts.up).toBe('node scripts/start-daily.js');
   });

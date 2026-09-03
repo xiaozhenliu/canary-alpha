@@ -4,17 +4,17 @@ doc_status: active
 last_updated: 2026-06-01
 ---
 
-# Contributing to canary-alpha-mcp
+# Contributing to computer-history-mcp
 
-Thank you for helping improve `canary-alpha-mcp`. Contributions of all sizes
+Thank you for helping improve `computer-history-mcp`. Contributions of all sizes
 are welcome, including bug reports, documentation fixes, tests, and focused
 feature proposals.
 
 ## Before You Start
 
 - Search existing issues before opening a new one.
-- Use the [bug report](https://github.com/xiaozhenliu/canary-alpha/issues/new?template=bug_report.yml)
-  or [feature request](https://github.com/xiaozhenliu/canary-alpha/issues/new?template=feature_request.yml)
+- Use the [bug report](https://github.com/xiaozhenliu/computer-history-mcp/issues/new?template=bug_report.yml)
+  or [feature request](https://github.com/xiaozhenliu/computer-history-mcp/issues/new?template=feature_request.yml)
   form when appropriate.
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Report vulnerabilities privately as described in the
@@ -46,7 +46,7 @@ npm run dev:stdio
 npm run dev:http
 ```
 
-See the [Quickstart guide](https://xiaozhenliu.github.io/canary-alpha/guide/quickstart) for onboarding and managed
+See the [Quickstart guide](https://xiaozhenliu.github.io/computer-history-mcp/guide/quickstart) for onboarding and managed
 service setup.
 
 ## Contribution Workflow

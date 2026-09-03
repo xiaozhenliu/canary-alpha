@@ -30,7 +30,7 @@ describe('service:stop script', () => {
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
-    const plistPath = join(launchAgentsDir, 'com.canary-alpha-mcp.plist');
+    const plistPath = join(launchAgentsDir, 'com.computer-history-mcp.plist');
 
     await mkdir(launchAgentsDir, { recursive: true });
     await mkdir(fakeBinDir, { recursive: true });

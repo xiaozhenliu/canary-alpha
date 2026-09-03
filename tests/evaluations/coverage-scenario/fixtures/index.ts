@@ -89,7 +89,7 @@ export const IDE_RECORDS: ScreenpipeRecord[] = buildSegment({
   baseIso: IDE_BASE,
   durationSeconds: IDE_DURATION,
   appName: 'Code',
-  windowName: 'design.ts — canary-alpha-mcp',
+  windowName: 'design.ts — computer-history-mcp',
   texts: [
     'function buildSearchUrl(baseUrl: string, request: ScreenpipeSearchRequest, contentType: ScreenpipeContentType): URL {',
     '  const url = buildScreenpipeUrl(baseUrl, "search");',
@@ -116,10 +116,10 @@ export const TERMINAL_RECORDS: ScreenpipeRecord[] = buildSegment({
   baseIso: TERMINAL_BASE,
   durationSeconds: TERMINAL_DURATION,
   appName: 'Terminal',
-  windowName: 'xz@host: ~/Projects/canary-alpha-mcp',
+  windowName: 'xz@host: ~/Projects/computer-history-mcp',
   texts: [
     '$ npm run eval:coverage',
-    '> canary-alpha-mcp@1.0.0 eval:coverage',
+    '> computer-history-mcp@1.0.0 eval:coverage',
     '> tsx tests/evaluations/coverage-scenario/run.ts',
     'Starting Coverage_Evaluation_Scenario...',
     'Indexing fixture records...',
@@ -226,14 +226,14 @@ export const FIXTURE_SEGMENTS: FixtureSegmentMeta[] = [
   {
     category: 'IDE',
     appName: 'Code',
-    windowName: 'design.ts — canary-alpha-mcp',
+    windowName: 'design.ts — computer-history-mcp',
     durationSeconds: IDE_DURATION,
     records: IDE_RECORDS
   },
   {
     category: 'Terminal',
     appName: 'Terminal',
-    windowName: 'xz@host: ~/Projects/canary-alpha-mcp',
+    windowName: 'xz@host: ~/Projects/computer-history-mcp',
     durationSeconds: TERMINAL_DURATION,
     records: TERMINAL_RECORDS
   },

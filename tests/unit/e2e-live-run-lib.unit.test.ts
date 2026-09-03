@@ -113,7 +113,7 @@ describe('evaluateIndexReadiness', () => {
 });
 
 describe('classifyHermesOutcome', () => {
-  const okTranscript = `${RECALL_TOOL_MARKER}\nDuring that window you mainly worked in VS Code on canary-alpha-mcp.`;
+  const okTranscript = `${RECALL_TOOL_MARKER}\nDuring that window you mainly worked in VS Code on computer-history-mcp.`;
 
   it('passes when tool marker present, chat succeeded, answer substantive', () => {
     expect(classifyHermesOutcome({ transcript: okTranscript, chatFailed: false }))
@@ -148,7 +148,7 @@ describe('classifyHermesOutcome', () => {
   });
 
   it('passes when only the find tool marker is present', () => {
-    const transcript = `${FIND_TOOL_MARKER}\nYou were reading the canary-alpha-mcp repo in a terminal.`;
+    const transcript = `${FIND_TOOL_MARKER}\nYou were reading the computer-history-mcp repo in a terminal.`;
     expect(classifyHermesOutcome({ transcript, chatFailed: false }))
       .toEqual({ outcome: 'pass', failureMode: 'none' });
   });

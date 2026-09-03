@@ -20,7 +20,7 @@
  * substitute a stub.
  */
 
-import { GenericHeuristicRule } from './generic.js';
+import { GenericHeuristicRule, UniversalStructuredExtractor } from './generic.js';
 import { TerminalRefinementRule } from './terminal.js';
 import type {
   ExtractionInput,
@@ -59,25 +59,25 @@ export class DefaultExtractionRegistry implements ExtractionRegistry {
         return rule.extract(input);
       }
     }
-    // The factory always installs `GenericHeuristicRule` last and that
+    // The factory always installs `UniversalStructuredExtractor` last and that
     // rule's `matches` is the constant `true`, so this branch is
     // unreachable in production. We throw rather than return a bare
     // object so a future contributor cannot accidentally break the
     // Coverage invariant by constructing a registry without a generic
     // tail rule and then silently emitting partial records.
     throw new Error(
-      'ExtractionRegistry: no rule matched. The chain MUST end with a guaranteed-match rule (e.g. GenericHeuristicRule).'
+      'ExtractionRegistry: no rule matched. The chain MUST end with a guaranteed-match rule (e.g. UniversalStructuredExtractor or GenericHeuristicRule).'
     );
   }
 }
 
 /**
  * Production-wiring factory. Builds the canonical chain
- * `[TerminalRefinementRule, GenericHeuristicRule]` (refinement first,
- * generic last).
+ * `[TerminalRefinementRule, UniversalStructuredExtractor]` (refinement first,
+ * universal structured extractor last).
  *
  * Adding a new refinement rule in the future means inserting it before
- * `GenericHeuristicRule` in this list — the consumer-facing
+ * `UniversalStructuredExtractor` in this list — the consumer-facing
  * `ExtractionRegistry` interface does not change, and downstream
  * components (`Session_Aggregator`, `Embedding_Service`,
  * `ExtractedContentStore`) keep working.
@@ -85,6 +85,6 @@ export class DefaultExtractionRegistry implements ExtractionRegistry {
 export function createExtractionRegistry(): ExtractionRegistry {
   return new DefaultExtractionRegistry([
     new TerminalRefinementRule(),
-    new GenericHeuristicRule()
+    new UniversalStructuredExtractor()
   ]);
 }

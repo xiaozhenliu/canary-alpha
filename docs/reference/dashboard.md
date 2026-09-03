@@ -6,7 +6,7 @@ last_updated: 2026-06-15
 
 # Dashboard
 
-`canary-alpha-mcp` ships an embedded web dashboard for local operators. It provides browser-based status monitoring, configuration management, routines control, activity browsing, privacy management, and log viewing — all without leaving your browser.
+`computer-history-mcp` ships an embedded web dashboard for local operators. It provides browser-based status monitoring, configuration management, routines control, activity browsing, privacy management, and log viewing — all without leaving your browser.
 
 The dashboard is **not** a product feature surface. It does not replace MCP tools for agent use. It is an operator-facing management panel that visualizes and interacts with the same underlying services that MCP tools expose.
 

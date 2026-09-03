@@ -3,14 +3,18 @@
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ensureAppHomeReady, inspectAppHomeMigrationState } from './app-home-migration.js';
+import { uninstallLegacyManagedService } from './legacy-service.js';
 import {
   ensureAppDirectories,
   ensureDependenciesInstalled,
   ensureSupportedNodeVersion,
+  migrateLegacyHermesServerRegistration,
   resolveAppPaths,
   writeConfigYamlFile
 } from './onboarding-config.js';
 import { detectHermes } from './hermes-detector.js';
+import { hasCompletedOnboarding, markOnboardingComplete } from './onboarding-state.js';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
@@ -30,12 +34,29 @@ async function ensureConfigFile() {
 async function main() {
   ensureSupportedNodeVersion();
 
+  const conflictCheck = inspectAppHomeMigrationState();
+  if (conflictCheck.status === 'both-present') {
+    throw new Error(
+      `Both ${conflictCheck.legacyDirectory} and ${conflictCheck.targetDirectory} exist. Resolve the conflict manually before continuing.`
+    );
+  }
+  const alreadyOnboarded = hasCompletedOnboarding();
+  uninstallLegacyManagedService();
+  const migration = await ensureAppHomeReady({ failOnConflict: true });
+  if (alreadyOnboarded) {
+    await markOnboardingComplete();
+  }
+  await migrateLegacyHermesServerRegistration();
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);
   const createdConfig = await ensureConfigFile();
   const hermesDetection = await detectHermes();
 
-  console.log('canary-alpha-mcp setup complete.');
+  console.log('computer-history-mcp setup complete.');
   console.log(`- repo: ${repositoryRoot}`);
+  if (migration.status === 'migrated') {
+    console.log(`- app home migrated from ${migration.legacyDirectory}`);
+    console.log(`- migration backup: ${migration.backupDirectory}`);
+  }
   console.log(`- config: ${paths.configPath}${createdConfig ? ' (created)' : ' (kept existing)'}`);
   console.log(`- logs: ${paths.logDirectory}`);
   console.log(`- routines definitions: ${paths.routinesDefinitionsDirectory}`);
@@ -51,12 +72,9 @@ async function main() {
   }
   console.log('');
   console.log('Next steps:');
-  console.log('1. Start Screenpipe if it is not already running: npm run screenpipe:safe-record');
-  console.log('2. Run npm run onboard for the default-first interactive setup, build, and service start flow.');
-  console.log('3. Or review config.yaml manually if you want to customize endpoints before starting the service yourself.');
-  console.log('4. Run npm run build.');
-  console.log('5. Run npm run service:start.');
-  console.log('6. Check npm run service:status and npm run service:logs.');
+  console.log('1. Run npm start; it selects onboarding, build recovery, or fast resume automatically.');
+  console.log('2. Review config.yaml first only if you want to customize endpoints.');
+  console.log('3. For targeted maintenance, use npm run service:status or npm run service:logs.');
 }
 
 await main();

@@ -141,7 +141,7 @@ export function registerInspectTool(server: McpServer, app: AppContext): void {
           content: [
             {
               type: 'text',
-              text: '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+              text: '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
             }
           ],
           structuredContent: {
@@ -149,7 +149,7 @@ export function registerInspectTool(server: McpServer, app: AppContext): void {
             session: null,
             evidence: [],
             narrativeText:
-              '派生数据当前不可访问，请检查 ~/.canary-alpha-mcp/derived.sqlite。'
+              '派生数据当前不可访问，请检查 ~/.computer-history-mcp/derived.sqlite。'
           }
         };
       }

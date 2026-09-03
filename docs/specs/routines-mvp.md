@@ -1,12 +1,12 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: deprecated
-last_updated: 2026-06-14
+last_updated: 2026-06-22
 ---
 
 # Spec: Routines MVP（剩余范围）
 
-> **状态：已完成。** 本 spec 的全部需求（ROUT-01 ~ ROUT-08、ROUT-11 ~ ROUT-12）与验收标准已于 2026-06-14 交付。A 组（持久化）于 2026-05-25 随 GSD Phase 7 交付；B 组（调度执行）、C 组（MCP 工具）、D 组（交付验证）于 2026-06-14 完成，版本 `2.4.0` 发布。关键交付物：`RoutineSchedulerService`（调度、no-overlap、`daily_summary`）、`routine-list` / `routine-create` / `routine-history` MCP 工具、`docs/delivery/routines.md` 交付文档、TD-005 与 TD-007 一并收敛。
+> **状态：已完成。** 本 spec 的全部需求（ROUT-01 ~ ROUT-08、ROUT-11 ~ ROUT-12）与验收标准已于 2026-06-14 交付。A 组（持久化）于 2026-05-25 随 GSD Phase 7 交付；B 组（调度执行）、C 组（MCP 工具）、D 组（交付验证）于 2026-06-14 完成，版本 `2.4.0` 发布。关键交付物：`RoutineSchedulerService`（调度、no-overlap、`daily_summary`）、`routine-list` / `routine-create` / `routine-history` MCP 工具、`docs/guide/routines.md` 交付文档、TD-005 与 TD-007 一并收敛。
 
 ## 背景
 

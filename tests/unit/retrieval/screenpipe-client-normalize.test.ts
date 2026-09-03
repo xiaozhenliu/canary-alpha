@@ -26,11 +26,14 @@ afterAll(async () => {
   }
 });
 
-async function startServer(payload: unknown): Promise<{ url: string }> {
-  const server = createServer((_req, res) => {
+async function startServer(
+  payload: unknown | ((requestUrl: URL) => unknown)
+): Promise<{ url: string }> {
+  const server = createServer((req, res) => {
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify(payload));
+    const requestUrl = new URL(req.url ?? '/', 'http://127.0.0.1');
+    res.end(JSON.stringify(typeof payload === 'function' ? payload(requestUrl) : payload));
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -63,7 +66,7 @@ describe('normalizeScreenpipeRecord — flat response shape', () => {
           text: 'hello world',
           timestamp: '2026-01-01T00:00:00.000Z',
           app_name: 'Code',
-          window_name: 'design.ts — canary-alpha-mcp',
+          window_name: 'design.ts — computer-history-mcp',
           frame_id: 7
         }
       ]
@@ -74,7 +77,34 @@ describe('normalizeScreenpipeRecord — flat response shape', () => {
 
     expect(records).toHaveLength(1);
     expect(records[0].frameId).toBe(7);
-    expect(records[0].windowName).toBe('design.ts — canary-alpha-mcp');
+    expect(records[0].windowName).toBe('design.ts — computer-history-mcp');
+  });
+
+  it('preserves a complete accessibility tree when the response includes it', async () => {
+    const tree = {
+      role: 'AXWindow',
+      title: 'Slack',
+      children: [{ role: 'AXHeading', title: '#incident' }]
+    };
+    const { url } = await startServer({
+      data: [
+        {
+          id: 'elem:43',
+          text: 'message body',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          app_name: 'Slack',
+          window_name: 'Slack',
+          frame_id: 8,
+          accessibility_tree_json: tree
+        }
+      ]
+    });
+
+    const client = createScreenpipeClient(url);
+    const records = await client.search({});
+
+    expect(records).toHaveLength(1);
+    expect(records[0].accessibilityTreeJson).toBe(JSON.stringify(tree));
   });
 
   it('degrades to undefined when frame_id is absent — no error thrown', async () => {
@@ -189,6 +219,71 @@ describe('normalizeScreenpipeRecord — nested OCR content shape', () => {
     expect(records[0].windowName).toBeUndefined();
     // id falls back to 'frame:unknown:0'
     expect(records[0].id).toBe('frame:unknown:0');
+  });
+});
+
+describe('normalizeScreenpipeRecord — AX tree-only content shape', () => {
+  it('keeps an accessibility record when the complete tree has no flattened text', async () => {
+    const tree = {
+      role: 'AXWindow',
+      title: 'Slack',
+      children: [{ role: 'AXHeading', title: '#incident' }]
+    };
+    const { url } = await startServer([
+      {
+        type: 'ACCESSIBILITY',
+        content: {
+          frame_id: 88,
+          offset_index: 0,
+          timestamp: '2026-01-04T00:00:00.000Z',
+          app_name: 'Slack',
+          accessibility_tree_json: tree
+        }
+      }
+    ]);
+
+    const client = createScreenpipeClient(url);
+    const records = await client.search({});
+
+    expect(records).toHaveLength(1);
+    expect(records[0].text).toBe('');
+    expect(records[0].frameId).toBe(88);
+    expect(records[0].accessibilityTreeJson).toBe(JSON.stringify(tree));
+  });
+
+  it('keeps OCR when an empty AX placeholder would otherwise win by frame id', async () => {
+    const { url } = await startServer((requestUrl: URL) => {
+      if (requestUrl.searchParams.get('content_type') === 'accessibility') {
+        return [{
+          type: 'ACCESSIBILITY',
+          content: {
+            frame_id: 89,
+            offset_index: 0,
+            timestamp: '2026-01-04T00:00:00.000Z',
+            app_name: 'Slack',
+            text: '',
+            accessibility_tree_json: {}
+          }
+        }];
+      }
+      return [{
+        type: 'OCR',
+        content: {
+          frame_id: 89,
+          offset_index: 0,
+          timestamp: '2026-01-04T00:00:00.000Z',
+          app_name: 'Slack',
+          text: 'OCR body'
+        }
+      }];
+    });
+
+    const client = createScreenpipeClient(url);
+    const records = await client.search({});
+
+    expect(records).toHaveLength(1);
+    expect(records[0].text).toBe('OCR body');
+    expect(records[0].sourceTypes).toEqual(['ocr']);
   });
 });
 

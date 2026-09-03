@@ -25,7 +25,7 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
 const evidenceDirectory = join(repositoryRoot, '.planning', 'evaluations', 'v1-hermes');
 const hermesCommand = 'hermes';
-const hermesServerName = 'canary-alpha-mcp-v1-evals';
+const hermesServerName = 'computer-history-mcp-v1-evals';
 
 function fail(message, code = 1) {
   console.error(message);
@@ -82,7 +82,7 @@ function buildIsolatedHermesConfig(endpoint) {
 }
 
 async function createIsolatedHermesHome(endpoint) {
-  const tempHome = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-hermes-'));
+  const tempHome = await mkdtemp(join(testTempRoot(), 'computer-history-mcp-v1-evals-hermes-'));
   await ensureDirectory(join(tempHome, '.hermes'));
   await writeFile(join(tempHome, '.hermes', 'config.yaml'), buildIsolatedHermesConfig(endpoint), 'utf8');
   return tempHome;
@@ -94,7 +94,7 @@ function buildFixtureRecords() {
 }
 
 async function setupControlledEnvironment() {
-  const homeDir = await mkdtemp(join(testTempRoot(), 'canary-alpha-mcp-v1-evals-'));
+  const homeDir = await mkdtemp(join(testTempRoot(), 'computer-history-mcp-v1-evals-'));
   const port = 8791;
 
   const screenpipe = await startScreenpipeStub({
@@ -112,7 +112,7 @@ async function setupControlledEnvironment() {
     port
   });
 
-  const checkpointDir = join(homeDir, '.canary-alpha-mcp');
+  const checkpointDir = join(homeDir, '.computer-history-mcp');
   await ensureDirectory(checkpointDir);
   await writeFile(
     join(checkpointDir, 'retrieval-checkpoint.screenpipe.json'),
@@ -123,7 +123,7 @@ async function setupControlledEnvironment() {
     'utf8'
   );
 
-  const memoryDirectory = join(homeDir, '.canary-alpha-mcp', 'memory');
+  const memoryDirectory = join(homeDir, '.computer-history-mcp', 'memory');
   await ensureDirectory(memoryDirectory);
   await writeFile(join(memoryDirectory, 'memory.md'), 'seed-memory-prefix', 'utf8');
 

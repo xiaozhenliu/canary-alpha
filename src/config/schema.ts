@@ -19,7 +19,9 @@ const loggingConfigSchema = z.object({
 
 const screenpipeConfigSchema = z.object({
   url: z.string().optional(),
-  apiKey: z.string().optional()
+  apiKey: z.string().optional(),
+  binaryPath: z.string().min(1).default('screenpipe'),
+  dataDirectory: z.string().min(1).default('~/.screenpipe')
 });
 
 const embeddingsProviderSchema = z.object({
@@ -47,13 +49,34 @@ const trimConfigSchema = z.object({
   intervalSeconds: z.number().int().positive().default(600)
 });
 
+// Default OCR recognition languages. Single source of truth on the TS side;
+// scripts/screenpipe-safe-record.js (pure JS, cannot import TS) keeps a synced
+// copy — tests assert the two stay identical to prevent drift.
+export const DEFAULT_OCR_LANGUAGES = ['english'] as const;
+
+// screenpipe `Language` CLI names — a commonly-used subset (upstream supports
+// ~76). MUST stay in sync with OCR_LANGUAGE_ALLOWLIST in
+// scripts/screenpipe-safe-record.js (a consistency test guards drift).
+export const ocrLanguageSchema = z.enum([
+  'english', 'chinese', 'japanese', 'korean', 'french', 'german',
+  'spanish', 'russian', 'portuguese', 'italian', 'arabic'
+]);
+
 export const captureConfigSchema = z.object({
   // Which capture provider backs the ingest / inspect / trim / control
   // paths. Adding a new provider = new directory under
   // src/services/capture/providers/ + a new enum member here.
   provider: z.enum(['screenpipe']).default('screenpipe'),
   livenessThresholdSeconds: z.number().int().positive().default(120),
-  permissionsGracePeriodSeconds: z.number().int().nonnegative().default(60)
+  permissionsGracePeriodSeconds: z.number().int().nonnegative().default(60),
+  // OCR recognition languages → `screenpipe record --language <name>` (screenpipe maps each to the
+  // OS OCR engine locale; macOS Apple Vision: zh-Hans/zh-Hant). ORDER MATTERS: Apple Vision uses the
+  // first language as the primary mode (docs/engineering/reports/apple-vision-chinese-ocr-investigation.md §3).
+  // Default English-only preserves existing behavior; ['chinese','english'] enables CJK-primary capture.
+  // .min(1): an empty list is meaningless (you always need ≥1 recognition language) and must not
+  // silently disable OCR languages. Default is a FACTORY (() => fresh array) so a caller mutating the
+  // parsed value cannot pollute the schema's shared default for subsequent parses.
+  ocrLanguages: z.array(ocrLanguageSchema).min(1).default(() => [...DEFAULT_OCR_LANGUAGES])
 });
 
 export const storageConfigSchema = z.object({
@@ -142,7 +165,10 @@ export const appConfigSchema = z.object({
   logging: loggingConfigSchema.default({
     level: 'info'
   }),
-  screenpipe: screenpipeConfigSchema.default({}),
+  screenpipe: screenpipeConfigSchema.default({
+    binaryPath: 'screenpipe',
+    dataDirectory: '~/.screenpipe'
+  }),
   providers: providersConfigSchema.default({
     embeddings: {
       kind: 'openai-compatible',
@@ -160,11 +186,14 @@ export const appConfigSchema = z.object({
   }),
   routines: routinesConfigSchema.default({ enabled: false }),
   trim: trimConfigSchema.default({ enabled: true, intervalSeconds: 600 }),
-  capture: captureConfigSchema.default({
+  capture: captureConfigSchema.default((): z.infer<typeof captureConfigSchema> => ({
     provider: 'screenpipe',
     livenessThresholdSeconds: 120,
-    permissionsGracePeriodSeconds: 60
-  }),
+    permissionsGracePeriodSeconds: 60,
+    // Factory default so the nested ocrLanguages array is freshly allocated per parse
+    // (otherwise every appConfigSchema.parse({}) shares — and can pollute — one array).
+    ocrLanguages: [...DEFAULT_OCR_LANGUAGES]
+  })),
   storage: storageConfigSchema.default({
     diskBudgetBytes: null,
     retentionDays: 7

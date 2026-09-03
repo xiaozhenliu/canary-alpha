@@ -13,7 +13,7 @@ import YAML from 'yaml';
 import { getPackageVersion } from './version.js';
 
 const execFileAsync = promisify(execFile);
-const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
+const APP_DIRECTORY_NAME = '.computer-history-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
@@ -42,7 +42,7 @@ function usage() {
 
 function createClient() {
   return new Client({
-    name: 'canary-alpha-mcp-privacy-control-cli',
+    name: 'computer-history-mcp-privacy-control-cli',
     version: getPackageVersion()
   });
 }

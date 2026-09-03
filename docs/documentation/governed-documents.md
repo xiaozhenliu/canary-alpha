@@ -1,14 +1,14 @@
 ---
-doc_version: 25
+doc_version: 30
 doc_status: active
-last_updated: 2026-06-21
+last_updated: 2026-09-02
 ---
 
 # Governed Documents
 
 ## Purpose
 
-This document defines the formal reader-facing documentation set for `canary-alpha-mcp`.
+This document defines the formal reader-facing documentation set for `computer-history-mcp`.
 
 It is the canonical inventory for documentation governance. Each governed document listed here must stay discoverable, must keep the approved metadata contract, and must have a clear coverage boundary.
 
@@ -23,11 +23,12 @@ Included in governance:
 Excluded from governance:
 
 - `docs/superpowers/**`
+- `docs/archives/**`
 - `.planning/**`
 - execution logs, research notes, and phase artifacts outside `docs/`
 - transient working notes and scratch files
 
-`docs/superpowers/**` is treated as superpowers-generated process output rather than part of the public maintained documentation set.
+`docs/superpowers/**` is treated as superpowers-generated process output rather than part of the public maintained documentation set. `docs/archives/**` holds completed execution plans retained only for historical traceability; do not read it during routine work (see `AGENTS.md`).
 
 ## Document Inventory
 
@@ -85,6 +86,7 @@ Excluded from governance:
 | `docs/documentation/governed-documents.md` | Maintainers and contributors | Canonical documentation governance inventory and scope definition | adequate | none |
 | `docs/engineering/code-standards.md` | Maintainers and contributors | Engineering rules for the v1 codebase | adequate | none |
 | `docs/engineering/release-workflow.md` | Maintainers and release operators | Internal branch roles and the automated development-to-public release workflow | adequate | none |
+| `docs/engineering/public-history-cleanup-result.md` | Maintainers and release operators | Record of public history cleanup attempt, method, and remaining exposure | adequate | none |
 | `docs/engineering/bug-reports/README.md` | Maintainers | Open defect register index (per-defect records under `docs/engineering/bug-reports/`) | adequate | none |
 | `docs/engineering/tech-debt.md` | Maintainers | Structural technical debt register | adequate | none |
 | `docs/delivery/http-service.md` | Operators and integrators | Local HTTP service lifecycle and runtime contract | adequate | none |
@@ -92,11 +94,16 @@ Excluded from governance:
 | `docs/architecture.md` | Maintainers and advanced integrators | Runtime architecture and implementation boundaries | adequate | none |
 | `docs/develop_log.md` | Maintainers | Milestone-oriented development history | adequate | none |
 | `docs/specs/README.md` | Maintainers and contributors | Tool-agnostic backlog index and spec format convention | adequate | none |
+| `docs/specs/recollect-feature-design.md` | Maintainers and contributors | Stable retrieval design: Screenpipe timeline reuse, activity-block semantic/hybrid retrieval, bounded evidence, and Hermes synthesis boundary | adequate | none |
+| `docs/specs/universal-axtree-structured-extraction.md` | Maintainers and contributors | Universal full-window structured visible AXTree extraction and delta deduplication spec | adequate | none |
 | `docs/specs/routines-mvp.md` | Maintainers and contributors | Routines MVP requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/capture-provider-decoupling.md` | Maintainers and contributors | Capture provider decoupling requirements and acceptance criteria (deprecated — completed 2026-06-14) | adequate | none |
 | `docs/specs/retrieval-storage-performance.md` | Maintainers and contributors | Retrieval & storage performance overhaul spec (Problems 1,2,4,5 from BUG-004) | adequate | none |
 | `docs/specs/routines-v2-llm-execution.md` | Maintainers and contributors | Routines v2 — prompt-driven LLM execution (deprecated — delivered v2.7.0) | adequate | none |
 | `docs/specs/routine-delete.md` | Maintainers and contributors | Routine delete spec — MCP tool, Dashboard UI, REST API endpoint | adequate | none |
+| `docs/specs/data-retention-and-storage.md` | Maintainers and contributors | Data retention and configurable storage root directory spec | adequate | none |
+| `docs/specs/capture-configuration-strategy.md` | Maintainers and contributors | Capture configuration strategy and storage dedup under new Screenpipe | adequate | none |
+| `docs/specs/project-rename-computer-history-mcp.md` | Maintainers and release operators | Project identity migration, sanitized public-history release model, and GitHub/Pages cutover | adequate | none |
 | `docs/specs/future-backlog.md` | Maintainers | Draft pool of far-future requirements (routines engine, meetings, calendar) | adequate | none |
 | `docs/security/audit-convention.md` | Maintainers and contributors | Security audit report format, structure, and style convention | adequate | none |
 | `docs/security/audit-2026-06-14.md` | Maintainers | Security audit snapshot — 2026-06-14 full source review | adequate | none |

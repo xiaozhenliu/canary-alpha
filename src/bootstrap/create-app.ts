@@ -1,6 +1,6 @@
 import { existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { PromptDrivenExecutor } from '../services/routines/prompt-driven-executor.js';
 import { FileRoutineStore } from '../services/routines/routine-store.js';
@@ -60,7 +60,7 @@ import type { AppContext } from '../types/app-config.js';
  * existing index progress is preserved for the screenpipe provider.
  */
 export function resolveCheckpointPath(provider: string, vectorStorePath?: string): string {
-  const dir = vectorStorePath ?? join(homedir(), '.canary-alpha-mcp');
+  const dir = vectorStorePath ?? join(homedir(), '.computer-history-mcp');
   const namespaced = join(dir, `retrieval-checkpoint.${provider}.json`);
   const legacy = join(dir, 'retrieval-checkpoint.json');
   // One-shot migration: adopt the pre-namespace checkpoint as the
@@ -168,8 +168,12 @@ export async function createApp(overrides?: {
   logLevel?: AppContext['config']['logging']['level'];
   startIndexingPoller?: boolean;
   vectorStorePath?: string;
+  authToken?: string;
 }): Promise<AppContext> {
   const config = await loadConfig(overrides);
+  if (overrides?.authToken) {
+    config.server.authToken = overrides.authToken;
+  }
   const isManagedHttpService = config.server.mode === 'http'
     && process.env.CANARY_ALPHA_MCP_MANAGED_SERVICE === '1';
   if (config.server.mode === 'http' && config.server.host !== '127.0.0.1') {
@@ -190,6 +194,9 @@ export async function createApp(overrides?: {
   const embeddingProvider = createEmbeddingProvider(config);
   const captureProvider = createCaptureProvider(config);
   const captureClient = captureProvider.client;
+  const captureDirectory = captureProvider.upstreamDatabasePath
+    ? dirname(captureProvider.upstreamDatabasePath)
+    : resolveScreenpipeDirectory();
   const checkpointStore = new FileCheckpointStore(resolveCheckpointPath(captureProvider.capabilities.providerName, resolveVectorStoreDirectory(config.vectorStore)));
   const fileAnalysis = new DefaultFileAnalyzeService();
   const memory = new DefaultMemoryService(
@@ -236,12 +243,15 @@ export async function createApp(overrides?: {
     now: () => new Date(),
     generateSessionId: () => randomUUID()
   });
+  const providerHealth = new ProviderHealthRegistry();
   const embeddingService = new DefaultEmbeddingService({
     embeddingProvider,
     vectorStore,
     hashIndex,
     now: () => new Date(),
-    captureProviderName: captureProvider.capabilities.providerName
+    captureProviderName: captureProvider.capabilities.providerName,
+    providerHealth,
+    logger
   });
 
   // Cascade_Delete coordinator (task 10.1 / 10.2, R9.1). Wired here so
@@ -264,9 +274,9 @@ export async function createApp(overrides?: {
     privacyStore,
     undefined,
     {
-      appDirectory: join(homedir(), '.canary-alpha-mcp'),
+      appDirectory: join(homedir(), '.computer-history-mcp'),
       retrievalArtifactsDirectory: resolveRetrievalArtifactsDirectory(config.vectorStore),
-      screenpipeDirectory: resolveScreenpipeDirectory()
+      screenpipeDirectory: captureDirectory
     },
     cascadeDeleteCoordinator,
     logger
@@ -285,7 +295,8 @@ export async function createApp(overrides?: {
     embeddingProvider,
     vectorStore,
     extractedContentStore,
-    privacyState: privacyStore
+    privacyState: privacyStore,
+    logger
   });
 
   // Read service for the `inspect` MCP tool (task 8.5). Wraps the
@@ -331,14 +342,8 @@ export async function createApp(overrides?: {
   });
 
   // Work-activity observability (task 9.1 / 9.2, design §9). The
-  // `ProviderHealthRegistry` is a process-singleton the embedding /
-  // summary call sites would record into; today none of those sites
-  // is wired (out-of-scope for task 9.2), so the registry surfaces
-  // the documented zero-call default (`status: 'unknown'`, W24).
-  // Construction here keeps the wiring explicit so the eventual
-  // recordOk / recordFailure plumbing can attach without re-shaping
-  // the bootstrap.
-  const providerHealth = new ProviderHealthRegistry();
+  // `ProviderHealthRegistry` is shared across the embedding service and
+  // observability rollup.
   const workActivityObservability = new WorkActivityObservabilityService({
     extractedContentStore,
     sessionStore,
@@ -352,7 +357,8 @@ export async function createApp(overrides?: {
   const services = createServices(config, {
     checkpointStore,
     vectorStore,
-    workActivityObservability
+    workActivityObservability,
+    screenpipeDirectory: captureDirectory
   });
 
   const indexing = createIndexingService({
@@ -364,6 +370,7 @@ export async function createApp(overrides?: {
     maxCatchUpBatches: config.retrieval.maxCatchUpBatches,
     maxCatchUpRecords: config.retrieval.maxCatchUpRecords,
     privacyState: privacyStore,
+    captureFrameDetail: captureProvider.frameDetail,
     // Pass through the privacy slice so `IndexingService` can honour
     // `config.privacy.secureAxRoles` (otherwise it falls back to the
     // hard-coded `['AXSecureTextField']` default and ignores user
@@ -374,8 +381,10 @@ export async function createApp(overrides?: {
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
+    sessionStore,
     embeddingService,
     embeddingConcurrency: config.providers.embeddings.concurrency ?? DEFAULT_EMBEDDING_CONCURRENCY,
+    sessionIdleThresholdSeconds: config.analysis.sessions.idleThresholdSeconds,
     captureProviderName: captureProvider.capabilities.providerName
   });
   const retrieval = {

@@ -174,7 +174,7 @@ function createConfig(): AppConfig {
       historyPath: join(fixtureRoot, 'routines', 'history')
     },
     trim: { enabled: true, intervalSeconds: 600 },
-    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
     storage: { diskBudgetBytes: null, retentionDays: 7 },
     privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
     analysis: {

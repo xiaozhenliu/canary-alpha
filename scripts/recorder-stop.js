@@ -30,7 +30,7 @@ function sleep(ms) {
 
 async function reportAlreadyStopped() {
   await clearRecorderPid();
-  console.log('canary-alpha-mcp recorder is already stopped.');
+  console.log('computer-history-mcp recorder is already stopped.');
   console.log(`- pid file removed: ${recorderPidPath}`);
 }
 
@@ -57,7 +57,7 @@ async function main() {
     await sleep(POLL_INTERVAL_MS);
     if (!isProcessAlive(pid)) {
       await clearRecorderPid();
-      console.log('canary-alpha-mcp recorder stopped.');
+      console.log('computer-history-mcp recorder stopped.');
       console.log(`- pid file removed: ${recorderPidPath}`);
       return;
     }
@@ -73,7 +73,7 @@ async function main() {
   }
   await sleep(POLL_INTERVAL_MS);
   await clearRecorderPid();
-  console.log('canary-alpha-mcp recorder force-stopped.');
+  console.log('computer-history-mcp recorder force-stopped.');
   console.log(`- pid file removed: ${recorderPidPath}`);
 }
 

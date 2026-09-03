@@ -6,8 +6,8 @@
 //
 // Unlike the foreground recorder (`npm run screenpipe:safe-record` or
 // `npm run up`), this detaches from the terminal so the launching window can be
-// closed. Output is redirected to ~/.canary-alpha-mcp/logs/recorder.log and the
-// PID is written to ~/.canary-alpha-mcp/recorder.pid for later graceful stop.
+// closed. Output is redirected to ~/.computer-history-mcp/logs/recorder.log and the
+// PID is written to ~/.computer-history-mcp/recorder.pid for later graceful stop.
 //
 // The detached child is the same safe-record supervisor used in the foreground,
 // so its graceful-shutdown chain (forward signal to the Screenpipe process
@@ -79,7 +79,7 @@ async function main() {
   // while the recorder keeps running in its own session.
   child.unref();
 
-  console.log('canary-alpha-mcp recorder started in the background.');
+  console.log('computer-history-mcp recorder started in the background.');
   console.log(`- pid: ${child.pid}`);
   console.log(`- args: screenpipe record ${recorderArgs.join(' ')}`);
   console.log(`- log: ${recorderLogPath}`);

@@ -53,6 +53,7 @@ import type {
   ExtractionResult,
   ExtractionRule
 } from './types.js';
+import { UniversalStructuredExtractor } from './universal.js';
 
 // ---------------------------------------------------------------------------
 // AX tree shape
@@ -153,6 +154,7 @@ export class GenericHeuristicRule implements ExtractionRule {
       return {
         frameId: input.frameId,
         frameTimestamp: input.frameTimestamp,
+        ...(input.captureCursor !== undefined ? { captureCursor: input.captureCursor } : {}),
         appName: input.appName,
         contextLabel,
         contextKey,
@@ -168,6 +170,7 @@ export class GenericHeuristicRule implements ExtractionRule {
     return {
       frameId: input.frameId,
       frameTimestamp: input.frameTimestamp,
+      ...(input.captureCursor !== undefined ? { captureCursor: input.captureCursor } : {}),
       appName: input.appName,
       contextLabel,
       contextKey,
@@ -453,3 +456,19 @@ function childrenOf(node: AccessibilityNode): AccessibilityNode[] {
 function sha256Hex(input: string): string {
   return createHash('sha256').update(input).digest('hex');
 }
+
+export {
+  NAV_ROLES,
+  ACTION_ROLES,
+  BODY_ROLES,
+  WINDOW_ROLES,
+  extractUniversalStructuredElements,
+  extractUniversalStructuredText,
+  LineDeltaDeduplicationTransaction,
+  UniversalStructuredExtractor,
+  LineDeltaDeduplicator,
+  type LineDeltaDeduplicationToken,
+  type LineDeltaTransactionResult,
+  type NavigationContextCandidate,
+  type UniversalStructuredElements
+} from './universal.js';

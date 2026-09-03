@@ -6,9 +6,9 @@ last_updated: 2026-06-16
 
 # Introduction
 
-`canary-alpha-mcp` is a local-first MCP server that wraps Screenpipe screen memory, long-term memory, local file analysis, and privacy controls as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs entirely on your machine and exposes a loopback-only Streamable HTTP endpoint (`http://127.0.0.1:18765/mcp`) that any MCP-compatible client can connect to.
+`computer-history-mcp` is a local-first MCP server that wraps Screenpipe screen memory, long-term memory, local file analysis, and privacy controls as standard [Model Context Protocol](https://modelcontextprotocol.io/) tools. It runs entirely on your machine and exposes a loopback-only Streamable HTTP endpoint (`http://127.0.0.1:18765/mcp`) that any MCP-compatible client can connect to.
 
-The problem it solves: AI agents have no memory of what you actually did on your computer. When you ask "what was I working on this morning?" or "find that link I saw yesterday," every conversation starts from scratch. `canary-alpha-mcp` fills that gap by indexing your Screenpipe activity locally and making it queryable through a focused MCP interface — without sending your activity stream to a hosted service.
+The problem it solves: AI agents have no memory of what you actually did on your computer. When you ask "what was I working on this morning?" or "find that link I saw yesterday," every conversation starts from scratch. `computer-history-mcp` fills that gap by indexing your Screenpipe activity locally and making it queryable through a focused MCP interface — without sending your activity stream to a hosted service.
 
 ## How it works
 
@@ -17,7 +17,7 @@ Screenpipe continuously captures your screen activity and stores it locally. Thi
 ```
 Screenpipe daemon
   └─ captures screen activity → ~/.screenpipe/
-       └─ canary-alpha-mcp
+       └─ computer-history-mcp
             ├─ indexes frames (FTS5 + vector embeddings)
             └─ exposes MCP tools: find / recall / inspect / memory / ...
                   └─ any MCP client (Claude Code, Cursor, Hermes, ...)

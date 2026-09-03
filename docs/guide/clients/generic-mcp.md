@@ -6,7 +6,7 @@ last_updated: 2026-06-12
 
 # Generic MCP Client Setup
 
-Use this guide when connecting any MCP-compatible client to the public `canary-alpha-mcp` HTTP endpoint.
+Use this guide when connecting any MCP-compatible client to the public `computer-history-mcp` HTTP endpoint.
 
 ## Official endpoint
 
@@ -74,7 +74,7 @@ Expected result shape:
 - `mode: http`
 - `host: 127.0.0.1`
 - `port: <configured port>`
-- `configFile: ~/.canary-alpha-mcp/config.yaml`
+- `configFile: ~/.computer-history-mcp/config.yaml`
 - `retrieval.recoveryStatus: ready | needs-rebuild | degraded`
 
 ### Retrieval smoke test
@@ -113,7 +113,7 @@ If you are validating Hermes specifically after onboarding, run:
 
 ```bash
 hermes mcp list
-hermes mcp test canary-alpha-mcp
+hermes mcp test computer-history-mcp
 ```
 
 For repeatable release evidence, also run:

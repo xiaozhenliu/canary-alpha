@@ -40,8 +40,8 @@ const execFileAsync = promisify(execFile);
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
-const appDirectory = join(homedir(), '.canary-alpha-mcp');
-const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
+const appDirectory = join(homedir(), '.computer-history-mcp');
+const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.computer-history-mcp.plist');
 
 const SCREENPIPE_BASE_URL = 'http://localhost:3030';
 const BUILD_TIMEOUT_MS = 180_000;
@@ -311,7 +311,7 @@ async function main() {
   if (!existsSync(configPath)) {
     fail('config-missing', { hermesVersion }, [
       `${configPath} not found.`,
-      'Run first: npm run onboard'
+      'Run first: npm start'
     ]);
     return;
   }
@@ -361,7 +361,7 @@ async function main() {
       fail('screenpipe-unhealthy', { hermesVersion }, [
         `Screenpipe did not become healthy within ${SCREENPIPE_START_TIMEOUT_MS / 1_000}s.`,
         'Check macOS Screen Recording / Accessibility permissions, then retry.',
-        'See https://xiaozhenliu.github.io/canary-alpha/guide/quickstart (Step 1).'
+        'See https://xiaozhenliu.github.io/computer-history-mcp/guide/quickstart (Step 1).'
       ]);
       await cleanup();
       return;
@@ -499,7 +499,7 @@ async function main() {
       }, [
         'No frames from the recording window became searchable before the index timeout.',
         'Common causes: macOS Screen Recording permission missing, or the screen was locked during the window (Screenpipe pauses capture while locked).',
-        'See https://xiaozhenliu.github.io/canary-alpha/guide/troubleshooting for diagnosis.'
+        'See https://xiaozhenliu.github.io/computer-history-mcp/guide/troubleshooting for diagnosis.'
       ]);
     } else {
       fail('index-lag', {
@@ -535,7 +535,7 @@ async function main() {
     const chatResult = await execFileAsync('hermes', [
       'chat',
       '--max-turns', '5',
-      '--toolsets', 'canary-alpha-mcp',
+      '--toolsets', 'computer-history-mcp',
       '--query', query
     ], {
       cwd: repositoryRoot,

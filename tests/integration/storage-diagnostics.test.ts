@@ -135,8 +135,8 @@ describe('storage diagnostics', () => {
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const screenpipeDirectory = join(root, '.screenpipe');
-    const appDirectory = join(root, '.canary-alpha-mcp');
-    const retrievalArtifactsDirectory = join(root, '.canary-alpha-mcp', 'chroma');
+    const appDirectory = join(root, '.computer-history-mcp');
+    const retrievalArtifactsDirectory = join(root, '.computer-history-mcp', 'chroma');
 
     await createSqliteFixture(join(screenpipeDirectory, 'db.sqlite'), {
       frames: 12,
@@ -224,8 +224,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -288,8 +288,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -326,8 +326,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -366,8 +366,8 @@ describe('storage diagnostics', () => {
     await execFileAsync('sqlite3', [join(screenpipeDirectory, 'db.sqlite'), statements]);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -395,8 +395,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -426,8 +426,8 @@ describe('storage diagnostics', () => {
     await createCaptureReuseFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -466,8 +466,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -486,8 +486,8 @@ describe('storage diagnostics', () => {
     await createPartialCaptureReuseFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 
@@ -507,8 +507,8 @@ describe('storage diagnostics', () => {
     cleanup.push(() => rm(root, { recursive: true, force: true }));
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory: join(root, '.screenpipe')
     });
 
@@ -531,7 +531,7 @@ describe('storage diagnostics', () => {
 
     const homeDir = join(root, 'home');
     const screenpipeDirectory = join(homeDir, '.screenpipe');
-    const retrievalArtifactsDirectory = join(homeDir, '.canary-alpha-mcp', 'chroma');
+    const retrievalArtifactsDirectory = join(homeDir, '.computer-history-mcp', 'chroma');
 
     await createScreenpipeFixture(screenpipeDirectory);
     await writeSizedFile(join(retrievalArtifactsDirectory, 'vector-store.json'), 17);
@@ -581,8 +581,8 @@ describe('storage diagnostics', () => {
     await createScreenpipeFixture(screenpipeDirectory);
 
     const report = await collectStorageDiagnostics({
-      appDirectory: join(root, '.canary-alpha-mcp'),
-      retrievalArtifactsDirectory: join(root, '.canary-alpha-mcp', 'chroma'),
+      appDirectory: join(root, '.computer-history-mcp'),
+      retrievalArtifactsDirectory: join(root, '.computer-history-mcp', 'chroma'),
       screenpipeDirectory
     });
 

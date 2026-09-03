@@ -52,9 +52,9 @@ import type {
 } from '../../src/services/retrieval/types.js';
 import {
   createIndexingService,
-  hashStringToNumericId,
   type IndexingServiceDependencies
 } from '../../src/services/retrieval/indexing-service.js';
+import { hashStringToNumericId } from '../../src/lib/hash.js';
 import {
   type ExtractionInput,
   type ExtractionRegistry,

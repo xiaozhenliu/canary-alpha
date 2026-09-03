@@ -1,11 +1,10 @@
 {
-  "_comment": "Ground truth for noise-control-center fixture. App: Control Center (macOS system UI). The AX tree contains only AXButton nodes with no substantive text content. Generic heuristic should produce an Empty_Extraction (extractedText = ''). This frame should NOT appear in find results. It still participates in sessionization but contributes no searchable content.",
+  "_comment": "Ground truth for noise-control-center fixture. App: Control Center (macOS system UI). Universal structured extraction keeps the visible window metadata but omits unclassified AXButton chrome. The window metadata remains searchable as a [Window] line.",
   "frame_id": 5001,
-  "extractedText": "",
+  "extractedText": "[Window] Control Center",
   "extractionRuleKind": "generic",
   "contextLabel": "Control Center",
   "contextKey": "control center::control center",
-  "is_empty_extraction": true,
   "session_count": 1,
   "session_boundaries": [
     {
@@ -14,11 +13,11 @@
       "frame_ids": [5001]
     }
   ],
-  "find_hit_frame_ids": [],
+  "find_hit_frame_ids": [5001],
   "find_queries": [
     "Wi-Fi",
     "Bluetooth",
     "Control Center"
   ],
-  "_note": "find_hit_frame_ids is empty because Empty_Extraction frames are not indexed for keyword or semantic search. The frame still creates a session entry but extractedText is '' so it won't match any query."
+  "_note": "AXButton chrome is omitted, but the semantic [Window] metadata is retained and can match the Control Center query."
 }

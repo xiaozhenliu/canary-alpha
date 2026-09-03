@@ -1,0 +1,8 @@
+# Fingerprints for confirmed synthetic test-fixture findings.
+# Format:
+#   <path>:<rule-id>:<line>:<sha256(secret)>
+tests/unit/llm/llm-client.test.ts:generic-api-key:252:fc058ec87437246426b367f0d565841d00d32fca78c94a2930c5779d082b4a5c
+tests/unit/services/remote-llm-redaction.test.ts:generic-api-key:11:8b4544e6deaca964b83cb64bbe436b87013fa8f4c69277063c42f4db63f8904f
+tests/unit/services/remote-llm-redaction.test.ts:generic-api-key:28:5d65648f9c2eb213c0d6decbb9b5bac433b17aa0fc80bf44e99edd5933e0e3d8
+tests/unit/services/remote-llm-redaction.test.ts:generic-api-key:38:c3eba11d54e7b67e2bb43d0fb9768517c683f4076f209507453e50eea61d03d9
+tests/unit/services/remote-llm-redaction.test.ts:github-pat:38:1441df22409fe7a45a5aec19ed865ce3d22e95f70cad324305500059971eb0c5

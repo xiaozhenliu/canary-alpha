@@ -72,7 +72,7 @@ function makeConfig(diskBudgetBytes: number | null = null): AppConfig {
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: false, intervalSeconds: 3600 },
-    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
     storage: { diskBudgetBytes, retentionDays: 7 },
     privacy: { excludeApps: [], secureAxRoles: [] },
     analysis: {

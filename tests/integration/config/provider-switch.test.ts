@@ -54,7 +54,7 @@ describe('embedding provider factory', () => {
           historyPath: join(testTempRoot(), 'provider-switch-openai-routines', 'history')
         },
         trim: { enabled: true, intervalSeconds: 600 },
-        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
         storage: { diskBudgetBytes: null, retentionDays: 7 },
         privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
         analysis: {
@@ -107,7 +107,7 @@ describe('embedding provider factory', () => {
           historyPath: join(testTempRoot(), 'provider-switch-ollama-routines', 'history')
         },
         trim: { enabled: true, intervalSeconds: 600 },
-        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+        capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
         storage: { diskBudgetBytes: null, retentionDays: 7 },
         privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
         analysis: {

@@ -1,5 +1,8 @@
 import type { AddressInfo } from 'node:net';
 
+import type { ocrLanguageSchema } from '../config/schema.js';
+import type { z } from 'zod';
+
 import type { FileAnalyzeService } from '../services/file-analysis/types.js';
 import type { MemoryService } from '../services/memory/types.js';
 import type { ScreenpipeControlService } from '../services/capture/providers/screenpipe/control-service.js';
@@ -30,6 +33,8 @@ import type {
 
 export type ServerMode = 'stdio' | 'http';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+/** OCR recognition language name (screenpipe `Language` CLI name). Derived from the schema enum so the type cannot silently widen to `string`. */
+export type OcrLanguage = z.infer<typeof ocrLanguageSchema>;
 export type StorageArtifactClass =
   | 'screenpipe-sqlite-main'
   | 'screenpipe-sqlite-wal'
@@ -54,6 +59,8 @@ export interface ProviderConfig {
 export interface ScreenpipeConfig {
   url?: string;
   apiKey?: string;
+  binaryPath?: string;
+  dataDirectory?: string;
 }
 
 export interface VectorStoreConfig {
@@ -131,7 +138,7 @@ export interface AppConfig {
     /**
      * Derived SQLite database path used by the work-activity-analysis layer
      * (extracted_content / sessions / embedding_hash_index tables).
-     * Defaults to `~/.canary-alpha-mcp/derived.sqlite`.
+     * Defaults to `~/.computer-history-mcp/derived.sqlite`.
      */
     derivedDatabase: string;
   };
@@ -143,6 +150,7 @@ export interface AppConfig {
     provider: 'screenpipe';
     livenessThresholdSeconds: number;
     permissionsGracePeriodSeconds: number;
+    ocrLanguages: OcrLanguage[];
   };
   storage: {
     diskBudgetBytes: number | null;

@@ -108,7 +108,7 @@ describe('retrieval infrastructure correctness', () => {
         historyPath: join(testTempRoot(), 'retrieval-provider-routines', 'history')
       },
       trim: { enabled: true, intervalSeconds: 600 },
-      capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+      capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
       storage: { diskBudgetBytes: null, retentionDays: 7 },
       privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
       analysis: {
@@ -624,16 +624,16 @@ describe('retrieval infrastructure correctness', () => {
       kind: 'chroma'
     });
 
-    expect(directory.endsWith('/.canary-alpha-mcp')).toBe(true);
+    expect(directory.endsWith('/.computer-history-mcp')).toBe(true);
   });
 
   it('expands a tilde-prefixed vector store path into the user home directory', () => {
     const directory = resolveVectorStoreDirectory({
       kind: 'chroma',
-      path: '~/.canary-alpha-mcp/chroma'
+      path: '~/.computer-history-mcp/chroma'
     });
 
-    expect(directory).toBe(`${homedir()}/.canary-alpha-mcp/chroma`);
+    expect(directory).toBe(`${homedir()}/.computer-history-mcp/chroma`);
   });
 
   it('starts empty instead of seeding production fixture records', async () => {

@@ -1,14 +1,55 @@
 ---
-doc_version: 6
+doc_version: 12
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-02
 ---
 
 # Operations
 
-Day-to-day commands for managing, diagnosing, and maintaining the `canary-alpha-mcp` service.
+Day-to-day commands for managing, diagnosing, and maintaining the `computer-history-mcp` service.
 
-## Daily start (one command)
+## Rename migration from canary-alpha-mcp
+
+Existing installs that still use `~/.canary-alpha-mcp` are migrated automatically by `npm start`, `npm run setup`, and `npm run service:start`:
+
+- If only the legacy directory exists, it is copied to a timestamped backup and renamed to `~/.computer-history-mcp`.
+- If both directories exist, migration stops without overwriting or merging data. Resolve the conflict manually before continuing.
+- Managed service scripts also stop and remove the legacy launchd label `com.canary-alpha-mcp` before installing `com.computer-history-mcp`.
+
+## Universal start
+
+```bash
+npm start
+```
+
+Use `npm start` regardless of whether this is the first run or an existing installation. The command selects the path from local state:
+
+- Config or the onboarding-complete marker is missing: start or reuse Screenpipe, then continue interactive onboarding. This includes a config created by `npm run setup` alone.
+- Onboarding is complete but `dist/src/index.js` is missing: build once, then resume the stack.
+- Onboarding and build output are present: run the fast resume path without rebuilding.
+
+Successful onboarding writes `~/.computer-history-mcp/.onboarding-complete`. For compatibility, an existing managed launchd service is also accepted as evidence of an installation created before this marker existed. Agents do not decide whether a run is “first” or “resume”; the script owns that state transition.
+
+The resume path checks the managed MCP service and Screenpipe in parallel, reuses healthy components, starts only missing components, waits for both endpoints to become healthy, and exits. Agents and normal users should not select `onboard`, `resume`, `service:start`, or `screenpipe:safe-record` themselves; those commands remain available for targeted maintenance.
+
+## Update MCP after changing source code
+
+```bash
+npm run refresh:hermes
+```
+
+Use this command after editing or pulling source code when Hermes must use and verify the new MCP build. It performs one fail-fast sequence:
+
+1. Runs the full project build.
+2. Reinstalls and restarts the launchd-managed MCP service, then waits for its MCP endpoint.
+3. Restores the shared local stack, reusing healthy components and starting Screenpipe only when needed.
+4. Runs `hermes:verify` against the real Hermes configuration and requires a successful `internal-status` tool call.
+
+Success means both the refreshed MCP runtime and the Hermes integration were verified. A non-zero exit identifies the failed stage and prevents later stages from masking it. Hermes itself and its LLM provider must already be configured.
+
+Do not use `npm start` for this task: when valid build output already exists, `npm start` intentionally resumes it without rebuilding. `npm run up -- --detach` rebuilds and restarts the stack, but does not prove that Hermes can call it.
+
+## Build and start the latest source
 
 ```bash
 npm run up                 # Build, start the managed MCP service, and start Screenpipe recording (foreground recorder)
@@ -17,7 +58,7 @@ npm run down               # Stop the managed MCP service (does not stop the rec
 npm run down:all           # Gracefully stop the recorder AND the managed MCP service
 ```
 
-`up` is the everyday bring-up: it compiles the current source (so the service runs the latest code, not a stale `dist/`), starts the launchd-managed MCP service and waits until it is reachable, then ensures Screenpipe is capturing — reusing an already-running instance, or starting the recorder in the foreground otherwise. While the recorder runs in the foreground, press Ctrl-C to stop recording; the MCP service keeps running so an agent can still query already-captured memory. To run the recorder in the background instead (so you can close the terminal), pass `--detach` — see [Background recorder](#background-recorder-close-the-terminal). Stop the service with `npm run down`, or tear the whole stack down with `npm run down:all`.
+`up` compiles the current source (so the service runs the latest code, not a stale `dist/`), starts the launchd-managed MCP service and waits until it is reachable, then ensures Screenpipe is capturing — reusing an already-running instance, or starting the recorder in the foreground otherwise. While the recorder runs in the foreground, press Ctrl-C to stop recording; the MCP service keeps running so an agent can still query already-captured memory. To run the recorder in the background instead (so you can close the terminal), pass `--detach` — see [Background recorder](#background-recorder-close-the-terminal). Stop the service with `npm run down`, or tear the whole stack down with `npm run down:all`.
 
 Screenpipe records continuously (24/7) with a 7-day retention window; there is no fixed recording duration. If a Screenpipe instance is already running, `up` reuses it as-is. To guarantee the recorder runs with this script's intended options instead of whatever an already-running instance was started with, force a clean restart:
 
@@ -27,7 +68,7 @@ npm run up -- --restart-capture   # stop any running Screenpipe, then start a fr
 
 ### Background recorder (close the terminal)
 
-By default `up` starts the recorder in the foreground, so the launching terminal must stay open. Pass `--detach` (alias `--background`) to run the recorder detached instead — output is written to `~/.canary-alpha-mcp/logs/recorder.log` and the terminal is freed:
+By default `up` starts the recorder in the foreground, so the launching terminal must stay open. Pass `--detach` (alias `--background`) to run the recorder detached instead — output is written to `~/.computer-history-mcp/logs/recorder.log` and the terminal is freed:
 
 ```bash
 npm run up -- --detach            # start the stack with the recorder in the background
@@ -41,6 +82,8 @@ npm run recorder:status   # report whether the background recorder is running
 npm run recorder:logs     # tail the recorder log
 npm run recorder:stop     # gracefully stop the recorder (SIGTERM + final maintenance)
 ```
+
+The recorder resolves its executable and storage from `screenpipe.binaryPath` and `screenpipe.dataDirectory`. This lets stable and development binaries coexist without changing the global `screenpipe` symlink. Stop the active recorder before switching either field; a development build should use a separate port and data directory so it cannot migrate or mutate the stable database.
 
 `recorder:stop` sends SIGTERM so the recorder shuts Screenpipe down cleanly and runs a final database-maintenance pass before exiting; it escalates to SIGKILL only if the recorder does not exit within 30 seconds.
 
@@ -70,7 +113,7 @@ npm run down            # stop the managed MCP service and remove its launchd au
 
 `npm run down` on its own stops only the managed MCP service; it leaves the recorder running. Use `down:all` (or follow `down` with `recorder:stop`) for a full teardown.
 
-Use the individual commands below when you want finer control than `up` / `down` / `down:all`.
+Use the individual commands below when you want finer control than `resume` / `up` / `down` / `down:all`.
 
 ## Managing the service
 
@@ -88,6 +131,33 @@ npm run service:logs     # Stream the service log
 ::: tip Dashboard
 When the service is running in HTTP mode, a browser-based management panel is available at `http://127.0.0.1:<port>/`. It provides status monitoring, configuration editing, routines management, activity browsing, privacy controls, and log viewing. See [Dashboard reference](/reference/dashboard) for details.
 :::
+
+## Use the service while developing
+
+Use one Screenpipe recorder and one managed Canary MCP service for normal daily operation. Connect every MCP client to the same HTTP endpoint, normally `http://127.0.0.1:18765/mcp`. Multiple clients can share this endpoint and the same derived index; do not start a separate Canary process for each client.
+
+Canary's derived SQLite database, retrieval checkpoint, privacy state, and runtime files assume a single writer. Do not run two Canary processes against the same `~/.computer-history-mcp` directory. In particular, do not add a stdio configuration that launches another Canary process while the managed HTTP service is running.
+
+Repository tests that exercise capture and embedding boundaries use temporary application directories and local stubs. They do not require a second live Screenpipe or Canary service. For manual development against the real Screenpipe API, stop only the managed Canary service, run the development server, and restore the managed service when finished:
+
+```bash
+npm run service:stop
+npm run dev:http
+
+# After stopping the development server with Ctrl-C:
+npm run service:start
+```
+
+Screenpipe can remain running throughout this workflow. The development server reuses its local API and captured history.
+
+Running two Canary instances concurrently is an advanced, unsupported-by-default workflow. If it is unavoidable, isolate all of the following:
+
+- HTTP port and authentication token
+- application home and `config.yaml`
+- derived SQLite database and vector data
+- retrieval checkpoint, privacy state, runtime registry, routines, and logs
+
+Keep `trim` disabled on the secondary instance, and do not run `privacy-control delete-range` or Screenpipe maintenance from it. Separate derived stores prevent Canary writer conflicts, but both instances still share the same upstream Screenpipe data and would duplicate indexing and embedding work.
 
 ## Diagnostics
 
@@ -125,10 +195,10 @@ Starts any missing local dependencies, records Screenpipe activity for the given
 
 | Path | Contents |
 |------|----------|
-| `~/.canary-alpha-mcp/config.yaml` | Server configuration (embedding provider, port, etc.) |
-| `~/.canary-alpha-mcp/logs/` | Service logs and maintenance run records |
-| `~/.canary-alpha-mcp/routines/definitions/` | Routine definition JSON files (one per routine, slug-named) |
-| `~/.canary-alpha-mcp/routines/history/` | Routine execution history JSON files (one per routine, newest first) |
+| `~/.computer-history-mcp/config.yaml` | Server configuration (embedding provider, port, etc.) |
+| `~/.computer-history-mcp/logs/` | Service logs and maintenance run records |
+| `~/.computer-history-mcp/routines/definitions/` | Routine definition JSON files (one per routine, slug-named) |
+| `~/.computer-history-mcp/routines/history/` | Routine execution history JSON files (one per routine, newest first) |
 | `~/.screenpipe/` | Screenpipe raw capture data (managed by Screenpipe, not this server) |
 
 For details on what gets captured and how to control it, see [Privacy & Data](/reference/privacy).

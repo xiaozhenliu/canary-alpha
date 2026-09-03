@@ -6,9 +6,9 @@ last_updated: 2026-06-16
 
 # 介绍
 
-`canary-alpha-mcp` 是一个本地优先的 MCP 服务，将 Screenpipe 屏幕记忆、长期记忆、本地文件分析和隐私控制封装为标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。它完全运行在本机，通过仅限回环地址的 Streamable HTTP 端点（`http://127.0.0.1:18765/mcp`）供任何兼容 MCP 的客户端接入。
+`computer-history-mcp` 是一个本地优先的 MCP 服务，将 Screenpipe 屏幕记忆、长期记忆、本地文件分析和隐私控制封装为标准 [Model Context Protocol](https://modelcontextprotocol.io/) 工具。它完全运行在本机，通过仅限回环地址的 Streamable HTTP 端点（`http://127.0.0.1:18765/mcp`）供任何兼容 MCP 的客户端接入。
 
-它解决的问题是：AI agent 对你实际在电脑上做的事一无所知。当你问"今天早上我在做什么"或"找一下昨天看到的那个链接"时，每次对话都要从零开始。`canary-alpha-mcp` 通过在本地索引你的 Screenpipe 活动，并通过聚焦的 MCP 接口提供检索能力，填补了这一空缺——而不会把你的活动流发送给任何云端服务。
+它解决的问题是：AI agent 对你实际在电脑上做的事一无所知。当你问"今天早上我在做什么"或"找一下昨天看到的那个链接"时，每次对话都要从零开始。`computer-history-mcp` 通过在本地索引你的 Screenpipe 活动，并通过聚焦的 MCP 接口提供检索能力，填补了这一空缺——而不会把你的活动流发送给任何云端服务。
 
 ## 工作原理
 
@@ -17,7 +17,7 @@ Screenpipe 持续采集你的屏幕活动并存储在本地。本服务读取这
 ```
 Screenpipe 守护进程
   └─ 采集屏幕活动 → ~/.screenpipe/
-       └─ canary-alpha-mcp
+       └─ computer-history-mcp
             ├─ 索引帧数据（FTS5 + 向量嵌入）
             └─ 暴露 MCP 工具：find / recall / inspect / memory / ...
                   └─ 任意 MCP 客户端（Claude Code、Cursor、Hermes ...）

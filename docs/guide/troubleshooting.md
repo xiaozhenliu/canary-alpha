@@ -142,7 +142,7 @@ Retrieval tools fail or return actionable error text.
 `npm run service:logs` prints:
 
 ```text
-No log output found yet under ~/.canary-alpha-mcp/logs/.
+No log output found yet under ~/.computer-history-mcp/logs/.
 ```
 
 ### Meaning
@@ -153,7 +153,7 @@ The service may not have started yet, or it exited before producing output.
 
 - run `npm run service:start`
 - re-run `npm run service:status`
-- check whether `~/.canary-alpha-mcp/logs/` exists
+- check whether `~/.computer-history-mcp/logs/` exists
 
 ## Screenpipe maintenance status is unclear
 
@@ -166,7 +166,7 @@ The service may not have started yet, or it exited before producing output.
 1. Read the maintenance JSONL log:
 
 ```bash
-tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
+tail -n 50 ~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl
 ```
 
 2. Look for `maintenance-run-start`, `maintenance-run-exit`, or `maintenance-run-error`.
@@ -174,7 +174,7 @@ tail -n 50 ~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl
    - `periodic` means the 10-minute background maintenance interval fired while recording continued.
    - `final` means the wrapper ran one last maintenance pass after the recorder exited.
 4. If `screenpipe-maintenance.jsonl` is missing but `npm run screenpipe:safe-record` has not exited or run for at least 10 minutes, wait for the next interval or stop the wrapper cleanly to trigger the final pass.
-5. If the log rotated, inspect `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl.1`.
+5. If the log rotated, inspect `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl.1`.
 
 The active log keeps 7 days of valid JSONL entries and rotates at 1 MB. Malformed or older entries are discarded during the next write.
 
@@ -222,7 +222,7 @@ The process is alive but `frames.timestamp` has not advanced beyond the liveness
 
 `diskBudget.warning` is a non-empty string
 
-The database has exceeded `storage.diskBudgetBytes` and there are no rows older than `storage.retentionDays` left to delete. Either raise the budget in `~/.canary-alpha-mcp/config.yaml` (`storage.diskBudgetBytes`) or shorten the retention window (`storage.retentionDays`).
+The database has exceeded `storage.diskBudgetBytes` and there are no rows older than `storage.retentionDays` left to delete. Either raise the budget in `~/.computer-history-mcp/config.yaml` (`storage.diskBudgetBytes`) or shorten the retention window (`storage.retentionDays`).
 
 **AX / OCR ingestion ratio is severely imbalanced**
 

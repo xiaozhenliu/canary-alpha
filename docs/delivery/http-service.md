@@ -8,7 +8,7 @@ last_updated: 2026-04-16
 
 ## Official runtime shape
 
-Phase 4 delivers `canary-alpha-mcp` as a local resident HTTP service bound to `127.0.0.1`. The official MCP endpoint is:
+Phase 4 delivers `computer-history-mcp` as a local resident HTTP service bound to `127.0.0.1`. The official MCP endpoint is:
 
 - `http://127.0.0.1:<port>/mcp`
 
@@ -33,7 +33,7 @@ For a concise public overview, see `README.md`. For bounded real-agent evidence,
 ## Prerequisites
 
 - Node.js 22+
-- A valid config file at `~/.canary-alpha-mcp/config.yaml`
+- A valid config file at `~/.computer-history-mcp/config.yaml`
 - Screenpipe reachable at the configured `screenpipe.url`
 - An embedding provider reachable at the configured `providers.embeddings.baseUrl`
 
@@ -47,8 +47,8 @@ npm run setup
 
 The setup script creates:
 
-- `~/.canary-alpha-mcp/config.yaml`
-- `~/.canary-alpha-mcp/logs/`
+- `~/.computer-history-mcp/config.yaml`
+- `~/.computer-history-mcp/logs/`
 
 The generated config template defaults to HTTP mode and a local listener.
 

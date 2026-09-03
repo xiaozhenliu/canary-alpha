@@ -163,7 +163,7 @@ describe('onboarding config helpers', () => {
     });
   });
 
-  it('updates an existing Hermes canary-alpha-mcp entry idempotently', () => {
+  it('updates an existing Hermes computer-history-mcp entry idempotently', () => {
     const merged = mergeHermesConfig({
       mcp_servers: {
         [DEFAULT_HERMES_SERVER_NAME]: {
@@ -197,7 +197,7 @@ describe('onboarding config helpers', () => {
       serverName: DEFAULT_HERMES_SERVER_NAME,
       endpoint: 'http://127.0.0.1:18765/mcp'
     });
-    await expect(readFile(paths.configPath, 'utf8')).resolves.toContain('canary-alpha-mcp');
+    await expect(readFile(paths.configPath, 'utf8')).resolves.toContain('computer-history-mcp');
   });
 
   it('fails invalid Hermes YAML without overwriting the original file', async () => {
@@ -242,8 +242,8 @@ describe('onboarding config helpers', () => {
       await expect(onboardModule.detectScreenpipeApiKey()).resolves.toBe('sp-auto-token');
       expect(execFileMock).toHaveBeenCalledTimes(1);
       expect(execFileMock).toHaveBeenCalledWith(
-        'npx',
-        ['screenpipe@latest', 'auth', 'token'],
+        'screenpipe',
+        ['auth', 'token'],
         expect.objectContaining({
           cwd: PROJECT_ROOT,
           env: process.env,
@@ -252,8 +252,8 @@ describe('onboarding config helpers', () => {
         expect.any(Function)
       );
       expect(execFileMock).not.toHaveBeenCalledWith(
-        'npx',
-        expect.arrayContaining(['screenpipe@latest', 'record']),
+        'screenpipe',
+        expect.arrayContaining(['record']),
         expect.anything(),
         expect.anything()
       );
@@ -310,14 +310,14 @@ describe('onboarding config helpers', () => {
         'http://localhost:3030/search?content_type=ocr&limit=1&offset=0'
       ]);
       expect(execFileMock).toHaveBeenCalledWith(
-        'npx',
-        ['screenpipe@latest', 'auth', 'token'],
+        'screenpipe',
+        ['auth', 'token'],
         expect.anything(),
         expect.any(Function)
       );
       expect(execFileMock).not.toHaveBeenCalledWith(
-        'npx',
-        expect.arrayContaining(['screenpipe@latest', 'record']),
+        'screenpipe',
+        expect.arrayContaining(['record']),
         expect.anything(),
         expect.anything()
       );

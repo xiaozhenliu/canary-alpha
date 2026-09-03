@@ -27,7 +27,7 @@ This means:
 
 [Littlebird](https://littlebird.ai/features/routines) (raised $11M, March 2026) offers routines as a core feature of its screen-memory assistant. Key design differences:
 
-| Dimension | Littlebird | canary-alpha-mcp (current) |
+| Dimension | Littlebird | computer-history-mcp (current) |
 |---|---|---|
 | **Prompt role** | The prompt IS the routine — LLM executes it against screen memory | Prompt is stored but ignored by executor |
 | **Schedule UX** | User-facing presets (daily / weekly / monthly); exact UI mechanism unconfirmed | Raw cron expression (acceptable for MCP-server-to-agent use) |

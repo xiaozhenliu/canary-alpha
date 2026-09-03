@@ -1,6 +1,6 @@
 {
-  "name": "canary-alpha-mcp",
-  "version": "2.7.0",
+  "name": "computer-history-mcp",
+  "version": "2.7.3",
   "private": true,
   "type": "module",
   "description": "Local-first MCP server for Screenpipe memory and automation workflows.",
@@ -9,6 +9,7 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "start": "node scripts/start-local.js",
     "build": "tsc -p tsconfig.json && cd dashboard && npm ci && npm run build",
     "build:server": "tsc -p tsconfig.json",
     "build:dashboard": "cd dashboard && npm ci && npm run build",
@@ -22,6 +23,8 @@
     "test:smoke:mcp": "vitest run tests/acceptance/mcp-smoke.test.ts",
     "setup": "node scripts/setup.js",
     "onboard": "node scripts/onboard.js",
+    "resume": "node scripts/resume-stack.js",
+    "refresh:hermes": "node scripts/refresh-hermes.js",
     "up": "node scripts/start-daily.js",
     "down": "node scripts/service-stop.js",
     "down:all": "node scripts/stack-down.js",
@@ -35,6 +38,7 @@
     "test:hermes:phase4": "node scripts/hermes-phase4-smoke.js",
     "test:evaluations:v1": "node --import tsx scripts/hermes-v1-evals.js",
     "linear": "node --import tsx scripts/linear.ts",
+    "source:stats": "node --import tsx scripts/source-stats.ts",
     "screenpipe:safe-record": "node scripts/screenpipe-safe-record.js",
     "recorder:start": "node scripts/recorder-start.js",
     "recorder:stop": "node scripts/recorder-stop.js",

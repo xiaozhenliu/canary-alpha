@@ -8,11 +8,18 @@ build/
 coverage/
 *.tsbuildinfo
 
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Environment files
 .env
 .env.*
 !.env.example
 !.env.*.example
+
+# Local IDE state
+.zed/
 
 # Logs
 *.log
@@ -35,26 +42,54 @@ tmp/
 
 # Local runtime state
 .worktrees/
-.screenpipe-memory-mcp/
 .canary-alpha-mcp/
+.computer-history-mcp/
+.omo/
+.commandcode/
+.screenpipe-memory-mcp/ # legacy local data dir (pre-rename)
 .codex-review/
 .claude/
 .mcp.json
-# Development-only instructions and private product specification
-AGENTS.md
-CLAUDE.md
-PRD_screenpipe_memory_mcp_v4.1.md
+# Retired GSD planning state — kept on disk locally, no longer tracked.
 .planning/
-.kiro/
-.understand-anything/
-docs/superpowers/
-docs/plan/
 
-# AI/agent planning artifacts
-**/plans/
-**/PLAN.md
-**/*-PLAN.md
-**/*_PLAN.md
+# Local Screenpipe development artifacts and private operator notes
+/screenpipe-*.tar.gz
+/screenpipe-*.tar.gz.sha256
+/mlx.metallib
+/docs/engineering/screenpipe-version-development.md
+
+# Experiments — track source/fixtures; ignore secrets, runtime artifacts, and
+# probe dumps (probe_parse_result.json embeds bce-auth signed URLs + access-key id)
+experiments/ocr-compare/results/
+experiments/ocr-compare/logs/
+experiments/ocr-compare/.venv*/
+experiments/ocr-compare/models/
+experiments/ocr-compare/cache/
+experiments/ocr-compare/probe_parse_result.json
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # OS noise
 .DS_Store
+
+# understand-anything: track only the generation inputs (config + ignore rules);
+# ignore all regenerable artifacts (knowledge graph, metadata, intermediate batches,
+# trash, fingerprints, dashboard runtime) — regenerate locally via `understand`.
+.understand-anything/*
+!.understand-anything/config.json
+!.understand-anything/.understandignore
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**
+
+# Local operator release & history rewrite plans
+docs/engineering/public-history-rewrite-plan.md
+.scratch/

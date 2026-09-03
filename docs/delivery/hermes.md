@@ -43,13 +43,13 @@ Use `README.md` for the concise release path and `docs/delivery/http-service.md`
 
 ## User onboarding config
 
-For the normal user path, `npm run onboard` writes or updates `~/.hermes/config.yaml` with the `canary-alpha-mcp` MCP server after the local MCP service validates. It preserves existing Hermes settings and other MCP servers, and it does not call interactive `hermes mcp add`.
+For the normal user path, `npm run onboard` writes or updates `~/.hermes/config.yaml` with the `computer-history-mcp` MCP server after the local MCP service validates. It preserves existing Hermes settings and other MCP servers, and it does not call interactive `hermes mcp add`.
 
 Verify the real user config with:
 
 ```bash
 hermes mcp list
-hermes mcp test canary-alpha-mcp
+hermes mcp test computer-history-mcp
 ```
 
 ## Endpoint
@@ -69,7 +69,7 @@ npm run test:hermes:phase4
 The script:
 
 1. verifies Hermes CLI is installed
-2. reads `~/.canary-alpha-mcp/config.yaml`
+2. reads `~/.computer-history-mcp/config.yaml`
 3. verifies the local HTTP service is reachable at `/mcp`
 4. creates an isolated temporary Hermes home
 5. registers the local MCP server in that isolated config
@@ -117,7 +117,7 @@ If `hermes` is not installed or not on `PATH`, the script fails with an actionab
 The script emits this label for three distinct sub-cases, each with its own next-step hints:
 
 - configuration cannot be loaded — suggests `npm run setup` and `npm run service:status`
-- the configured host is not `127.0.0.1` (non-loopback) — reports the resolved host; no service command is suggested because the fix is editing `~/.canary-alpha-mcp/config.yaml`
+- the configured host is not `127.0.0.1` (non-loopback) — reports the resolved host; no service command is suggested because the fix is editing `~/.computer-history-mcp/config.yaml`
 - the HTTP service is unreachable — suggests `npm run service:start`, `npm run service:status`, and `npm run service:logs`
 
 ### `llm-not-configured`

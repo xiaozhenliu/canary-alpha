@@ -3,7 +3,7 @@
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.canary-alpha-mcp</string>
+    <string>com.computer-history-mcp</string>
 
     <key>ProgramArguments</key>
     <array>

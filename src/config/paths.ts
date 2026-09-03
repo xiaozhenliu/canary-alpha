@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import type { MemoryScope } from '../services/memory/types.js';
 import type { AppConfig } from '../types/app-config.js';
 
-export const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
+export const APP_DIRECTORY_NAME = '.computer-history-mcp';
 export const SCREENPIPE_DIRECTORY_NAME = '.screenpipe';
 export const CONFIG_FILE_NAME = 'config.yaml';
-export const CONFIG_PATH_SEGMENT = '.canary-alpha-mcp/config.yaml';
+export const CONFIG_PATH_SEGMENT = '.computer-history-mcp/config.yaml';
 export const MEMORY_DIRECTORY_NAME = 'memory';
 export const LOG_DIRECTORY_NAME = 'logs';
 export const ROUTINES_DIRECTORY_NAME = 'routines';
@@ -23,8 +23,18 @@ export function resolveAppDirectory(): string {
   return join(homedir(), APP_DIRECTORY_NAME);
 }
 
-export function resolveScreenpipeDirectory(): string {
-  return join(homedir(), SCREENPIPE_DIRECTORY_NAME);
+export function resolveHomePath(configuredPath: string): string {
+  return configuredPath.startsWith('~/')
+    ? join(homedir(), configuredPath.slice(2))
+    : configuredPath;
+}
+
+export function resolveScreenpipeDirectory(configuredPath = `~/${SCREENPIPE_DIRECTORY_NAME}`): string {
+  return resolveHomePath(configuredPath);
+}
+
+export function resolveScreenpipeBinaryPath(configuredPath = 'screenpipe'): string {
+  return resolveHomePath(configuredPath);
 }
 
 export function resolveConfigPath(): string {
@@ -86,16 +96,14 @@ export function resolveRebuildLockPath(vectorStore?: AppConfig['vectorStore']): 
  *
  * Resolution order:
  * 1. Explicit `config.paths.derivedDatabase` (supports `~/...` expansion)
- * 2. Default: `<app dir>/derived.sqlite` (typically `~/.canary-alpha-mcp/derived.sqlite`)
+ * 2. Default: `<app dir>/derived.sqlite` (typically `~/.computer-history-mcp/derived.sqlite`)
  *
  * Accepts a partial config so this helper can be called pre-bootstrap (e.g. CLI tools).
  */
 export function resolveDerivedDatabasePath(config?: { paths?: { derivedDatabase?: string } }): string {
   const configured = config?.paths?.derivedDatabase;
   if (configured && configured.length > 0) {
-    return configured.startsWith('~/')
-      ? join(homedir(), configured.slice(2))
-      : configured;
+    return resolveHomePath(configured);
   }
   return join(resolveAppDirectory(), DERIVED_DATABASE_FILE_NAME);
 }

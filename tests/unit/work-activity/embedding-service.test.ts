@@ -667,4 +667,35 @@ describe('DefaultEmbeddingService.computeEmbedding', () => {
     // Vector store must still be untouched.
     expect(vectorStore.records).toEqual([]);
   });
+
+  it('records health and latency to ProviderHealthRegistry on success and failure', async () => {
+    const { ProviderHealthRegistry } = await import(
+      '../../../src/services/work-activity/observability/provider-health-registry.js'
+    );
+    const health = new ProviderHealthRegistry({ now: () => new Date('2026-05-25T10:00:00.000Z') });
+    const localService = new DefaultEmbeddingService({
+      embeddingProvider: provider,
+      vectorStore,
+      hashIndex,
+      now: () => new Date('2026-05-25T10:00:00.000Z'),
+      captureProviderName: 'screenpipe',
+      providerHealth: health
+    });
+
+    const e = buildExtraction({ frameId: 30, extractedText: 'test health recording' });
+    await localService.computeEmbedding(e);
+
+    expect(health.embedding.status).toBe('ok');
+    expect(health.embedding.lastSuccessAt).toBe('2026-05-25T10:00:00.000Z');
+    expect(typeof health.embedding.lastLatencyMs).toBe('number');
+
+    // Test failure recording
+    provider.embed.mockRejectedValueOnce(new Error('network down'));
+    const failExtraction = buildExtraction({ frameId: 31, extractedText: 'will fail health' });
+    await localService.computeEmbedding(failExtraction);
+
+    expect(health.embedding.status).toBe('unavailable');
+    expect(health.embedding.lastError).toBe('network down');
+    expect(health.embedding.lastErrorAt).toBe('2026-05-25T10:00:00.000Z');
+  });
 });

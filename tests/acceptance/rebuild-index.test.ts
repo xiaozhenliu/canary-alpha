@@ -119,7 +119,7 @@ describe('rebuild-index acceptance', () => {
 
     // Vectors are deleted from the SQLite vectors table by vectorStore.reset()
     // before the rebuild loop. After a failed rebuild the table stays empty.
-    const derivedDb = new DatabaseSync(join(homeDir, '.canary-alpha-mcp', 'derived.sqlite'));
+    const derivedDb = new DatabaseSync(join(homeDir, '.computer-history-mcp', 'derived.sqlite'));
     const row = derivedDb.prepare('SELECT COUNT(*) AS c FROM vectors').get() as { c: number | bigint };
     derivedDb.close();
     expect(Number(row.c)).toBe(0);
@@ -180,7 +180,7 @@ describe('rebuild-index acceptance', () => {
 
     const retrievalStateDir = join(homeDir, 'retrieval-state');
     await mkdir(retrievalStateDir, { recursive: true });
-    await mkdir(join(homeDir, '.canary-alpha-mcp'), { recursive: true });
+    await mkdir(join(homeDir, '.computer-history-mcp'), { recursive: true });
 
     const screenpipe = await startScreenpipeStub({
       records: [
@@ -206,7 +206,7 @@ describe('rebuild-index acceptance', () => {
     });
 
     await writeFile(
-      join(homeDir, '.canary-alpha-mcp', 'privacy-state.json'),
+      join(homeDir, '.computer-history-mcp', 'privacy-state.json'),
       JSON.stringify({ paused: false, excludedApps: ['Claude'], suppressedRanges: [] }, null, 2),
       'utf8'
     );
@@ -234,7 +234,7 @@ describe('rebuild-index acceptance', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-default-app-home-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const memoryDir = join(appDir, 'memory');
     await mkdir(memoryDir, { recursive: true });
 
@@ -521,7 +521,7 @@ describe('rebuild-index acceptance', () => {
       // Keep stderr drained during test.
     });
 
-    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.computer-history-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -687,7 +687,7 @@ describe('rebuild-index acceptance', () => {
       // Keep stderr drained during test.
     });
 
-    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.computer-history-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -980,7 +980,7 @@ describe('rebuild-index acceptance', () => {
       stderr += chunk.toString();
     });
 
-    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.computer-history-mcp', 'runtime-processes');
     const startedAt = Date.now();
     let runtimeMarkers: string[] = [];
     while (Date.now() - startedAt < 10_000) {
@@ -1055,7 +1055,7 @@ describe('rebuild-index acceptance', () => {
     await writeFile(staleMarkerPath, JSON.stringify({
       pid: process.pid,
       mode: 'stdio',
-      configFile: join(homeDir, '.canary-alpha-mcp', 'config.yaml'),
+      configFile: join(homeDir, '.computer-history-mcp', 'config.yaml'),
       registeredAt: '2000-01-01T00:00:00.000Z'
     }, null, 2), 'utf8');
 
@@ -1104,7 +1104,7 @@ describe('rebuild-index acceptance', () => {
     const lockPath = join(retrievalStateDir, 'rebuild-index.lock');
     await writeFile(lockPath, JSON.stringify({
       pid: process.pid,
-      configFile: join(homeDir, '.canary-alpha-mcp', 'config.yaml'),
+      configFile: join(homeDir, '.computer-history-mcp', 'config.yaml'),
       lockedAt: '2000-01-01T00:00:00.000Z'
     }, null, 2), 'utf8');
 
@@ -1338,7 +1338,7 @@ describe('rebuild-index acceptance', () => {
     expect(rebuiltCheckpoint.cursor).toBe('late-legacy-start-record');
 
     // The rebuilt vector record lands in derived.sqlite, not vector-store.json.
-    const db = new DatabaseSync(join(homeDir, '.canary-alpha-mcp', 'derived.sqlite'));
+    const db = new DatabaseSync(join(homeDir, '.computer-history-mcp', 'derived.sqlite'));
     const rows = db.prepare('SELECT id FROM vectors').all() as Array<{ id: string }>;
     db.close();
     expect(rows).toHaveLength(1);
@@ -1376,7 +1376,7 @@ describe('rebuild-index acceptance', () => {
 
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     await mkdir(launchAgentsDir, { recursive: true });
-    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.computer-history-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -1456,7 +1456,7 @@ describe('rebuild-index acceptance', () => {
     expect(structured.pid).toBe(server.pid);
     expect(structured.mode).toBe('http');
     expect(structured.port).toBe(managedPort);
-    expect(structured.configFile).toBe(join(homeDir, '.canary-alpha-mcp', 'config.yaml'));
+    expect(structured.configFile).toBe(join(homeDir, '.computer-history-mcp', 'config.yaml'));
 
     await expect(execFileAsync('npm', ['run', '--silent', 'rebuild-index'], {
       cwd: PROJECT_ROOT,
@@ -1475,7 +1475,7 @@ describe('rebuild-index acceptance', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'rebuild-index-acceptance-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const retrievalStateDir = join(homeDir, 'retrieval-state');
     const memoryDir = join(appDir, 'memory');
     const fixtureTimestamp = '2026-04-13T09:00:00.000Z';

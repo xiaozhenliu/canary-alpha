@@ -648,8 +648,8 @@ const NOISE_WINDOW_NAMES = ['Control Center', 'Notification Center'] as const;
  * These are used to verify that unclassified windows behave the same as substantive ones.
  */
 const SUBSTANTIVE_WINDOW_NAMES = [
-  'design.ts — canary-alpha-mcp',
-  'xz@host: ~/Projects/canary-alpha-mcp',
+  'design.ts — computer-history-mcp',
+  'xz@host: ~/Projects/computer-history-mcp',
   'Linear — LIN-123 accessibility-capture'
 ];
 
@@ -999,7 +999,7 @@ describe('Task 5.2: metadata 持久化 — sourceTypes persisted to VectorStoreR
           text: 'Accessibility text from IDE window',
           timestamp: '2025-06-01T10:00:00.000Z',
           appName: 'Code',
-          windowName: 'design.ts — canary-alpha-mcp',
+          windowName: 'design.ts — computer-history-mcp',
           frameId: 101,
           sourceTypes: ['accessibility']
         },

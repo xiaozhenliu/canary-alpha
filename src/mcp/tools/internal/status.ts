@@ -130,6 +130,38 @@ const screenpipeRecentCaptureReuseSchema = z.object({
   signals: z.array(screenpipeRecentCaptureReuseSignalSchema)
 });
 
+const screenpipeRecentHeavyGrowthTimeSliceSchema = z.object({
+  bucketStart: z.string(),
+  bucketMinutes: z.number().int(),
+  estimatedBytes: z.number().int().nonnegative(),
+  samples: z.number().int().nonnegative(),
+  appName: z.string(),
+  windowName: z.string()
+});
+
+const screenpipeRecentHeavyGrowthSampleSchema = z.object({
+  frameId: z.number().int(),
+  timestamp: z.string(),
+  appName: z.string(),
+  windowName: z.string(),
+  estimatedBytes: z.number().int().nonnegative(),
+  duplicateSignal: z.enum(['duplicate-heavy', 'unique-heavy']),
+  preview: z.string()
+});
+
+const screenpipeRecentHeavyGrowthSchema = z.object({
+  inspectionStatus: z.enum(['ready', 'degraded', 'unavailable']),
+  reason: z.string().optional(),
+  windowMinutes: z.number().int(),
+  sampleLimit: z.number().int(),
+  timeSliceMinutes: z.number().int(),
+  analyzedAt: z.string(),
+  sampledRows: z.number().int().nonnegative(),
+  sampledBytes: z.number().int().nonnegative(),
+  topTimeSlices: z.array(screenpipeRecentHeavyGrowthTimeSliceSchema),
+  topSamples: z.array(screenpipeRecentHeavyGrowthSampleSchema)
+});
+
 const captureStatusSchema = z.object({
   state: z.enum(['ok', 'idle', 'process-down', 'permissions-missing', 'unknown']),
   lastFrameTimestamp: z.string().optional(),
@@ -251,7 +283,8 @@ const captureProviderSchema = z.object({
     accessibilityTree: z.boolean(),
     frameDetail: z.boolean(),
     retentionTrim: z.boolean(),
-    processLifecycle: z.boolean()
+    processLifecycle: z.boolean(),
+    axTreeMaintenance: z.boolean()
   })
 });
 
@@ -283,7 +316,8 @@ const outputSchema = z.object({
     hotspots: screenpipeStorageHotspotsSchema.optional(),
     recentTextDuplication: screenpipeRecentTextDuplicationSchema.optional(),
     recentElementDuplication: screenpipeRecentElementDuplicationSchema.optional(),
-    recentCaptureReuse: screenpipeRecentCaptureReuseSchema.optional()
+    recentCaptureReuse: screenpipeRecentCaptureReuseSchema.optional(),
+    recentHeavyGrowth: screenpipeRecentHeavyGrowthSchema.optional()
   }),
   // Work-activity-analysis additions (design §9.1). All optional so a
   // partial bootstrap or a `WorkActivityObservabilityService` outage
@@ -300,7 +334,7 @@ export function registerInternalStatusTool(server: McpServer, app: AppContext): 
     'internal-status',
     {
       title: 'Internal Status',
-      description: 'Return bootstrap-safe runtime status for Phase 1 verification.',
+      description: 'Return runtime status of the MCP server, including service health, retrieval readiness, capture state, disk usage, and work-activity analysis availability.',
       inputSchema,
       outputSchema,
       annotations: {

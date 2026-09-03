@@ -39,6 +39,8 @@ import type {
 } from '../retrieval/types.js';
 import type { ExtractionResult } from './extraction/types.js';
 import type { HashIndex } from './hash-index.js';
+import type { ProviderHealthRegistry } from './observability/provider-health-registry.js';
+import type { Logger } from '../../types/app-config.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -113,6 +115,8 @@ export interface EmbeddingServiceDependencies {
   now: () => Date;
   /** Provider name used to build the neutral captureId metadata field. */
   captureProviderName: string;
+  providerHealth?: ProviderHealthRegistry;
+  logger?: Logger;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,9 +229,14 @@ export class DefaultEmbeddingService implements EmbeddingService {
     // the provider succeeds, so a provider failure leaves the cache
     // untouched and the next frame retries cleanly.
     let embedding: number[];
+    const startMs = performance.now();
     try {
       embedding = await this.deps.embeddingProvider.embed(e.extractedText);
+      const latencyMs = Math.round(performance.now() - startMs);
+      this.deps.providerHealth?.recordOk('embedding', latencyMs);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.deps.providerHealth?.recordFailure('embedding', errorMessage);
       return { kind: 'provider-unavailable', error };
     }
 

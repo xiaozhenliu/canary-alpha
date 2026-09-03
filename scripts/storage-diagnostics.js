@@ -8,18 +8,20 @@ async function loadVectorStoreConfig() {
     const config = await loadConfig();
     return {
       vectorStore: config.vectorStore,
+      screenpipeDirectory: config.screenpipe.dataDirectory,
       warning: undefined
     };
   } catch (error) {
     return {
       vectorStore: undefined,
+      screenpipeDirectory: undefined,
       warning: error instanceof Error ? error.message : String(error)
     };
   }
 }
 
-const { vectorStore, warning } = await loadVectorStoreConfig();
-const report = await collectStorageDiagnostics({ vectorStore });
+const { vectorStore, screenpipeDirectory, warning } = await loadVectorStoreConfig();
+const report = await collectStorageDiagnostics({ vectorStore, screenpipeDirectory });
 
 process.stdout.write(formatStorageDiagnosticsReport(report));
 process.stdout.write('\nTop artifacts:\n');

@@ -14,7 +14,7 @@ export function registerFileAnalyzeTool(server: McpServer, app: AppContext): voi
     'file-analyze',
     {
       title: 'Analyze File',
-      description: 'Analyze a supported local file and summarize or answer a targeted question.',
+      description: 'Analyze a supported local file (text-based formats: plain text, source code, markdown, JSON, CSV, etc.) and summarize or answer a targeted question about its contents. Binary files and unsupported formats are rejected with an error.',
       inputSchema
     },
     async (input) => {

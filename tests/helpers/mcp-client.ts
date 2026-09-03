@@ -15,7 +15,7 @@ export interface ConnectedClient {
 
 function createClient(): Client {
   return new Client({
-    name: 'canary-alpha-mcp-test-client',
+    name: 'computer-history-mcp-test-client',
     version: getPackageVersion()
   });
 }

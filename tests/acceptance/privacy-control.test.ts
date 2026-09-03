@@ -304,7 +304,7 @@ describe('privacy control acceptance', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'privacy-enforcement-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const checkpointDir = join(homeDir, '.canary-alpha-mcp');
+    const checkpointDir = join(homeDir, '.computer-history-mcp');
     await mkdir(checkpointDir, { recursive: true });
     await writeFile(
       join(checkpointDir, 'retrieval-checkpoint.screenpipe.json'),

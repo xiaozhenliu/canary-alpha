@@ -48,7 +48,7 @@ function makeConfig(diskBudgetBytes: number | null): AppConfig {
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: false, intervalSeconds: 3600 },
-    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
     storage: { diskBudgetBytes, retentionDays: 7 },
     privacy: { excludeApps: [], secureAxRoles: [] },
     analysis: {
@@ -1320,7 +1320,7 @@ describe('Property 27: capture block structure and default liveness threshold', 
       routines: { enabled: false, definitionsPath: '', historyPath: '' },
       paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
       trim: { enabled: false, intervalSeconds: 3600 },
-      capture: { provider: 'screenpipe' as const, livenessThresholdSeconds, permissionsGracePeriodSeconds: 60 },
+      capture: { provider: 'screenpipe' as const, livenessThresholdSeconds, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
       storage: { diskBudgetBytes: null, retentionDays: 7 },
       privacy: { excludeApps: [], secureAxRoles: [] },
       analysis: {

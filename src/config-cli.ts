@@ -1,5 +1,6 @@
 // src/config-cli.ts — argument parsing and output for the config subcommand, does not trigger heavy bootstrap.
 import { ConfigCliService, CliError } from './config/config-cli-service.js';
+import { ensureAppHomeReady } from './config/app-home-migration.js';
 
 // Parse `config <sub> [args...]`, supporting the '--' terminator and '--reveal'.
 export function parseConfigArgs(argv: string[]): {
@@ -20,6 +21,10 @@ export function parseConfigArgs(argv: string[]): {
 }
 
 export async function runConfigCommand(argv: string[]): Promise<number> {
+  // Migrate legacy app home before ConfigFileStore resolves the canonical path,
+  // otherwise `config set` can create a new home beside the old one.
+  await ensureAppHomeReady({ failOnConflict: true });
+
   const { sub, positionals, reveal } = parseConfigArgs(argv);
   const svc = new ConfigCliService();
   try {

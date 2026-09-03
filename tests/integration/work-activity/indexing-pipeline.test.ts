@@ -74,8 +74,16 @@ class StubEmbeddingProvider implements EmbeddingProvider {
   readonly kind = 'stub';
   readonly embedCalls: string[] = [];
 
+  constructor(
+    private readonly shouldFail = false,
+    private readonly failOnCall?: number
+  ) {}
+
   async embed(input: string): Promise<number[]> {
     this.embedCalls.push(input);
+    if (this.shouldFail || this.embedCalls.length === this.failOnCall) {
+      throw new Error('simulated embedding failure');
+    }
     return [0.1, 0.2, 0.3];
   }
 }
@@ -203,7 +211,12 @@ afterEach(() => {
  */
 function buildIndexingHarness(
   records: ScreenpipeRecord[],
-  options: { now: Date } = { now: new Date('2026-04-13T11:10:00.000Z') }
+  options: {
+    now: Date;
+    checkpointStore?: CheckpointStore;
+    embeddingShouldFail?: boolean;
+    embeddingFailOnCall?: number;
+  } = { now: new Date('2026-04-13T11:10:00.000Z') }
 ): {
   runOnce: (opts?: { forceBacklog?: boolean }) => Promise<void>;
   setNow: (next: Date) => void;
@@ -211,13 +224,17 @@ function buildIndexingHarness(
   embeddingProvider: StubEmbeddingProvider;
   extractedContentStore: SqliteExtractedContentStore;
   sessionStore: SqliteSessionStore;
+  checkpointStore: CheckpointStore;
 } {
-  const embeddingProvider = new StubEmbeddingProvider();
+  const embeddingProvider = new StubEmbeddingProvider(
+    options.embeddingShouldFail ?? false,
+    options.embeddingFailOnCall
+  );
   const captureClient = new StubScreenpipeClient(records);
   const vectorStore = new InMemoryVectorStore({
     kind: 'in-memory'
   } as never);
-  const checkpointStore = new InMemoryCheckpointStore();
+  const checkpointStore = options.checkpointStore ?? new InMemoryCheckpointStore();
 
   // Mutable clock — the aggregator and embedding service close over
   // the getter, so changes made by `setNow` are visible on the next
@@ -259,8 +276,10 @@ function buildIndexingHarness(
     extractionRegistry,
     extractedContentStore,
     sessionAggregator,
+    sessionStore,
     embeddingService,
     embeddingConcurrency: 1,
+    sessionIdleThresholdSeconds: IDLE_THRESHOLD,
     captureProviderName: 'screenpipe'
   });
 
@@ -297,7 +316,8 @@ function buildIndexingHarness(
     vectorStore,
     embeddingProvider,
     extractedContentStore,
-    sessionStore
+    sessionStore,
+    checkpointStore
   };
 }
 
@@ -471,10 +491,10 @@ describe('IndexingService end-to-end work-activity tail (task 6.3)', () => {
     expect(byFrameId.get(4)?.extractionRuleKind).toBe('generic');
     expect(byFrameId.get(5)?.extractionRuleKind).toBe('generic');
 
-    // The terminal rule's `extractedText` matches the AXTextArea
-    // value verbatim; the generic rule's matches the AXWebArea value.
-    expect(byFrameId.get(1)?.extractedText).toBe('ls -la output here');
-    expect(byFrameId.get(3)?.extractedText).toBe('browser body content');
+    // Terminal frames use the universal structured output while retaining
+    // the terminal rule kind; generic frames use the same body prefix.
+    expect(byFrameId.get(1)?.extractedText).toContain('[Body] ls -la output here');
+    expect(byFrameId.get(3)?.extractedText).toContain('browser body content');
     // contextLabel preserves the raw window title (un-normalised).
     expect(byFrameId.get(1)?.contextLabel).toBe('~/code (zsh)');
     expect(byFrameId.get(3)?.contextLabel).toBe('Example Page');
@@ -646,7 +666,7 @@ describe('IndexingService end-to-end work-activity tail (task 6.3)', () => {
     // contract (design §1) pairs empty text with null hash.
     expect(emptyRow!.extractedTextHash).toBeNull();
     expect(emptyRow!.contextLabel).toBe('Untitled'); // R1.6 — non-empty
-    expect(nonEmptyRow!.extractedText).toBe('document body text');
+    expect(nonEmptyRow!.extractedText).toContain('document body text');
     expect(nonEmptyRow!.extractedTextHash).not.toBeNull();
 
     // Only the non-empty frame produced a vector-store row — the
@@ -661,7 +681,7 @@ describe('IndexingService end-to-end work-activity tail (task 6.3)', () => {
 
     // The embedding provider was called exactly once, for the non-
     // empty extraction.
-    expect(harness.embeddingProvider.embedCalls).toEqual(['document body text']);
+    expect(harness.embeddingProvider.embedCalls).toEqual(['[Body] document body text']);
   });
 
   it('closes idle Open_Sessions on the next runOnce via flushIdleOpenSessions (R3.6)', async () => {
@@ -855,5 +875,291 @@ describe('IndexingService end-to-end work-activity tail (task 6.3)', () => {
     expect(row1.contextLabel).toBe('Notes.txt');
     expect(row2.contextLabel).toBe('• Notes.txt');
     expect(row1.contextKey).toBe(row2.contextKey);
+  });
+
+  it('suppresses identical repeated frames via line delta dedup and only embeds incremental changes (USE-R05)', async () => {
+    const T0 = Date.parse('2026-04-13T12:00:00.000Z');
+    const tsAt = (offsetSeconds: number): string =>
+      new Date(T0 + offsetSeconds * 1000).toISOString();
+
+    const records: ScreenpipeRecord[] = [
+      {
+        id: 'frame-1',
+        text: 'first line',
+        timestamp: tsAt(0),
+        appName: 'Notes',
+        windowName: 'Meeting',
+        frameId: 101,
+        sourceTypes: ['accessibility'],
+        accessibilityTreeJson: genericTree('Discussion topic 1')
+      },
+      {
+        id: 'frame-2',
+        text: 'identical frame',
+        timestamp: tsAt(10),
+        appName: 'Notes',
+        windowName: 'Meeting',
+        frameId: 102,
+        sourceTypes: ['accessibility'],
+        accessibilityTreeJson: genericTree('Discussion topic 1')
+      },
+      {
+        id: 'frame-3',
+        text: 'incremental line added',
+        timestamp: tsAt(20),
+        appName: 'Notes',
+        windowName: 'Meeting',
+        frameId: 103,
+        sourceTypes: ['accessibility'],
+        accessibilityTreeJson: JSON.stringify({
+          role: 'AXWindow',
+          title: 'Meeting',
+          children: [
+            { role: 'AXTextArea', value: 'Discussion topic 1\nDiscussion topic 2' }
+          ]
+        })
+      }
+    ];
+
+    const harness = buildIndexingHarness(records, {
+      now: new Date(T0 + 600 * 1000)
+    });
+    await harness.runOnce();
+
+    const extractedRows = await dumpExtractedContent(harness.extractedContentStore);
+    const row1 = extractedRows.find((r) => r.frameId === 101)!;
+    const row2 = extractedRows.find((r) => r.frameId === 102)!;
+    const row3 = extractedRows.find((r) => r.frameId === 103)!;
+
+    // Frame 1 emitted full text
+    expect(row1.extractedText).toContain('Discussion topic 1');
+    expect(row1.extractedTextHash).not.toBeNull();
+
+    // Frame 2 was 100% duplicate in the same session -> suppressed to 0 bytes
+    expect(row2.extractedText).toBe('');
+    expect(row2.extractedTextHash).toBeNull();
+
+    // Frame 3 had 1 new line -> only the new line was emitted
+    expect(row3.extractedText).toContain('Discussion topic 2');
+    expect(row3.extractedText).not.toContain('Discussion topic 1');
+    expect(row3.extractedTextHash).not.toBeNull();
+
+    // Exactly 2 embedding calls were made (Frame 1 and Frame 3); Frame 2 was skipped
+    expect(harness.embeddingProvider.embedCalls).toHaveLength(2);
+
+    // All 3 frames were still aggregated into the same session
+    const sessions = await harness.sessionStore.listSessions({});
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].evidence_frame_ids).toEqual([101, 102, 103]);
+  });
+
+  it('does not reprocess an inclusive checkpoint row from a forced backlog', async () => {
+    const timestamp = '2026-09-02T11:30:00.000Z';
+    const record: ScreenpipeRecord = {
+      id: 'inclusive-checkpoint-frame',
+      text: 'checkpoint capture',
+      timestamp,
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 151,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('checkpoint body')
+    };
+    const harness = buildIndexingHarness([record], {
+      now: new Date('2026-09-02T11:30:05.000Z')
+    });
+
+    await harness.runOnce();
+    const firstRow = (await dumpExtractedContent(harness.extractedContentStore))
+      .find((row) => row.frameId === 151)!;
+    expect(firstRow.extractedText).toContain('[Body] checkpoint body');
+
+    // The forced backlog starts at the checkpoint timestamp, so the capture
+    // client returns the checkpoint row inclusively on this second pass.
+    await harness.runOnce();
+
+    const secondRow = (await dumpExtractedContent(harness.extractedContentStore))
+      .find((row) => row.frameId === 151)!;
+    expect(secondRow.extractedText).toBe(firstRow.extractedText);
+    expect(harness.embeddingProvider.embedCalls).toEqual(['[Body] checkpoint body']);
+
+    const sessions = await harness.sessionStore.listSessions({});
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].evidence_frame_ids).toEqual([151]);
+  });
+
+  it('restores line-dedup state for an open session after an indexing-service restart', async () => {
+    const T0 = Date.parse('2026-04-13T12:00:00.000Z');
+    const frame1: ScreenpipeRecord = {
+      id: 'frame-1',
+      text: 'first capture',
+      timestamp: new Date(T0).toISOString(),
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 201,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('Discussion topic')
+    };
+    const frame2: ScreenpipeRecord = {
+      ...frame1,
+      id: 'frame-2',
+      text: 'second capture',
+      timestamp: new Date(T0 + 10_000).toISOString(),
+      frameId: 202
+    };
+    const frame0: ScreenpipeRecord = {
+      ...frame1,
+      id: 'frame-0',
+      text: 'earlier capture',
+      timestamp: new Date(T0 - 10_000).toISOString(),
+      frameId: 200
+    };
+
+    const firstService = buildIndexingHarness([frame0, frame1], {
+      now: new Date(T0 + 5_000)
+    });
+    await firstService.runOnce();
+
+    const restartedService = buildIndexingHarness([frame0, frame1, frame2], {
+      now: new Date(T0 + 15_000),
+      checkpointStore: firstService.checkpointStore
+    });
+    await restartedService.runOnce({ forceBacklog: false });
+
+    const rows = await dumpExtractedContent(restartedService.extractedContentStore);
+    const restartedRow = rows.find((row) => row.frameId === 202)!;
+    expect(restartedRow.extractedText).toBe('');
+    expect(restartedService.embeddingProvider.embedCalls).toEqual([]);
+
+    const sessions = await restartedService.sessionStore.listSessions({});
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].evidence_frame_ids).toEqual([200, 201, 202]);
+  });
+
+  it('does not restore an extracted row whose embedding never crossed the checkpoint', async () => {
+    const T0 = Date.parse('2026-09-02T12:00:00.000Z');
+    const frame1: ScreenpipeRecord = {
+      id: 'pending-frame-1',
+      text: 'pending capture',
+      timestamp: new Date(T0).toISOString(),
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 301,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('Pending discussion')
+    };
+
+    const checkpointStore = new InMemoryCheckpointStore();
+    const failedService = buildIndexingHarness([frame1], {
+      now: new Date(T0 + 5_000),
+      checkpointStore,
+      embeddingShouldFail: true
+    });
+    await expect(failedService.runOnce()).rejects.toThrow('simulated embedding failure');
+    await expect(checkpointStore.readLatest()).resolves.toBeNull();
+
+    const restartedService = buildIndexingHarness([frame1], {
+      now: new Date(T0 + 15_000),
+      checkpointStore
+    });
+    await restartedService.runOnce({ forceBacklog: false });
+
+    const rows = await dumpExtractedContent(restartedService.extractedContentStore);
+    const retriedRow = rows.find((row) => row.frameId === 301)!;
+    expect(retriedRow.extractedText).toContain('Pending discussion');
+    expect(restartedService.embeddingProvider.embedCalls).toEqual([
+      '[Body] Pending discussion'
+    ]);
+  });
+
+  it('uses capture-cursor order when restoring same-timestamp checkpoint rows', async () => {
+    const timestamp = '2026-09-02T12:30:00.000Z';
+    const firstFrame: ScreenpipeRecord = {
+      id: 'same-time-a',
+      text: 'checkpointed capture',
+      timestamp,
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 401,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('checkpointed context')
+    };
+    const failedFrame: ScreenpipeRecord = {
+      id: 'same-time-b',
+      text: 'pending capture',
+      timestamp,
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 402,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('pending context')
+    };
+
+    const checkpointStore = new InMemoryCheckpointStore();
+    const firstService = buildIndexingHarness([firstFrame, failedFrame], {
+      now: new Date('2026-09-02T12:30:05.000Z'),
+      checkpointStore,
+      embeddingFailOnCall: 2
+    });
+    await firstService.runOnce();
+    await expect(checkpointStore.readLatest()).resolves.toEqual({
+      cursor: 'same-time-a',
+      timestamp
+    });
+
+    const restartedService = buildIndexingHarness([firstFrame, failedFrame], {
+      now: new Date('2026-09-02T12:30:15.000Z'),
+      checkpointStore
+    });
+    await restartedService.runOnce({ forceBacklog: false });
+
+    const rows = await dumpExtractedContent(restartedService.extractedContentStore);
+    const retriedRow = rows.find((row) => row.frameId === 402)!;
+    expect(retriedRow.extractedText).toContain('[Body] pending context');
+    expect(restartedService.embeddingProvider.embedCalls).toEqual([
+      '[Body] pending context'
+    ]);
+  });
+
+  it('resets deduplication when wall-clock idle flush closes a session before delayed frames', async () => {
+    const T0 = Date.parse('2026-09-02T13:00:00.000Z');
+    const firstFrame: ScreenpipeRecord = {
+      id: 'idle-frame-1',
+      text: 'first capture',
+      timestamp: new Date(T0).toISOString(),
+      appName: 'Notes',
+      windowName: 'Meeting',
+      frameId: 501,
+      sourceTypes: ['accessibility'],
+      accessibilityTreeJson: genericTree('same meeting context')
+    };
+    const delayedFrame: ScreenpipeRecord = {
+      ...firstFrame,
+      id: 'idle-frame-2',
+      text: 'delayed capture',
+      timestamp: new Date(T0 + 10_000).toISOString(),
+      frameId: 502
+    };
+    const records: ScreenpipeRecord[] = [firstFrame];
+    const harness = buildIndexingHarness(records, {
+      now: new Date(T0 + 5_000)
+    });
+    await harness.runOnce();
+
+    records.push(delayedFrame);
+    harness.setNow(new Date(T0 + 600_000));
+    await harness.runOnce({ forceBacklog: false });
+
+    const rows = await dumpExtractedContent(harness.extractedContentStore);
+    const delayedRow = rows.find((row) => row.frameId === 502)!;
+    expect(delayedRow.extractedText).toContain('[Body] same meeting context');
+
+    const sessions = await harness.sessionStore.listSessions({});
+    expect(sessions).toHaveLength(2);
+    expect(
+      sessions
+        .map((session) => session.evidence_frame_ids)
+        .sort((a, b) => a[0] - b[0])
+    ).toEqual([[501], [502]]);
   });
 });

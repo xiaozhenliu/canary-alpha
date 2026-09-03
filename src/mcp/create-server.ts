@@ -5,7 +5,7 @@ import { getPackageVersion } from '../lib/version.js';
 export function createMcpServer(): McpServer {
   return new McpServer(
     {
-      name: 'canary-alpha-mcp',
+      name: 'computer-history-mcp',
       version: getPackageVersion()
     },
     {

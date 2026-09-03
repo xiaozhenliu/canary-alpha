@@ -1,7 +1,7 @@
 ---
-doc_version: 10
+doc_version: 11
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-06-21
 ---
 
 # MCP Tools
@@ -23,20 +23,20 @@ The `from` / `to` time-window bounds on `find` and `recall` are interpreted as *
 
 ## Tool inventory
 
-| Tool | Category | Description |
-|------|----------|-------------|
-| `find` | work-activity | Search captured work-activity content for evidence fragments by keyword, semantic similarity, or hybrid mode |
-| `recall` | work-activity | Recall sessions or aggregated time blocks for a window, with optional summaries |
-| `inspect` | work-activity | Drill down into a single session or frame, returning evidence rows or the raw AX tree |
-| `memory-read` | memory | Read persisted long-term memory by scope |
-| `memory-write` | memory | Append or replace long-term memory content |
-| `file-analyze` | file-analysis | Analyze a supported local file and summarize or answer a targeted question |
-| `privacy-control` | privacy | Check or modify local privacy collection controls |
-| `screenpipe-control` | screenpipe | Check, start, or stop the local Screenpipe recording process |
-| `internal-status` | internal | Return bootstrap-safe runtime status |
-| `routine-list` | routines | List all configured local routines with their schedule, enabled state, and latest run summary |
-| `routine-create` | routines | Create a new local routine or update an existing one by name |
-| `routine-history` | routines | Return the execution history of a named routine, newest first |
+| Tool | Category | Onboarding | Description |
+|------|----------|:---:|-------------|
+| `find` | work-activity | ✓ | Search captured work-activity content for evidence fragments by keyword, semantic similarity, or hybrid mode |
+| `recall` | work-activity | ✓ | Recall sessions or aggregated time blocks for a window, with optional summaries |
+| `inspect` | work-activity | ✓ | Drill down into a single session or frame, returning evidence rows or the raw AX tree |
+| `memory-read` | memory | ✓ | Read persisted long-term memory by scope |
+| `memory-write` | memory | ✓ | Append or replace long-term memory content |
+| `file-analyze` | file-analysis | ✓ | Analyze a supported local file and summarize or answer a targeted question |
+| `privacy-control` | privacy | ✓ | Check or modify local privacy collection controls |
+| `screenpipe-control` | screenpipe | — | Check, start, or stop the local Screenpipe recording process |
+| `internal-status` | internal | ✓ | Return bootstrap-safe runtime status |
+| `routine-list` | routines | ✓ | List all configured local routines with their schedule, enabled state, and latest run summary |
+| `routine-create` | routines | — | Create a new local routine or update an existing one by name |
+| `routine-history` | routines | ✓ | Return the execution history of a named routine, newest first |
 
 ## `find`
 
@@ -215,6 +215,7 @@ npm run privacy-control -- pause
 npm run privacy-control -- resume
 npm run privacy-control -- exclude-app --app "Claude"
 npm run privacy-control -- exclude-app --app "Claude" --rebuild
+npm run privacy-control -- remove-excluded-app --app "Claude"
 ```
 
 The CLI prints only paused state, excluded app names, and actionable validation errors so the terminal output does not expose unrelated retrieved content. `--rebuild` reuses the existing `rebuild-index` workflow after updating the exclusion so operators can clear already-indexed plaintext for the newly excluded app.
@@ -230,8 +231,8 @@ The CLI prints only paused state, excluded app names, and actionable validation 
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `action` | `status` \| `pause` \| `resume` \| `exclude-app` \| `delete-range` | yes | Operation to perform |
-| `appName` | string | no | Used with `exclude-app` |
+| `action` | `status` \| `pause` \| `resume` \| `exclude-app` \| `remove-excluded-app` \| `delete-range` | yes | Operation to perform |
+| `appName` | string | no | Used with `exclude-app` and `remove-excluded-app` |
 | `range` | `last_1h` \| `last_1d` \| `all` | no | Used with `delete-range` |
 | `confirm` | boolean | no | Confirmation flag for destructive delete-range actions |
 
@@ -286,7 +287,7 @@ Return bootstrap-safe runtime status.
   "host": "127.0.0.1",
   "port": 18765,
   "pid": 12345,
-  "configFile": "~/.canary-alpha-mcp/config.yaml",
+  "configFile": "~/.computer-history-mcp/config.yaml",
   "retrieval": {
     "checkpointExists": true,
     "checkpointTimestamp": "2026-04-16T12:00:00.000Z",

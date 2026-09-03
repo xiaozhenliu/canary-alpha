@@ -37,7 +37,7 @@ async function setupWorkflowScenario(options: ScenarioOptions): Promise<Acceptan
   });
 
   await writeFile(
-    join(homeDir, '.canary-alpha-mcp', 'retrieval-checkpoint.screenpipe.json'),
+    join(homeDir, '.computer-history-mcp', 'retrieval-checkpoint.screenpipe.json'),
     JSON.stringify({
       cursor: `${options.prefix}-checkpoint`,
       timestamp: minusMinutes(2)

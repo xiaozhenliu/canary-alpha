@@ -1,12 +1,12 @@
 ---
-doc_version: 3
+doc_version: 6
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-21
 ---
 
 # Hermes
 
-This document walks you through connecting Hermes Agent to the local `canary-alpha-mcp` MCP service and running your first real tool call.
+This document walks you through connecting Hermes Agent to the local `computer-history-mcp` MCP service and running your first real tool call.
 
 ## Prerequisites
 
@@ -15,14 +15,24 @@ Before following this walkthrough, complete the [Quickstart](/guide/quickstart) 
 1. **Hermes CLI on `PATH`** — Install from the upstream Hermes project. See the [Hermes install instructions](https://github.com/HermesMCP/hermes) for the current install path.
 2. **`~/.hermes/config.yaml` configured with a working LLM provider** — Hermes calls the LLM; this repo does not write provider credentials. See the upstream Hermes provider-configuration docs for how to set `model` and `provider` fields. For workspace examples, DeepSeek (`https://api.deepseek.com`) is the recommended provider.
 
-The `npm run onboard` step from the Quickstart automatically writes a `canary-alpha-mcp` entry into `~/.hermes/config.yaml`. If Hermes was not installed at that time, install it and the config entry will already be waiting.
+The first-run onboarding selected by `npm start` automatically writes a `computer-history-mcp` entry into `~/.hermes/config.yaml`. If Hermes was not installed at that time, install it and the config entry will already be waiting.
+
+## Refresh after MCP source changes
+
+After editing or pulling this repository, rebuild, restart, and verify the updated MCP through Hermes with one command:
+
+```bash
+npm run refresh:hermes
+```
+
+This command preserves the shared Screenpipe instance and completes only after a real Hermes `internal-status` tool call succeeds. See [Update MCP after changing source code](/guide/operations#update-mcp-after-changing-source-code) for the exact stages and failure behavior.
 
 ## Step-by-step walkthrough
 
 ### 1. Start the MCP service (if not already running)
 
 ```bash
-npm run service:start
+npm start
 ```
 
 ### 2. Verify the MCP service
@@ -41,7 +51,7 @@ npm run hermes:verify
 
 This command:
 1. Detects Hermes CLI on `PATH`
-2. Reads your real `~/.canary-alpha-mcp/config.yaml` to resolve the MCP endpoint
+2. Reads your real `~/.computer-history-mcp/config.yaml` to resolve the MCP endpoint
 3. Probes the MCP service at `/mcp`
 4. Runs a real Hermes chat scenario against your `~/.hermes/config.yaml` (no stubs, no isolated HOME)
 5. Checks that Hermes called the `internal-status` tool
@@ -67,7 +77,7 @@ hermes:verify passed.
 After onboarding, you can run Hermes chat directly:
 
 ```bash
-hermes chat --toolsets canary-alpha-mcp \
+hermes chat --toolsets computer-history-mcp \
   --query "Use only the configured MCP server. Call internal-status and report the server mode and retrieval status."
 ```
 
@@ -77,13 +87,24 @@ Other useful queries (all tools are members of the registered tool surface):
 
 ```bash
 # Recall recent activity
-hermes chat --toolsets canary-alpha-mcp \
+hermes chat --toolsets computer-history-mcp \
   --query "Call recall over the last 10 minutes with granularity session and summarize what you see."
 
 # Search for specific content
-hermes chat --toolsets canary-alpha-mcp \
+hermes chat --toolsets computer-history-mcp \
   --query "Use find with query 'meeting notes' in hybrid mode and report the top result."
 ```
+
+## Tool whitelist
+
+Onboarding exposes 10 tools by default (`internal-status`, `find`, `recall`, `inspect`, `memory-read`, `memory-write`, `file-analyze`, `privacy-control`, `routine-list`, `routine-history`) and excludes 2:
+
+| Excluded tool | Reason |
+|---|---|
+| `screenpipe-control` | Allows agent to start/stop the screen-capture daemon — high operational risk |
+| `routine-create` | Allows agent to create cron-scheduled background tasks — should be operator-initiated |
+
+To enable an excluded tool, add its name to the `tools.include` list in the `computer-history-mcp` entry in `~/.hermes/config.yaml`. Note that `npm run refresh:hermes` resyncs the whitelist to the code default.
 
 ## Failure modes
 
@@ -124,8 +145,8 @@ npm run service:logs
 
 **Action**:
 1. Inspect the transcript at the path printed in the summary.
-2. Check that `canary-alpha-mcp` is listed in `hermes mcp list`.
-3. Run `hermes mcp test canary-alpha-mcp` to verify tool discovery.
+2. Check that `computer-history-mcp` is listed in `hermes mcp list`.
+3. Run `hermes mcp test computer-history-mcp` to verify tool discovery.
 4. See [Generic MCP Client](/guide/clients/generic-mcp) for the full tool surface.
 5. Re-run `npm run hermes:verify`.
 

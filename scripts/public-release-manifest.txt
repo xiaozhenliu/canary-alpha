@@ -1,0 +1,89 @@
+# Public release manifest v1
+# Rules are evaluated in order; the first matching rule wins.
+# Unclassified paths fail closed.
+#
+# Syntax:
+#   include <glob>
+#   exclude <glob>
+
+# Repository metadata and community files
+include .github/**
+include .gitignore
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include LICENSE
+include README.md
+include README.zh-CN.md
+include SECURITY.md
+include config.yaml.example
+include package.json
+include package-lock.json
+include tsconfig.json
+include vitest.config.ts
+
+# Application source and tests
+include dashboard/**
+include scripts/**
+include src/**
+include tests/**
+
+# Reader-facing documentation
+include docs/.vitepress/**
+include docs/index.md
+include docs/architecture.md
+include docs/develop_log.md
+include docs/documentation/**
+include docs/delivery/**
+include docs/guide/**
+include docs/reference/**
+include docs/security/**
+include docs/zh/**
+
+# Public engineering and spec subset
+include docs/engineering/bug-reports/BUG-001-troubleshooting-doc-missing.md
+include docs/engineering/bug-reports/BUG-002-hermes-doc-path-mismatch.md
+include docs/engineering/bug-reports/BUG-003-rebuild-index-timing-race.md
+include docs/engineering/bug-reports/BUG-004-retrieval-storage-performance-degradation.md
+include docs/engineering/bug-reports/README.md
+include docs/engineering/code-standards.md
+include docs/engineering/release-workflow.md
+include docs/engineering/tech-debt.md
+include docs/engineering/public-history-cleanup-result.md
+include docs/specs/README.md
+include docs/specs/capture-provider-decoupling.md
+include docs/specs/dashboard-web-ui.md
+include docs/specs/future-backlog.md
+include docs/specs/retrieval-storage-performance.md
+include docs/specs/routine-delete.md
+include docs/specs/routines-mvp.md
+include docs/specs/routines-v2-llm-execution.md
+
+# Development-only paths (classified excludes)
+exclude .agents/**
+exclude .kiro/**
+exclude .scratch/**
+exclude .screenpipe-memory-mcp/**
+exclude .understand-anything/**
+exclude AGENTS.md
+exclude CLAUDE.md
+exclude STATE.md
+exclude PRD_*
+exclude experiments/**
+
+# Internal documentation and operator notes
+exclude docs/agents/**
+exclude docs/archives/**
+exclude docs/superpowers/**
+exclude docs/engineering/reports/**
+exclude docs/engineering/screenpipe-version-development.md
+exclude docs/engineering/bug-reports/BUG-005-mcp-tool-descriptions-and-include-whitelist.md
+exclude docs/engineering/bug-reports/BUG-006-documentation-site-stale-lifecycle-guidance.md
+exclude docs/specs/bug-005-mcp-tool-hygiene.md
+exclude docs/specs/capture-configuration-strategy.md
+exclude docs/specs/data-retention-and-storage.md
+exclude docs/specs/ocr-engine-comparison.md
+exclude docs/specs/ovis-ocr-integration.md
+exclude docs/specs/project-rename-computer-history-mcp.md
+exclude docs/specs/recollect-feature-design.md
+exclude docs/specs/universal-axtree-structured-extraction.md

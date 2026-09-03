@@ -27,10 +27,14 @@ import {
   resolveAppPaths,
   resolveHermesPaths,
   writeConfigYamlFile,
-  writeHermesConfigFile
+  writeHermesConfigFile,
+  migrateLegacyHermesServerRegistration
 } from './onboarding-config.js';
+import { ensureAppHomeReady, inspectAppHomeMigrationState } from './app-home-migration.js';
+import { uninstallLegacyManagedService } from './legacy-service.js';
 import { getPackageVersion } from './version.js';
 import { detectHermes } from './hermes-detector.js';
+import { markOnboardingComplete } from './onboarding-state.js';
 
 const execFileAsync = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -45,7 +49,7 @@ function fail(message) {
 
 function createClient() {
   return new Client({
-    name: 'canary-alpha-mcp-onboard',
+    name: 'computer-history-mcp-onboard',
     version: getPackageVersion()
   });
 }
@@ -238,9 +242,9 @@ async function chooseEmbeddings(screenpipeUrl) {
   };
 }
 
-export async function detectScreenpipeApiKey() {
+export async function detectScreenpipeApiKey(binaryPath = 'screenpipe') {
   try {
-    const result = await execFileAsync('npx', ['screenpipe@latest', 'auth', 'token'], {
+    const result = await execFileAsync(binaryPath, ['auth', 'token'], {
       cwd: repositoryRoot,
       env: process.env,
       maxBuffer: 1024 * 1024
@@ -409,7 +413,16 @@ async function runFirstValidation(configPath) {
 
 async function main() {
   ensureSupportedNodeVersion();
-  console.log('canary-alpha-mcp onboarding');
+  const conflictCheck = inspectAppHomeMigrationState();
+  if (conflictCheck.status === 'both-present') {
+    throw new Error(
+      `Both ${conflictCheck.legacyDirectory} and ${conflictCheck.targetDirectory} exist. Resolve the conflict manually before continuing.`
+    );
+  }
+  uninstallLegacyManagedService();
+  await ensureAppHomeReady({ failOnConflict: true });
+  await migrateLegacyHermesServerRegistration();
+  console.log('computer-history-mcp onboarding');
   console.log('================================');
 
   const installedDependencies = ensureDependenciesInstalled(repositoryRoot);
@@ -436,6 +449,7 @@ async function main() {
   const hermesPaths = resolveHermesPaths();
   const hermesConfig = await writeHermesConfigFile(hermesPaths.configPath, validation.endpoint);
   const hermesDetection = await detectHermes();
+  await markOnboardingComplete();
 
   console.log('\nOnboarding complete.');
   console.log(`- config: ${paths.configPath}${backupPath ? ` (previous config backed up to ${backupPath})` : ''}`);
@@ -465,8 +479,8 @@ async function main() {
   console.log('\nNext commands:');
   console.log('1. npm run service:status');
   console.log('2. hermes mcp list');
-  console.log('3. hermes mcp test canary-alpha-mcp');
-  console.log('4. hermes chat --toolsets canary-alpha-mcp --query "Call recall over the last 10 minutes and summarize what you see."');
+  console.log('3. hermes mcp test computer-history-mcp');
+  console.log('4. hermes chat --toolsets computer-history-mcp --query "Call recall over the last 10 minutes and summarize what you see."');
   console.log('5. npm run hermes:verify   ← smoke gate: confirms real tool call round-trip');
 }
 

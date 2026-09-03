@@ -13,10 +13,20 @@ import type {
   VectorStoreRecord
 } from './types.js';
 import type { AppConfig, Logger } from '../../types/app-config.js';
+import { DEFAULT_ANALYSIS_IDLE_THRESHOLD_SECONDS } from '../../config/schema.js';
 import { normalizeToUtc } from '../../lib/time.js';
+import { hashStringToNumericId } from '../../lib/hash.js';
+import { stripSecureAxSubtrees, stripSecureAxTreeJson } from './strip-secure-ax-subtrees.js';
+import type { CaptureFrameDetailPort } from '../capture/types.js';
 import type { ExtractionRegistry, ExtractionInput, ExtractionResult } from '../work-activity/extraction/types.js';
+import {
+  LineDeltaDeduplicator,
+  type LineDeltaDeduplicationToken,
+  type LineDeltaDeduplicationTransaction
+} from '../work-activity/extraction/universal.js';
 import type { ExtractedContentStore } from '../work-activity/extraction/extracted-content-store.js';
 import type { SessionAggregator } from '../work-activity/sessions/aggregator.js';
+import type { SessionStore } from '../work-activity/sessions/session-store.js';
 import type { EmbeddingService, ComputeEmbeddingOutcome, EmbeddingOutcome } from '../work-activity/embedding-service.js';
 import { buildCaptureId } from '../capture/types.js';
 
@@ -36,6 +46,8 @@ interface ProcessRecordOutcome {
   error: unknown;
   /** Should the caller advance the checkpoint past this record? */
   advanceCheckpoint: boolean;
+  /** Token used to commit the record's previewed deduplication state. */
+  deduplicationToken: LineDeltaDeduplicationToken;
 }
 
 /**
@@ -46,7 +58,10 @@ interface ProcessRecordOutcome {
 interface PreparedRecord {
   record: CaptureRecord;
   extraction: ExtractionResult;
+  deduplicationToken: LineDeltaDeduplicationToken;
 }
+
+type EmbeddingProcessOutcome = Omit<ProcessRecordOutcome, 'deduplicationToken'>;
 
 /**
  * Result produced by the concurrent embedding step for a single record.
@@ -57,7 +72,8 @@ interface PreparedRecord {
 interface EmbedResult {
   record: CaptureRecord;
   extraction: ExtractionResult;
-  outcome: ProcessRecordOutcome;
+  deduplicationToken: LineDeltaDeduplicationToken;
+  outcome: EmbeddingProcessOutcome;
   embedding?: number[];
   extractedTextHash?: string;
 }
@@ -78,6 +94,8 @@ export interface IndexingServiceDependencies {
    */
   embeddingProvider: EmbeddingProvider;
   captureClient: CaptureClient;
+  /** Optional provider-backed reader for the complete per-frame AX tree. */
+  captureFrameDetail?: CaptureFrameDetailPort;
   /**
    * Vector store — likewise retained on the dependencies bag for
    * parity. The indexing service no longer writes to it directly; the
@@ -98,7 +116,7 @@ export interface IndexingServiceDependencies {
   // ---------------------------------------------------------------------
   /**
    * Resolves an `ExtractionInput` to an `ExtractionResult`. The chain
-   * (TerminalRefinementRule → GenericHeuristicRule) is wired in
+   * (TerminalRefinementRule → UniversalStructuredExtractor) is wired in
    * `create-app.ts`; tests substitute a stub registry to drive specific
    * branches without re-implementing the AX walk.
    */
@@ -118,6 +136,8 @@ export interface IndexingServiceDependencies {
    * fresh frames to the same `(appName, contextKey)` bucket.
    */
   sessionAggregator: SessionAggregator;
+  /** Derived session store used to restore deduplication state after restart. */
+  sessionStore?: SessionStore;
   /**
    * Owns embedding generation, hash-dedup, and vector-store upserts.
    * Returns an `EmbeddingOutcome` per extraction; the indexing service
@@ -140,13 +160,29 @@ export interface IndexingServiceDependencies {
    * Must match `captureProvider.capabilities.providerName` (e.g. 'screenpipe').
    */
   captureProviderName: string;
+  /**
+   * Session-scoped line-level delta deduplicator (USE-R05). Emits only new
+   * or changed lines within the active session, suppressing redundant frames.
+   */
+  lineDeduplicator?: LineDeltaDeduplicator;
+  /**
+   * Must match `SessionAggregator`'s idle threshold so a new session starts
+   * with a fresh line-deduplication context as well.
+   */
+  sessionIdleThresholdSeconds?: number;
+}
+
+interface CheckpointCandidate {
+  record: CaptureRecord;
+  advance: boolean;
+  deduplicationToken: LineDeltaDeduplicationToken;
 }
 
 interface FetchCandidateRecordsResult {
   fetched: number;
   records: CaptureRecord[];
   backlogAfter: IndexedBacklogProgress | null;
-  usedBacklog: boolean;
+  backlog: IndexedBacklogProgress | null;
 }
 
 
@@ -217,10 +253,9 @@ function toCheckpoint(record: CaptureRecord): IndexedCheckpoint {
 
 /**
  * Build the `ExtractionInput` consumed by the extraction registry from a
- * `CaptureRecord`. The conversion is straightforward — every field
- * the registry needs is already on the record; `accessibilityTreeJson`
- * is forwarded as `null` when the upstream capture client has
- * not populated it.
+ * `CaptureRecord`. The conversion resolves `accessibilityTreeJson` from
+ * the record first, then the optional provider frame-detail port, before
+ * falling back to a synthetic body tree for legacy text-only records.
  *
  * Compatibility shim: if the upstream did NOT populate
  * `accessibilityTreeJson` but the record carries `text`, synthesise a
@@ -228,31 +263,61 @@ function toCheckpoint(record: CaptureRecord): IndexedCheckpoint {
  * `GenericHeuristicRule` can produce a non-empty extraction. This keeps
  * the rebuild-index acceptance path working for OCR-only records and
  * preserves the pre-task-6.1 behaviour where any record with text was
- * always indexable. Once the HTTP client starts pulling
- * `accessibility_tree_json` natively (a future task) this synthesis
- * will become a no-op for AX records (they carry their real tree) and
- * a documented fallback for OCR records.
+ * always indexable. The HTTP client and optional frame-detail reader can
+ * provide the real tree; synthesis remains the fallback for records that
+ * do not expose either path.
  */
-function toExtractionInput(record: CaptureRecord): ExtractionInput {
+interface ResolvedExtractionInput {
+  input: ExtractionInput;
+  rawAccessibilityTreeJson: string | null;
+}
+
+async function toExtractionInput(
+  record: CaptureRecord,
+  captureFrameDetail?: CaptureFrameDetailPort,
+  secureAxRoles: string[] = ['AXSecureTextField']
+): Promise<ResolvedExtractionInput> {
+  const rawAccessibilityTreeJson = await resolveAccessibilityTreeJson(record, captureFrameDetail);
   return {
-    frameId: record.frameId ?? hashStringToNumericId(record.id),
-    frameTimestamp: normalizeToUtc(record.timestamp),
-    appName: record.appName,
-    windowTitle: record.windowName,
-    accessibilityTreeJson: resolveAccessibilityTreeJson(record),
-    sourceTypes: record.sourceTypes
+    rawAccessibilityTreeJson,
+    input: {
+      frameId: record.frameId ?? hashStringToNumericId(record.id),
+      frameTimestamp: normalizeToUtc(record.timestamp),
+      captureCursor: record.id,
+      appName: record.appName,
+      windowTitle: record.windowName,
+      accessibilityTreeJson: stripSecureAxTreeJson(rawAccessibilityTreeJson, secureAxRoles),
+      sourceTypes: record.sourceTypes
+    }
   };
 }
 
+function isAtOrBeforeCheckpoint(
+  row: ExtractionResult,
+  checkpoint: IndexedCheckpoint
+): boolean {
+  const timestampComparison = compareTimestamps(row.frameTimestamp, checkpoint.timestamp);
+  if (timestampComparison < 0) return true;
+  if (timestampComparison > 0) return false;
+
+  // Same-timestamp rows follow the checkpoint's cursor ordering. Rows from
+  // older schemas without a persisted capture cursor are conservatively
+  // excluded because their position relative to the cursor is unknown.
+  if (row.captureCursor === undefined || checkpoint.cursor === undefined) {
+    return false;
+  }
+  return row.captureCursor <= checkpoint.cursor;
+}
+
 /**
- * Returns the `accessibility_tree_json` payload the registry should
- * consume. When the record carries an explicit `accessibilityTreeJson`
- * — null or non-null — that value wins (callers explicitly choose to
- * pass `null` when they want Empty_Extraction). When the field is
- * `undefined` (the current production state, since the capture
- * client does not yet populate it) and the record
- * carries non-empty `text`, synthesise a minimal AX tree so the
- * extraction layer can recover the text.
+ * Returns the `accessibility_tree_json` candidate the registry should
+ * consume. A non-empty record-level `accessibilityTreeJson` takes precedence;
+ * empty or null values fall through to frame detail and then to the text
+ * fallback. A non-empty `text` value is wrapped in a minimal AX tree when
+ * neither source carries a usable tree, so the extraction layer can recover
+ * legacy text-only records. The caller also retries with this text fallback
+ * when a non-empty tree parses but produces no extraction, preserving
+ * OCR/text evidence when an upstream tree is malformed or unextractable.
  *
  * The synthetic tree is `{ role: 'AXWebArea', value: '<text>' }`, which
  * is one of the {@link FOCUS_FALLBACK_ROLES} the
@@ -262,45 +327,94 @@ function toExtractionInput(record: CaptureRecord): ExtractionInput {
  * text content" and is the role most likely to appear in real AX
  * captures of OCR-eligible content.
  */
-function resolveAccessibilityTreeJson(record: CaptureRecord): string | null {
+async function resolveAccessibilityTreeJson(
+  record: CaptureRecord,
+  captureFrameDetail?: CaptureFrameDetailPort
+): Promise<string | null> {
   if (record.accessibilityTreeJson !== undefined) {
-    return record.accessibilityTreeJson;
+    if (record.accessibilityTreeJson !== null && record.accessibilityTreeJson.trim() !== '') {
+      return record.accessibilityTreeJson;
+    }
   }
+
+  if (captureFrameDetail !== undefined && record.frameId !== undefined) {
+    try {
+      const frame = await captureFrameDetail.getFrame(record.frameId);
+      if (frame !== null) {
+        const frameTree = frame.accessibilityTreeJson;
+        if (frameTree !== null && frameTree.trim() !== '') {
+          return frameTree;
+        }
+      }
+    } catch {
+      // Fall back to the provider record when frame detail is unavailable.
+    }
+  }
+
   if (typeof record.text === 'string' && record.text !== '') {
     return JSON.stringify({ role: 'AXWebArea', value: record.text });
   }
   return null;
 }
 
-/**
- * Deterministic 32-bit hash of a string used as a fallback `frameId`
- * for records that don't carry a numeric `frameId` (OCR-only records
- * or older fixtures). The algorithm is a basic FNV-1a 32-bit variant
- * — it is deterministic across processes and has acceptable
- * collision behaviour for short string ids, but it is **not**
- * collision-free in the cryptographic sense. A pair of structurally
- * different `record.id` values can map to the same numeric frameId
- * with probability ~1/2^32. Within a single batch the upstream merge
- * already de-duplicates by `record.id`, so the only realistic
- * collision risk is across runs that happen to pick clashing ids —
- * the consequence is a false-positive cache hit during a single
- * `runOnce()`, which manifests as a hash-cache reuse that the
- * dedup-by-frameId vector-store row keying isolates per frame.
- *
- * Exported so test helpers can derive the same fallback `frameId`
- * when wiring stub work-activity collaborators (see
- * `tests/helpers/indexing-test-doubles.ts`).
- */
-export function hashStringToNumericId(input: string): number {
-  let hash = 0x811c9dc5; // FNV-1a 32-bit offset basis
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    // Multiply by FNV prime (16777619) using imul for proper 32-bit semantics
-    hash = Math.imul(hash, 0x01000193);
+async function extractRecord(
+  record: CaptureRecord,
+  captureFrameDetail: CaptureFrameDetailPort | undefined,
+  extractionRegistry: ExtractionRegistry,
+  secureAxRoles: string[]
+): Promise<ExtractionResult> {
+  const resolved = await toExtractionInput(record, captureFrameDetail, secureAxRoles);
+  const input = resolved.input;
+  const extraction = extractionRegistry.extract(input);
+  if (
+    extraction.extractedText !== '' ||
+    record.text === '' ||
+    containsSecureAxRole(resolved.rawAccessibilityTreeJson, secureAxRoles)
+  ) {
+    return extraction;
   }
-  // Force unsigned 32-bit so the value never appears negative.
-  return hash >>> 0;
+
+  // A malformed or semantically empty AX tree must not suppress usable
+  // provider text and advance the checkpoint as if the frame had content.
+  return extractionRegistry.extract({
+    ...input,
+    accessibilityTreeJson: JSON.stringify({ role: 'AXWebArea', value: record.text })
+  });
 }
+
+function containsSecureAxRole(
+  treeJson: string | null,
+  secureAxRoles: string[]
+): boolean {
+  if (treeJson === null || secureAxRoles.length === 0) return false;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(treeJson);
+  } catch {
+    return false;
+  }
+
+  const secureRoleSet = new Set(secureAxRoles.map((role) => role.toLowerCase()));
+  const stack: unknown[] = [parsed];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (Array.isArray(current)) {
+      stack.push(...current);
+      continue;
+    }
+    if (current === null || typeof current !== 'object') continue;
+
+    const node = current as Record<string, unknown>;
+    if (typeof node.role === 'string' && secureRoleSet.has(node.role.toLowerCase())) {
+      return true;
+    }
+    if (Array.isArray(node.children)) stack.push(...node.children);
+  }
+
+  return false;
+}
+
 
 function getBacklogProgress(
   checkpoint: IndexedCheckpoint | null,
@@ -437,135 +551,6 @@ async function readPrivacyState(reader?: PrivacyStateReader): Promise<PrivacySta
   return reader.read();
 }
 
-/**
- * Strip records whose AX role is in secureAxRoles, plus all their descendants
- * within the same frame (R4.4).
- *
- * Grouping is done per frameId. Within each frame, the function builds a
- * parent→children map using `parentId` (preferred) or `path` (fallback).
- *
- * Degraded mode (no parentId / path available): only the secure-role record
- * itself is filtered; subtree pruning is skipped and a debug log is emitted.
- */
-export function stripSecureAxSubtrees(
-  records: CaptureRecord[],
-  secureAxRoles: string[],
-  logger?: Logger
-): CaptureRecord[] {
-  if (secureAxRoles.length === 0) {
-    return records;
-  }
-
-  const secureRoleSet = new Set(secureAxRoles.map((r) => r.toLowerCase()));
-
-  function isSecureRole(record: CaptureRecord): boolean {
-    return record.role !== undefined && secureRoleSet.has(record.role.toLowerCase());
-  }
-
-  // Group records by frameId (undefined frameId → each record is its own group)
-  const byFrame = new Map<string, CaptureRecord[]>();
-  for (const record of records) {
-    const key = record.frameId !== undefined ? `frame:${record.frameId}` : `id:${record.id}`;
-    const group = byFrame.get(key);
-    if (group) {
-      group.push(record);
-    } else {
-      byFrame.set(key, [record]);
-    }
-  }
-
-  const filtered: CaptureRecord[] = [];
-
-  for (const group of byFrame.values()) {
-    // Check if any record in this group has parentId or path for tree traversal
-    const hasTreeInfo = group.some((r) => r.parentId !== undefined || r.path !== undefined);
-
-    const secureRecords = group.filter(isSecureRole);
-    if (secureRecords.length === 0) {
-      // No secure records in this group — keep all
-      filtered.push(...group);
-      continue;
-    }
-
-    if (!hasTreeInfo) {
-      // Degraded mode: only filter the secure-role records themselves
-      logger?.debug('secureAxRoles: subtree pruning disabled, parent_id missing');
-      filtered.push(...group.filter((r) => !isSecureRole(r)));
-      continue;
-    }
-
-    // Full subtree pruning mode
-    // Build id → record map and parent → children map
-    const byId = new Map<string, CaptureRecord>();
-    for (const r of group) {
-      byId.set(r.id, r);
-    }
-
-    // Build children map using parentId
-    const children = new Map<string, Set<string>>();
-    for (const r of group) {
-      if (r.parentId !== undefined) {
-        let childSet = children.get(r.parentId);
-        if (!childSet) {
-          childSet = new Set();
-          children.set(r.parentId, childSet);
-        }
-        childSet.add(r.id);
-      }
-    }
-
-    // If parentId is not available but path is, build children map from path
-    // path format: '0.1.2' — a record's parent has path '0.1'
-    if (!group.some((r) => r.parentId !== undefined) && group.some((r) => r.path !== undefined)) {
-      for (const r of group) {
-        if (r.path === undefined) continue;
-        const parts = r.path.split('.');
-        if (parts.length > 1) {
-          const parentPath = parts.slice(0, -1).join('.');
-          // Find the record with this parent path
-          for (const candidate of group) {
-            if (candidate.path === parentPath) {
-              let childSet = children.get(candidate.id);
-              if (!childSet) {
-                childSet = new Set();
-                children.set(candidate.id, childSet);
-              }
-              childSet.add(r.id);
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    // BFS/DFS to collect all descendants of secure records
-    const blockedIds = new Set<string>();
-    const queue: string[] = [];
-
-    for (const secureRecord of secureRecords) {
-      blockedIds.add(secureRecord.id);
-      queue.push(secureRecord.id);
-    }
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const childIds = children.get(current);
-      if (childIds) {
-        for (const childId of childIds) {
-          if (!blockedIds.has(childId)) {
-            blockedIds.add(childId);
-            queue.push(childId);
-          }
-        }
-      }
-    }
-
-    filtered.push(...group.filter((r) => !blockedIds.has(r.id)));
-  }
-
-  return filtered;
-}
-
 async function fetchCandidateRecords(
   deps: Pick<IndexingServiceDependencies, 'captureClient' | 'freshnessWindowMinutes' | 'maxCatchUpBatches' | 'maxCatchUpRecords'>,
   checkpoint: IndexedCheckpoint | null,
@@ -580,7 +565,7 @@ async function fetchCandidateRecords(
       fetched: records.length,
       records,
       backlogAfter: null,
-      usedBacklog: false
+      backlog: null
     };
   }
 
@@ -614,14 +599,24 @@ async function fetchCandidateRecords(
     fetched: records.length,
     records,
     backlogAfter,
-    usedBacklog: true
+    backlog
   };
 }
 
 export class DefaultIndexingService implements IndexingService {
-  constructor(private readonly deps: IndexingServiceDependencies) {}
+  private readonly lineDeduplicator: LineDeltaDeduplicator;
+  private lineDeduplicationHydrated = false;
+
+  constructor(private readonly deps: IndexingServiceDependencies) {
+    this.lineDeduplicator = deps.lineDeduplicator ?? new LineDeltaDeduplicator({
+      idleThresholdMs: (
+        deps.sessionIdleThresholdSeconds ?? DEFAULT_ANALYSIS_IDLE_THRESHOLD_SECONDS
+      ) * 1000
+    });
+  }
 
   async runOnce(now = new Date(), forcedBacklog?: IndexedBacklogProgress | null): Promise<IndexingRunResult> {
+    const runStartTime = performance.now();
     const checkpointBefore = await this.deps.checkpointStore.readLatest();
 
     try {
@@ -636,21 +631,26 @@ export class DefaultIndexingService implements IndexingService {
     // would silently extend on the next frame even after a long idle
     // gap. The aggregator's `flushIdleOpenSessions` is idempotent so a
     // second call within the same `now` is a no-op.
-    await this.deps.sessionAggregator.flushIdleOpenSessions(now);
+    await this.flushIdleSessionsAndResetDeduplication(now);
+    await this.hydrateLineDeduplication(now, checkpointBefore);
 
     const {
       fetched,
       records: fetchedRecords,
       backlogAfter,
-      usedBacklog
+      backlog
     } = await fetchCandidateRecords(this.deps, checkpointBefore, now, forcedBacklog);
 
-    const recordsAfterCheckpoint = usedBacklog
-      ? [...fetchedRecords].sort(compareRecords)
-      : fetchedRecords
-        .filter((record) => isNewerThanCheckpoint(record, checkpointBefore))
-        .sort(compareRecords)
-        .slice(0, this.deps.maxCatchUpRecords);
+    // Search windows are inclusive at the lower bound, so the first backlog
+    // page and recent path use the checkpoint cursor to exclude repeats. Once
+    // a backlog has an offset, that provider cursor owns page membership; the
+    // eligibility helper only guards against an exact repeated checkpoint row.
+    const eligibleRecords = fetchedRecords
+      .filter((record) => isEligibleBacklogRecord(record, checkpointBefore, backlog))
+      .sort(compareRecords);
+    const recordsAfterCheckpoint = backlog === null
+      ? eligibleRecords.slice(0, this.deps.maxCatchUpRecords)
+      : eligibleRecords;
 
     // Strip Secure_AX_Field subtrees before extraction (R4.4). The pruned
     // record set is what the work-activity tail consumes — secure-role
@@ -663,6 +663,11 @@ export class DefaultIndexingService implements IndexingService {
       this.deps.logger
     );
 
+    // Preview line-deduplication state for the whole run. It is committed
+    // only after the checkpoint write succeeds, so a provider/vector-store
+    // failure leaves the next retry able to emit the full missing context.
+    const deduplication = this.lineDeduplicator.beginTransaction();
+
     // -----------------------------------------------------------------------
     // Step 1 (serial): extraction + content-store + session-aggregation.
     // Privacy is re-read per record; blocked records are deferred for the
@@ -670,7 +675,9 @@ export class DefaultIndexingService implements IndexingService {
     // -----------------------------------------------------------------------
     const { prepared, blocked: blockedRecordsList } = await this.extractAll(
       recordsAfterSecureFilter,
-      this.deps.privacyState
+      this.deps.privacyState,
+      deduplication,
+      secureAxRoles
     );
     let blockedRecords: CaptureRecord[] = blockedRecordsList;
 
@@ -721,12 +728,16 @@ export class DefaultIndexingService implements IndexingService {
     // Pairs of (record, advanceCheckpoint) accumulated from the embed phase
     // AND the released-blocked phase. Privacy-permanently-blocked records are
     // handled separately at the end.
-    const checkpointCandidates: Array<{ record: CaptureRecord; advance: boolean }> = [];
+    const checkpointCandidates: CheckpointCandidate[] = [];
 
     for (const e of embedResults) {
       if (e.outcome.indexed) indexedCount += 1;
       if (e.outcome.error !== undefined) firstEmbeddingError ??= e.outcome.error;
-      checkpointCandidates.push({ record: e.record, advance: e.outcome.advanceCheckpoint });
+      checkpointCandidates.push({
+        record: e.record,
+        advance: e.outcome.advanceCheckpoint,
+        deduplicationToken: e.deduplicationToken
+      });
     }
 
     // -----------------------------------------------------------------------
@@ -753,10 +764,14 @@ export class DefaultIndexingService implements IndexingService {
         }
 
         releasedBlockedRecord = true;
-        const advanced = await this.processRecord(record);
+        const advanced = await this.processRecord(record, deduplication, secureAxRoles);
         if (advanced.indexed) indexedCount += 1;
         if (advanced.error !== undefined) firstEmbeddingError ??= advanced.error;
-        checkpointCandidates.push({ record, advance: advanced.advanceCheckpoint });
+        checkpointCandidates.push({
+          record,
+          advance: advanced.advanceCheckpoint,
+          deduplicationToken: advanced.deduplicationToken
+        });
       }
 
       blockedRecords = stillBlockedRecords;
@@ -832,6 +847,21 @@ export class DefaultIndexingService implements IndexingService {
 
     const checkpointAfter = withBacklogState(latestCheckpoint, backlogAfter);
 
+    // Only records before the first failed record are durable from the
+    // checkpoint's perspective. Successful records after that boundary will
+    // be fetched again, so committing their preview would make the retry look
+    // like an empty duplicate and overwrite its extracted content.
+    const acceptedDeduplicationTokens = new Set<LineDeltaDeduplicationToken>();
+    for (const candidate of checkpointCandidates) {
+      if (
+        candidate.advance &&
+        (failureCeilingRecord === undefined ||
+          compareRecords(candidate.record, failureCeilingRecord) < 0)
+      ) {
+        acceptedDeduplicationTokens.add(candidate.deduplicationToken);
+      }
+    }
+
     // Persist checkpoint and surface error semantics matching the
     // pre-task-6.1 contract:
     //
@@ -846,6 +876,7 @@ export class DefaultIndexingService implements IndexingService {
     if (indexedCount === 0) {
       if (!firstEmbeddingError) {
         await persistCheckpointIfChanged(this.deps.checkpointStore, checkpointBefore, checkpointAfter);
+        deduplication.commit(acceptedDeduplicationTokens);
 
         return {
           fetched,
@@ -859,6 +890,9 @@ export class DefaultIndexingService implements IndexingService {
       const shouldPersistCheckpointBeforeThrow = blockedRecords.length > 0;
       if (shouldPersistCheckpointBeforeThrow) {
         await persistCheckpointIfChanged(this.deps.checkpointStore, checkpointBefore, checkpointAfter);
+        deduplication.commit(acceptedDeduplicationTokens);
+      } else {
+        deduplication.rollback();
       }
 
       throw firstEmbeddingError instanceof Error
@@ -867,6 +901,18 @@ export class DefaultIndexingService implements IndexingService {
     }
 
     await persistCheckpointIfChanged(this.deps.checkpointStore, checkpointBefore, checkpointAfter);
+    deduplication.commit(acceptedDeduplicationTokens);
+
+    const runDurationMs = Math.round(performance.now() - runStartTime);
+    if (fetched > 0 || indexedCount > 0) {
+      this.deps.logger?.info('Indexing run completed', {
+        fetched,
+        indexed: indexedCount,
+        hadEmbeddingFailures: firstEmbeddingError !== undefined,
+        durationMs: runDurationMs,
+        checkpoint: checkpointAfter?.timestamp
+      });
+    }
 
     return {
       fetched,
@@ -875,6 +921,102 @@ export class DefaultIndexingService implements IndexingService {
       checkpointAfter,
       hadEmbeddingFailures: firstEmbeddingError !== undefined
     };
+  }
+
+  private async flushIdleSessionsAndResetDeduplication(now: Date): Promise<void> {
+    let staleContextKeys: Set<string> | undefined;
+    if (this.deps.sessionStore !== undefined) {
+      try {
+        const idleMs = (
+          this.deps.sessionIdleThresholdSeconds ?? DEFAULT_ANALYSIS_IDLE_THRESHOLD_SECONDS
+        ) * 1000;
+        const cutoffMs = now.getTime() - idleMs;
+        const openSessions = await this.deps.sessionStore.listSessions({ isOpen: true });
+        staleContextKeys = new Set(
+          openSessions
+            .filter((session) => isTimestampBefore(session.ended_at, cutoffMs))
+            .map((session) => session.context_key)
+        );
+      } catch (error) {
+        this.deps.logger?.warn('Could not inspect idle sessions before flushing.', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    const flushed = await this.deps.sessionAggregator.flushIdleOpenSessions(now);
+    if (flushed.closed === 0) return;
+
+    if (staleContextKeys !== undefined && staleContextKeys.size > 0) {
+      for (const contextKey of staleContextKeys) {
+        this.lineDeduplicator.reset(contextKey);
+      }
+    } else {
+      // A custom aggregator may close sessions without exposing their keys;
+      // reset all state conservatively rather than carry hashes across a
+      // session boundary.
+      this.lineDeduplicator.reset();
+    }
+  }
+
+  /**
+   * Restores line hashes for currently open sessions once per process. The
+   * session store is optional for lightweight callers and test doubles; the
+   * production composition root supplies it alongside the aggregator. Only
+   * rows at or before the durable checkpoint are replayed, so an extracted
+   * row left behind by a failed embedding is retried with its original text.
+   */
+  private async hydrateLineDeduplication(
+    now: Date,
+    checkpoint: IndexedCheckpoint | null
+  ): Promise<void> {
+    if (this.lineDeduplicationHydrated) return;
+    if (this.deps.sessionStore === undefined) {
+      this.lineDeduplicationHydrated = true;
+      return;
+    }
+    if (checkpoint === null) {
+      this.lineDeduplicationHydrated = true;
+      return;
+    }
+
+    try {
+      const openSessionsByContext = new Map<string, string[]>();
+      for (const session of await this.deps.sessionStore.listSessions({ isOpen: true })) {
+        const starts = openSessionsByContext.get(session.context_key);
+        if (starts === undefined) {
+          openSessionsByContext.set(session.context_key, [session.started_at]);
+        } else {
+          starts.push(session.started_at);
+        }
+      }
+      if (openSessionsByContext.size > 0) {
+        const sessionStarts = [...openSessionsByContext.values()].flat();
+        const from = sessionStarts.sort()[0];
+        if (from === undefined) return;
+        const rows = await this.deps.extractedContentStore.listByTimeWindow(
+          from,
+          now.toISOString()
+        );
+        this.lineDeduplicator.hydrate(
+          rows.filter(
+            (row) => {
+              const starts = openSessionsByContext.get(row.contextKey);
+              return starts !== undefined &&
+                starts.some((start) =>
+                  isAtOrAfter(row.frameTimestamp, start) &&
+                  isAtOrBeforeCheckpoint(row, checkpoint)
+                );
+            }
+          )
+        );
+      }
+      this.lineDeduplicationHydrated = true;
+    } catch (error) {
+      this.deps.logger?.warn('Line deduplication state hydration skipped.', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 
   /**
@@ -892,7 +1034,9 @@ export class DefaultIndexingService implements IndexingService {
    */
   private async extractAll(
     records: CaptureRecord[],
-    privacyReader?: PrivacyStateReader
+    privacyReader: PrivacyStateReader | undefined,
+    deduplication: LineDeltaDeduplicationTransaction,
+    secureAxRoles: string[]
   ): Promise<{ prepared: PreparedRecord[]; blocked: CaptureRecord[] }> {
     const prepared: PreparedRecord[] = [];
     const blocked: CaptureRecord[] = [];
@@ -907,10 +1051,20 @@ export class DefaultIndexingService implements IndexingService {
         blocked.push(record);
         continue;
       }
-      const extraction = this.deps.extractionRegistry.extract(toExtractionInput(record));
-      await this.deps.extractedContentStore.upsert(extraction);
-      await this.deps.sessionAggregator.handleExtraction(extraction);
-      prepared.push({ record, extraction });
+      const rawExtraction = await extractRecord(
+        record,
+        this.deps.captureFrameDetail,
+        this.deps.extractionRegistry,
+        secureAxRoles
+      );
+      const processed = deduplication.process(rawExtraction);
+      await this.deps.extractedContentStore.upsert(processed.extraction);
+      await this.deps.sessionAggregator.handleExtraction(processed.extraction);
+      prepared.push({
+        record,
+        extraction: processed.extraction,
+        deduplicationToken: processed.token
+      });
     }
     return { prepared, blocked };
   }
@@ -936,38 +1090,55 @@ export class DefaultIndexingService implements IndexingService {
     const results: EmbedResult[] = new Array(prepared.length);
     const inFlight = new Set<Promise<void>>();
     let nextIndex = 0;
+    const batchStartTime = performance.now();
+    let computedCount = 0;
+    let cacheHitCount = 0;
+    let skippedEmptyCount = 0;
+    let failedCount = 0;
 
     const launch = (index: number): void => {
-      const { record, extraction } = prepared[index];
+      const { record, extraction, deduplicationToken } = prepared[index];
       const promise = this.deps.embeddingService.computeEmbedding(extraction)
         .then((computeOutcome: ComputeEmbeddingOutcome) => {
           switch (computeOutcome.kind) {
             case 'skipped-empty':
+              skippedEmptyCount += 1;
               results[index] = {
-                record, extraction,
+                record, extraction, deduplicationToken,
                 outcome: { indexed: false, error: undefined, advanceCheckpoint: true }
               };
               break;
             case 'reused-hash':
-            case 'computed':
+              cacheHitCount += 1;
               results[index] = {
-                record, extraction,
+                record, extraction, deduplicationToken,
+                outcome: { indexed: true, error: undefined, advanceCheckpoint: true },
+                embedding: computeOutcome.embedding,
+                extractedTextHash: computeOutcome.extractedTextHash
+              };
+              break;
+            case 'computed':
+              computedCount += 1;
+              results[index] = {
+                record, extraction, deduplicationToken,
                 outcome: { indexed: true, error: undefined, advanceCheckpoint: true },
                 embedding: computeOutcome.embedding,
                 extractedTextHash: computeOutcome.extractedTextHash
               };
               break;
             case 'provider-unavailable':
+              failedCount += 1;
               results[index] = {
-                record, extraction,
+                record, extraction, deduplicationToken,
                 outcome: { indexed: false, error: computeOutcome.error, advanceCheckpoint: false }
               };
               break;
           }
         })
         .catch((error: unknown) => {
+          failedCount += 1;
           results[index] = {
-            record, extraction,
+            record, extraction, deduplicationToken,
             outcome: { indexed: false, error, advanceCheckpoint: false }
           };
         })
@@ -984,6 +1155,22 @@ export class DefaultIndexingService implements IndexingService {
       if (inFlight.size > 0) {
         await Promise.race(inFlight);
       }
+    }
+
+    if (prepared.length > 0) {
+      const batchDurationMs = Math.round(performance.now() - batchStartTime);
+      const avgLatencyMs = computedCount > 0 ? Math.round(batchDurationMs / computedCount) : 0;
+      this.deps.logger?.info('Indexing embedding batch processed', {
+        totalRecords: prepared.length,
+        computed: computedCount,
+        cacheHits: cacheHitCount,
+        skippedEmpty: skippedEmptyCount,
+        failed: failedCount,
+        batchDurationMs,
+        avgLatencyMs,
+        provider: this.deps.embeddingProvider.kind,
+        model: this.deps.embeddingProvider.model
+      });
     }
 
     return results;
@@ -1033,14 +1220,63 @@ export class DefaultIndexingService implements IndexingService {
    * pre-refactor per-record path so the blocked-records semantics are
    * preserved unchanged.
    */
-  private async processRecord(record: CaptureRecord): Promise<ProcessRecordOutcome> {
-    const extraction = this.deps.extractionRegistry.extract(toExtractionInput(record));
-    await this.deps.extractedContentStore.upsert(extraction);
-    await this.deps.sessionAggregator.handleExtraction(extraction);
-    const outcome = await this.deps.embeddingService.embedExtraction(extraction);
+  private async processRecord(
+    record: CaptureRecord,
+    deduplication: LineDeltaDeduplicationTransaction,
+    secureAxRoles: string[]
+  ): Promise<ProcessRecordOutcome> {
+    const rawExtraction = await extractRecord(
+      record,
+      this.deps.captureFrameDetail,
+      this.deps.extractionRegistry,
+      secureAxRoles
+    );
+    const processed = deduplication.process(rawExtraction);
+    await this.deps.extractedContentStore.upsert(processed.extraction);
+    await this.deps.sessionAggregator.handleExtraction(processed.extraction);
+    const outcome = await this.deps.embeddingService.embedExtraction(processed.extraction);
 
-    return mapEmbeddingOutcome(outcome);
+    return {
+      ...mapEmbeddingOutcome(outcome),
+      deduplicationToken: processed.token
+    };
   }
+}
+
+function isEligibleBacklogRecord(
+  record: CaptureRecord,
+  checkpoint: IndexedCheckpoint | null,
+  backlog: IndexedBacklogProgress | null
+): boolean {
+  if (backlog === null || backlog.nextOffset === 0 || checkpoint === null) {
+    return isNewerThanCheckpoint(record, checkpoint);
+  }
+
+  // Once a backlog has advanced, `nextOffset` is the provider's authoritative
+  // cursor. A provider may order the next page independently of the durable
+  // checkpoint timestamp, so do not discard older records from that page.
+  // Still guard against a provider repeating the exact checkpoint row.
+  const isCheckpointRow =
+    record.id === checkpoint.cursor
+    && compareTimestamps(record.timestamp, checkpoint.timestamp) === 0;
+  return !isCheckpointRow;
+}
+
+function isAtOrAfter(timestamp: string, lowerBound: string): boolean {
+  const timestampMs = Date.parse(timestamp);
+  const lowerBoundMs = Date.parse(lowerBound);
+  if (Number.isFinite(timestampMs) && Number.isFinite(lowerBoundMs)) {
+    return timestampMs >= lowerBoundMs;
+  }
+  return timestamp >= lowerBound;
+}
+
+function isTimestampBefore(timestamp: string, boundMs: number): boolean {
+  const timestampMs = Date.parse(timestamp);
+  if (Number.isFinite(timestampMs)) {
+    return timestampMs < boundMs;
+  }
+  return timestamp < new Date(boundMs).toISOString();
 }
 
 /**
@@ -1049,7 +1285,9 @@ export class DefaultIndexingService implements IndexingService {
  * blocked-records re-check loop. The mapping mirrors the switch in the old
  * serial loop and in the concurrent embedding step.
  */
-function mapEmbeddingOutcome(outcome: EmbeddingOutcome): ProcessRecordOutcome {
+function mapEmbeddingOutcome(
+  outcome: EmbeddingOutcome
+): EmbeddingProcessOutcome {
   switch (outcome.kind) {
     case 'embedded':
     case 'reused-hash':

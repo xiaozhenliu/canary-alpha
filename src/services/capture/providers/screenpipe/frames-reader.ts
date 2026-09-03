@@ -125,6 +125,11 @@ export class SqliteScreenpipeFramesReader implements CaptureFrameDetailPort {
         | undefined;
       if (row === undefined) return null;
 
+      let accessibilityTreeJson = row.accessibility_tree_json;
+      if (accessibilityTreeJson === null || accessibilityTreeJson.trim() === '') {
+        accessibilityTreeJson = reconstructAccessibilityTree(db, numericId);
+      }
+
       return {
         id: Number(row.id),
         timestamp: row.timestamp,
@@ -132,7 +137,7 @@ export class SqliteScreenpipeFramesReader implements CaptureFrameDetailPort {
         // the extraction pipeline's field-shape conventions.
         appName: row.app_name === null ? undefined : row.app_name,
         windowName: row.window_name === null ? undefined : row.window_name,
-        accessibilityTreeJson: row.accessibility_tree_json
+        accessibilityTreeJson
       };
     } catch {
       // Schema mismatch (e.g. a hypothetical future ScreenPipe drops
@@ -235,6 +240,171 @@ interface RawScreenpipeFrameRow {
   app_name: string | null;
   window_name: string | null;
   accessibility_tree_json: string | null;
+}
+
+interface RawElementRow {
+  id: number | bigint;
+  role: string | null;
+  text: string | null;
+  parent_id: number | bigint | null;
+  depth: number | bigint | null;
+  left_bound: number | null;
+  top_bound: number | null;
+  width_bound: number | null;
+  height_bound: number | null;
+  sort_order: number | bigint | null;
+  properties: string | null;
+  on_screen: number | bigint | null;
+}
+
+interface ReconstructedAccessibilityNode {
+  role?: string;
+  title?: string;
+  text?: string;
+  value?: string;
+  description?: string;
+  focused?: boolean;
+  on_screen?: boolean;
+  bounds?: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  children: ReconstructedAccessibilityNode[];
+}
+
+const WINDOW_ROLES = new Set([
+  'AXWindow',
+  'AXMainWindow',
+  'AXDocument',
+  'AXApplication',
+  'AXStandardWindow'
+]);
+
+/**
+ * Rebuilds the nested AX tree after maintenance has nulled the original JSON
+ * and retained the normalized rows in `elements`.
+ */
+function reconstructAccessibilityTree(
+  db: DatabaseSync,
+  frameId: number
+): string | null {
+  try {
+    const targetFrameId = readElementsReference(db, frameId);
+    const rows = db
+      .prepare(
+        `SELECT id, role, text, parent_id, depth,
+                left_bound, top_bound, width_bound, height_bound,
+                sort_order, properties, on_screen
+         FROM elements
+         WHERE frame_id = ?
+           AND source = 'accessibility'
+         ORDER BY sort_order ASC, id ASC`
+      )
+      .all(targetFrameId) as unknown as RawElementRow[];
+
+    if (rows.length === 0) return null;
+
+    const nodes = new Map<number, ReconstructedAccessibilityNode>();
+    const parentIds = new Map<number, number | null>();
+    for (const row of rows) {
+      const id = Number(row.id);
+      nodes.set(id, elementRowToNode(row));
+      parentIds.set(id, row.parent_id === null ? null : Number(row.parent_id));
+    }
+
+    const roots: ReconstructedAccessibilityNode[] = [];
+    for (const row of rows) {
+      const id = Number(row.id);
+      const node = nodes.get(id);
+      if (node === undefined) continue;
+
+      const parentId = parentIds.get(id) ?? null;
+      const parent = parentId === null ? undefined : nodes.get(parentId);
+      if (parent === undefined) {
+        roots.push(node);
+      } else {
+        parent.children.push(node);
+      }
+    }
+
+    if (roots.length === 0) return null;
+    const root = roots.length === 1
+      ? roots[0]
+      : { role: 'AXApplication', children: roots } satisfies ReconstructedAccessibilityNode;
+    return JSON.stringify(root);
+  } catch {
+    // Missing elements table/columns or a schema drift is a normal degraded
+    // path for installations whose Screenpipe database predates the sweep.
+    return null;
+  }
+}
+
+function readElementsReference(db: DatabaseSync, frameId: number): number {
+  try {
+    const row = db
+      .prepare('SELECT elements_ref_frame_id AS ref FROM frames WHERE id = ?')
+      .get(frameId) as { ref: number | bigint | null } | undefined;
+    if (row?.ref !== null && row?.ref !== undefined) {
+      return Number(row.ref);
+    }
+  } catch {
+    // Older schemas have no reference column; use the frame's own id.
+  }
+  return frameId;
+}
+
+function elementRowToNode(row: RawElementRow): ReconstructedAccessibilityNode {
+  const role = typeof row.role === 'string' && row.role !== '' ? row.role : undefined;
+  const properties = parseElementProperties(row.properties);
+  const node: ReconstructedAccessibilityNode = {
+    ...(role !== undefined ? { role } : {}),
+    children: []
+  };
+
+  const text = typeof row.text === 'string' && row.text !== '' ? row.text : undefined;
+  if (text !== undefined) {
+    if (role !== undefined && WINDOW_ROLES.has(role) && typeof properties.title !== 'string') {
+      node.title = text;
+    } else {
+      node.text = text;
+    }
+  }
+
+  if (typeof row.left_bound === 'number' || typeof row.top_bound === 'number' ||
+      typeof row.width_bound === 'number' || typeof row.height_bound === 'number') {
+    node.bounds = {
+      ...(typeof row.left_bound === 'number' ? { x: row.left_bound } : {}),
+      ...(typeof row.top_bound === 'number' ? { y: row.top_bound } : {}),
+      ...(typeof row.width_bound === 'number' ? { width: row.width_bound } : {}),
+      ...(typeof row.height_bound === 'number' ? { height: row.height_bound } : {})
+    };
+  }
+
+  if (row.on_screen !== null) {
+    node.on_screen = Number(row.on_screen) !== 0;
+  }
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (key !== '_converted_by' && key !== 'children' && value !== undefined) {
+      (node as unknown as Record<string, unknown>)[key] = value;
+    }
+  }
+
+  return node;
+}
+
+function parseElementProperties(raw: string | null): Record<string, unknown> {
+  if (raw === null || raw === '') return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 /**

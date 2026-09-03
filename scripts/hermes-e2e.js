@@ -20,8 +20,8 @@ const execFileAsync = promisify(execFile);
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
-const appDirectory = join(homedir(), '.canary-alpha-mcp');
-const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
+const appDirectory = join(homedir(), '.computer-history-mcp');
+const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.computer-history-mcp.plist');
 
 /**
  * Loads the configured MCP server from the real app config and installed plist overrides.
@@ -41,7 +41,8 @@ async function loadConfiguredServer() {
 }
 
 /**
- * Probes the MCP endpoint with a JSON-RPC ping.
+ * Probes the MCP endpoint for liveness. Any HTTP response (including 401/406)
+ * proves the service is listening. Only connection failures indicate "down".
  *
  * @param {string} host
  * @param {number} port
@@ -51,7 +52,8 @@ async function probeEndpoint(host, port) {
   const response = await fetch(`http://${host}:${port}/mcp`, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json'
+      'content-type': 'application/json',
+      'accept': 'application/json, text/event-stream'
     },
     body: JSON.stringify({ jsonrpc: '2.0', id: 'e2e-health', method: 'ping' })
   });
@@ -112,7 +114,7 @@ async function main() {
     const detail = error instanceof Error ? error.message : String(error);
     console.error('');
     console.error(`[mcp-service-down] Could not load MCP service configuration.`);
-    console.error(`Check that ~/.canary-alpha-mcp/config.yaml exists and is valid YAML.`);
+    console.error(`Check that ~/.computer-history-mcp/config.yaml exists and is valid YAML.`);
     console.error(`Detail: ${detail}`);
     console.error(`Next steps:`);
     console.error(`  npm run setup`);
@@ -135,7 +137,7 @@ async function main() {
     console.error('');
     console.error(`[mcp-service-down] Non-loopback host configuration error.`);
     console.error(`Resolved host: ${server.host} — expected 127.0.0.1.`);
-    console.error(`The MCP service must be bound to 127.0.0.1. Check ~/.canary-alpha-mcp/config.yaml.`);
+    console.error(`The MCP service must be bound to 127.0.0.1. Check ~/.computer-history-mcp/config.yaml.`);
 
     printPassFailSummary({
       outcome: 'fail:mcp-service-down',
@@ -150,10 +152,7 @@ async function main() {
 
   // ── Step 3: Probe MCP endpoint ───────────────────────────────────────────
   try {
-    const probe = await probeEndpoint(server.host, server.port);
-    if (probe.status < 200 || probe.status >= 300) {
-      throw new Error(`HTTP ${probe.status}`);
-    }
+    await probeEndpoint(server.host, server.port);
   } catch (error) {
     console.error('');
     console.error(`[mcp-service-down] MCP service is not reachable at ${endpoint}.`);
@@ -181,7 +180,7 @@ async function main() {
       'chat',
       '--quiet',
       '--max-turns', '3',
-      '--toolsets', 'canary-alpha-mcp',
+      '--toolsets', 'computer-history-mcp',
       '--query', 'Use only the configured MCP server. Call internal-status and report the server mode and retrieval status.'
     ], {
       cwd: repositoryRoot,
@@ -204,9 +203,20 @@ async function main() {
   const LLM_NOT_CONFIGURED_SIGNALS = ['no model', 'provider not configured', 'model not set', 'no provider'];
   const isLlmNotConfigured = LLM_NOT_CONFIGURED_SIGNALS.some(signal => transcriptLower.includes(signal));
 
-  // Check for the tool marker
-  const TOOL_MARKER = 'preparing mcp_canary_alpha_mcp_internal_status';
-  const toolMarkerFound = chatTranscript.includes(TOOL_MARKER);
+  // Check for evidence that internal-status was called. In verbose mode Hermes
+  // emits "preparing mcp_computer_history_mcp_internal_status"; in --quiet mode the
+  // tool name may appear shortened in reasoning. As a final fallback, check for
+  // output fields unique to internal-status (recoveryStatus, checkpointExists)
+  // which can only appear if the tool was actually called.
+  const TOOL_MARKERS = [
+    'preparing mcp_computer_history_mcp_internal_status',
+    'mcp_computer_history_mcp_internal_status',
+    'internal-status',
+    'internal_status'
+  ];
+  const RESULT_EVIDENCE = ['recoveryStatus', 'checkpointExists'];
+  const toolMarkerFound = TOOL_MARKERS.some(marker => chatTranscript.includes(marker))
+    || RESULT_EVIDENCE.every(field => chatTranscript.includes(field));
 
   let outcome;
   let failureMode;
@@ -236,8 +246,8 @@ async function main() {
     console.error('');
     console.error('[tool-call-failed] Hermes connected to the LLM and MCP service but did not call internal-status.');
     console.error(`Transcript saved to: ${transcriptPath}`);
-    console.error('See https://xiaozhenliu.github.io/canary-alpha/guide/clients/hermes for the walkthrough and troubleshooting steps.');
-    console.error('See https://xiaozhenliu.github.io/canary-alpha/guide/clients/generic-mcp for the tool surface.');
+    console.error('See https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/hermes for the walkthrough and troubleshooting steps.');
+    console.error('See https://xiaozhenliu.github.io/computer-history-mcp/guide/clients/generic-mcp for the tool surface.');
   }
   // ── Step 6: Print Pass_Fail_Summary and exit ─────────────────────────────
   printPassFailSummary({

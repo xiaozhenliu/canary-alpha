@@ -41,7 +41,7 @@ export async function startEmbeddingStub(options?: {
         ? [parsedBody.input]
         : [];
 
-    if (fail || inputs.some((input) => failOnInputs.has(input))) {
+    if (fail || inputs.some((input) => Array.from(failOnInputs).some((f) => input.includes(f)))) {
       response.statusCode = 503;
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify({ error: 'embedding unavailable' }));

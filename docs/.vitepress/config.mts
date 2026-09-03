@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'canary-alpha-mcp',
+  title: 'computer-history-mcp',
   description: 'Local-first MCP server for Screenpipe memory and automation workflows.',
-  base: '/canary-alpha/',
+  base: '/computer-history-mcp/',
   srcExclude: [
     'architecture.md',
     'develop_log.md',
@@ -18,7 +18,7 @@ export default defineConfig({
     'superpowers/**',
   ],
   themeConfig: {
-    socialLinks: [{ icon: 'github', link: 'https://github.com/xiaozhenliu/canary-alpha' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/xiaozhenliu/computer-history-mcp' }],
     search: { provider: 'local' },
   },
   locales: {

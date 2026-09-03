@@ -8,16 +8,16 @@ last_updated: 2026-06-12
 
 ## Data locality
 
-`canary-alpha-mcp` is local-only by design:
+`computer-history-mcp` is local-only by design:
 
 - The managed HTTP service binds exclusively to `127.0.0.1`. It will not accept connections from other machines.
-- All derived data (indexes, config, logs) is stored under `~/.canary-alpha-mcp/` on your local machine.
+- All derived data (indexes, config, logs) is stored under `~/.computer-history-mcp/` on your local machine.
 - The server makes no outbound network calls except to the embedding endpoint you configure (local Ollama by default).
 - There is no telemetry or usage reporting.
 
 ## What gets captured
 
-Screenpipe is responsible for capturing your screen activity. `canary-alpha-mcp` reads and indexes that data — it does not control what Screenpipe captures.
+Screenpipe is responsible for capturing your screen activity. `computer-history-mcp` reads and indexes that data — it does not control what Screenpipe captures.
 
 When you start Screenpipe with `npm run screenpipe:safe-record`, this repo's wrapper applies safer local-development defaults:
 
@@ -72,9 +72,9 @@ node scripts/privacy-control.js exclude-app --app "Claude"
 
 | Path | Contents |
 |------|----------|
-| `~/.canary-alpha-mcp/config.yaml` | Server configuration |
-| `~/.canary-alpha-mcp/logs/` | Service logs and maintenance records |
-| `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` | Maintenance run records |
+| `~/.computer-history-mcp/config.yaml` | Server configuration |
+| `~/.computer-history-mcp/logs/` | Service logs and maintenance records |
+| `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` | Maintenance run records |
 | `~/.screenpipe/` | Raw Screenpipe capture data (managed by Screenpipe) |
 
 **Maintenance log rotation**: `screenpipe-maintenance.jsonl` is pruned to the last 7 days and rotated to `screenpipe-maintenance.jsonl.1` when it exceeds 1 MB.

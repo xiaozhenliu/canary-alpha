@@ -8,7 +8,7 @@ last_updated: 2026-06-12
 
 ## 前提条件
 
-`canary-alpha-mcp` 服务必须已经运行。如果尚未完成，请先按 [快速开始](/zh/guide/quickstart) 操作。
+`computer-history-mcp` 服务必须已经运行。如果尚未完成，请先按 [快速开始](/zh/guide/quickstart) 操作。
 
 验证服务健康状态：
 
@@ -20,7 +20,7 @@ npm run service:status
 
 打开 Cursor 设置 → **MCP** → **添加新 MCP 服务**。
 
-- 名称：`canary-alpha-mcp`
+- 名称：`computer-history-mcp`
 - 类型：**HTTP**
 - URL：`http://127.0.0.1:18765/mcp`
 
@@ -39,7 +39,7 @@ Cursor MCP 服务也可以通过 JSON 文件配置。
 ```json
 {
   "mcpServers": {
-    "canary-alpha-mcp": {
+    "computer-history-mcp": {
       "url": "http://127.0.0.1:18765/mcp"
     }
   }
@@ -51,7 +51,7 @@ Cursor MCP 服务也可以通过 JSON 文件配置。
 ```json
 {
   "mcpServers": {
-    "canary-alpha-mcp": {
+    "computer-history-mcp": {
       "command": "node",
       "args": ["<repo-path>/dist/src/index.js", "--mode", "stdio"]
     }

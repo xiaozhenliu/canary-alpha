@@ -1,7 +1,7 @@
 ---
-doc_version: 4
+doc_version: 5
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-06-21
 ---
 
 # MCP 工具
@@ -23,20 +23,20 @@ last_updated: 2026-06-16
 
 ## 工具列表
 
-| 工具 | 类别 | 说明 |
-|------|------|------|
-| `find` | work-activity | 按关键词、语义相似度或混合模式搜索工作活动内容，返回证据片段 |
-| `recall` | work-activity | 回忆指定时间窗口内的 session 或聚合时间块，可附带摘要 |
-| `inspect` | work-activity | 深入查看单个 session 或帧，返回证据行或原始 AX 树 |
-| `memory-read` | memory | 按 scope 读取持久化长期记忆 |
-| `memory-write` | memory | 追加或替换持久化长期记忆内容 |
-| `file-analyze` | file-analysis | 分析支持的本地文件并摘要，或回答具体问题 |
-| `privacy-control` | privacy | 检查或修改本地隐私采集控制 |
-| `screenpipe-control` | screenpipe | 检查、启动或停止本地 Screenpipe 录制进程 |
-| `internal-status` | internal | 返回启动安全的运行时状态 |
-| `routine-list` | routines | 列出所有已配置的本地 routine，包含调度计划、启用状态和最近一次运行摘要 |
-| `routine-create` | routines | 按名称创建新 routine 或更新已有 routine |
-| `routine-history` | routines | 按名称返回指定 routine 的执行历史，按最新优先排序 |
+| 工具 | 类别 | Onboarding 默认 | 说明 |
+|------|------|:---:|------|
+| `find` | work-activity | ✓ | 按关键词、语义相似度或混合模式搜索工作活动内容，返回证据片段 |
+| `recall` | work-activity | ✓ | 回忆指定时间窗口内的 session 或聚合时间块，可附带摘要 |
+| `inspect` | work-activity | ✓ | 深入查看单个 session 或帧，返回证据行或原始 AX 树 |
+| `memory-read` | memory | ✓ | 按 scope 读取持久化长期记忆 |
+| `memory-write` | memory | ✓ | 追加或替换持久化长期记忆内容 |
+| `file-analyze` | file-analysis | ✓ | 分析支持的本地文件并摘要，或回答具体问题 |
+| `privacy-control` | privacy | ✓ | 检查或修改本地隐私采集控制 |
+| `screenpipe-control` | screenpipe | — | 检查、启动或停止本地 Screenpipe 录制进程 |
+| `internal-status` | internal | ✓ | 返回启动安全的运行时状态 |
+| `routine-list` | routines | ✓ | 列出所有已配置的本地 routine，包含调度计划、启用状态和最近一次运行摘要 |
+| `routine-create` | routines | — | 按名称创建新 routine 或更新已有 routine |
+| `routine-history` | routines | ✓ | 按名称返回指定 routine 的执行历史，按最新优先排序 |
 
 ## `find`
 
@@ -215,6 +215,7 @@ npm run privacy-control -- pause
 npm run privacy-control -- resume
 npm run privacy-control -- exclude-app --app "Claude"
 npm run privacy-control -- exclude-app --app "Claude" --rebuild
+npm run privacy-control -- remove-excluded-app --app "Claude"
 ```
 
 CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，不暴露检索内容。`--rebuild` 在更新排除列表后调用现有的 `rebuild-index` 工作流，以清除新排除应用已索引的明文内容。
@@ -230,8 +231,8 @@ CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，�
 
 | 字段 | 类型 | 是否必填 | 备注 |
 |------|------|---------|------|
-| `action` | `status` \| `pause` \| `resume` \| `exclude-app` \| `delete-range` | 是 | 要执行的操作 |
-| `appName` | string | 否 | 与 `exclude-app` 配合使用 |
+| `action` | `status` \| `pause` \| `resume` \| `exclude-app` \| `remove-excluded-app` \| `delete-range` | 是 | 要执行的操作 |
+| `appName` | string | 否 | 与 `exclude-app` 和 `remove-excluded-app` 配合使用 |
 | `range` | `last_1h` \| `last_1d` \| `all` | 否 | 与 `delete-range` 配合使用 |
 | `confirm` | boolean | 否 | 破坏性 delete-range 操作的确认标志 |
 
@@ -286,7 +287,7 @@ CLI 只打印暂停状态、被排除的应用名和可操作的验证错误，�
   "host": "127.0.0.1",
   "port": 18765,
   "pid": 12345,
-  "configFile": "~/.canary-alpha-mcp/config.yaml",
+  "configFile": "~/.computer-history-mcp/config.yaml",
   "retrieval": {
     "checkpointExists": true,
     "checkpointTimestamp": "2026-04-16T12:00:00.000Z",

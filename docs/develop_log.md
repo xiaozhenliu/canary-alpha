@@ -1,16 +1,236 @@
 ---
-doc_version: 18
+doc_version: 39
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-09-03
 ---
 
 # Development Log
 
-This log records maintainer-facing milestones for `canary-alpha-mcp`. It is a
+This log records maintainer-facing milestones for `computer-history-mcp`. It is a
 compact narrative of important implementation decisions and verification
 outcomes, not a duplicate of the Git commit history.
 
 For user-visible release notes, read the [changelog](../CHANGELOG.md).
+
+## 2026-09-03: Filtered Public History Rewrite Published
+
+**Result**
+
+- Published clean-root filtered snapshot candidate `87b292e05bfc027c7d0736032c8d965d45dbde68`
+  (built from reviewed `dev` source `a8f68364dd8ed5fc394cde04d51d833e1dcc952d`) to remote
+  `public/main` via lease `689a526f4634e3a100ffbcf3b3f235243c280474`.
+- Verified clean-root commit graph, complete omission of non-allowlisted development and private paths
+  (`.scratch/`, `.agents/`, `.kiro/`, etc.), full test suite (149 files / 1427 tests), and clean Gitleaks scan.
+- Transitioned `docs/specs/project-rename-computer-history-mcp.md` to deprecated (completed).
+
+## 2026-09-02: Project Rename + Filtered Public Release
+
+**Result**
+
+- Finished the local rename to `computer-history-mcp`, including app-home migration,
+  legacy launchd teardown, config CLI migration, VitePress/Pages base, and repository links.
+- Replaced the unsafe `git merge dev` publish path with a fail-closed filtered release that
+  binds the source SHA to HEAD, requires an independent public manifest, and refuses local
+  `public-main` parents that diverge from remote `public/main`.
+- Generated a clean-root public history rewrite candidate and recorded remaining
+  non-credential exposure for forks, clones, mirrors, and caches.
+
+**Verification**
+
+- `npm run typecheck`, full Vitest suite (148 files / 1426 tests), `npm run docs:build`,
+  Gitleaks on the public candidate, `npm run release:public:dry-run`, and
+  `scripts/prepare-public-history-rewrite.sh` all passed.
+- Independent Codex review (`gpt-5.6-sol`, medium) found no blocking defects on the final
+  local commit set; GitHub rename and remote push remain human-only.
+
+## 2026-09-02: Versioned Screenpipe Runtime Selection
+
+**Result**
+
+- Added `screenpipe.binaryPath` and `screenpipe.dataDirectory` as the single runtime selection interface for recorder startup and every direct SQLite consumer.
+- Removed recorder and onboarding dependence on `screenpipe@latest`; the default executable now resolves from PATH, while versioned development builds can use an explicit absolute path.
+- Installed the locally built `0.4.15` ARM64 artifact beside the global `0.3.282` build without replacing it.
+
+**Verification**
+
+- Targeted configuration, recorder, onboarding, and control tests pass.
+- Independent Codex review approved the runtime path propagation after its four findings were fixed.
+
+## 2026-09-02: Universal AXTree Structured Extraction & Session-Scoped Delta Deduplication
+
+**Result**
+
+- Implemented `UniversalStructuredExtractor` (`universal.ts`): replaced generic single-node heuristic with full-window 4-domain semantic taxonomy (`[Window]`, `[Nav]`, `[Action]`, `[Body]`), capturing chat contacts/channels, IDE breadcrumbs & active tabs, menu popups, and modal dialogs while gracefully degrading for shallow/GPUI trees.
+- Implemented `deriveEnrichedWindowTitle`: automatically enriches coarse window titles (WeChat, Slack, Discord, Untitled) with active top navigation context to ensure accurate session grouping and naming.
+- Implemented `LineDeltaDeduplicator`: session-scoped line-level delta deduplication tracking multi-context active sessions (A -> B -> A) and resetting across idle timeouts, suppressing 100% redundant frames to 0 bytes while indexing only incremental changes.
+- Wired `UniversalStructuredExtractor` as canonical production fallback in `ExtractionRegistry` and wired `LineDeltaDeduplicator` into `IndexingService` production pipeline.
+- Wired the production indexer to recover complete AX trees through the capture provider's frame-detail port, including reconstruction from sweep-normalized `elements` rows, restore deduplication state from open sessions after restart, and commit preview state only after checkpoint persistence succeeds.
+- Applied the configured secure AX-role filter to nested trees before extraction and kept uncheckpointed rows out of restart hydration so failed embeddings are retried with full context.
+- Added regression coverage for provider retries, configured idle thresholds, frame-detail AX loading, navigation-noise filtering, invisible roots, cache eviction, and restart recovery.
+- Preserved the original capture cursor in derived extraction rows and verified same-timestamp checkpoint recovery plus frame-local duplicate-line preservation.
+
+**Verification**
+
+- `npm run typecheck` 100% clean.
+- `npm test` all 140 test files and 1394 tests pass cleanly.
+- Codex review gate (gpt-5.6-sol, medium reasoning) passed with no P0/P1 findings; P2/P3 follow-ups are deferred by review policy.
+
+## 2026-07-03: Refactor — Extract find-service Query Pipelines (GRO-171)
+
+**Result**
+
+- Extracted SQL keyword query pipeline (`collectKeywordMatches`, `fetchPage`,
+  `normaliseForKeyword`, `RawExtractedContentRow`, `rowToEvidenceItem`,
+  SQL constants) into `src/services/work-activity/find/keyword-queries.ts`
+  (282 lines).
+- Extracted semantic vector query pipeline (`executeSemanticQuery`,
+  `extractFrameId`, `rowToSemanticEvidenceItem`) into
+  `src/services/work-activity/find/semantic-queries.ts` (152 lines).
+- `find-service.ts` reduced from 1061 to 612 lines; `findSemantic` and
+  `findKeyword` methods retained as thin orchestration wrappers.
+- Removed dead `FindModeNotImplementedError` class and its catch branch in
+  the MCP tool handler (`find.ts`).
+- `executeSemanticQuery` returns `null` (fallback to keyword needed) vs `[]`
+  (semantic ran successfully, no matches) — preserving R7.6/R7.7 degradation
+  semantics.
+
+**Verification**
+
+- `npm run typecheck` clean; 889 unit tests pass (2 new: vector-store query
+  throw path for semantic and hybrid modes).
+- Codex MCP review (gpt-5.5, xhigh): first round identified vector-store
+  query throw coverage gap; second round confirmed all issues resolved.
+
+## 2026-07-02: Refactor 3/4 — Extract indexing-service Pure Functions (GRO-169)
+
+**Result**
+
+- Moved `hashStringToNumericId` (FNV-1a 32-bit hash) to `src/lib/hash.ts` —
+  generic utility with no indexing-service dependency.
+- Moved `stripSecureAxSubtrees` (~120 lines, R4.4 privacy filter) to
+  `src/services/retrieval/strip-secure-ax-subtrees.ts` — security-auditable
+  as a standalone module.
+- `indexing-service.ts` reduced by ~150 lines; no re-exports from old path.
+
+**Verification**
+
+- `npm run typecheck` clean; 888 unit tests pass; 54 integration tests pass.
+- Codex MCP review (gpt-5.5, xhigh): no issues found.
+
+## 2026-07-02: Refactor 2/4 — Split storage-diagnostics.ts (GRO-168)
+
+**Result**
+
+- Split `storage-diagnostics.ts` (1639 lines, largest file in repo) into 7
+  domain sub-modules under `src/services/diagnostics/screenpipe/`:
+  sqlite-cli, path-usage, hotspots, heavy-growth, duplication, capture-reuse,
+  inspection. Original file retained as barrel + collection + formatting
+  (376 lines).
+- Consumer imports (privacy-control-service, bootstrap-status-service,
+  scripts/storage-diagnostics.js) remain zero-change — all original exports
+  preserved through barrel re-exports.
+- Added 29 parser characterization unit tests covering all 14 parser pure
+  functions. Test total: 859 → 888.
+
+**Verification**
+
+- `npm run typecheck` clean; 888 unit tests pass; integration test
+  (storage-diagnostics.test.ts) passes.
+- Codex MCP review (gpt-5.5, xhigh): no issues found.
+
+## 2026-07-02: Refactor 1/4 — Extract Suppression Utility (GRO-167)
+
+**Result**
+
+- Moved `collectActiveCascadeFailureIntervals` from `find-service.ts` to a new
+  shared module `src/services/work-activity/suppression.ts`. This breaks the
+  false dependency `recall-service → find-service` — both are peer services that
+  should not import from each other.
+- Placement decision: the function uses duck typing (inline `{ from, to,
+  reason?, resolvedAt? }`) rather than importing `PrivacySuppressedRange` from
+  the privacy module, so it naturally sits at the `work-activity/` shared level
+  where both consumers live.
+- Two-commit split: (1) pure code move with re-export for `git diff
+  --color-moved` verification; (2) import path updates removing the re-export.
+
+**Verification**
+
+- `npm run typecheck` clean; 859 unit tests pass (baseline unchanged); 55
+  acceptance tests pass.
+- `grep -rn "from '../find/find-service" src/services/work-activity/recall/`
+  returns no results — the cross-module dependency is fully severed.
+- Codex MCP review (gpt-5.5, xhigh): no issues found.
+
+## 2026-06-22: Configurable OCR Recognition Languages
+
+**Result**
+
+- Added `capture.ocrLanguages` (default `['english']`) so the recorder can drive
+  Screenpipe's per-language OCR. `scripts/screenpipe-safe-record.js` reads the
+  config and emits repeated `--language <name>` flags; explicit `--language`/`-l`
+  on the recorder CLI still wins.
+- Default semantics are deliberately split: a *missing* field resolves to the
+  schema default `['english']`, while an unreadable / corrupt / oversized config
+  fail-opens to `[]` (no `--language` injected). This keeps the single source of
+  truth on the TS side (`DEFAULT_OCR_LANGUAGES`, `ocrLanguageSchema` in
+  `src/config/schema.ts`) with a synced copy in the pure-JS recorder script, since
+  the script cannot import TS.
+- Validation is whole-array fail-safe: any value outside the allowlist (a subset
+  of Screenpipe's ~76 `Language` names) makes the recorder fall back to English
+  and log a warning rather than forwarding an unknown language. The config CLI
+  rejects invalid values before they reach disk via the existing schema re-validation.
+- The capture type was tightened from `string[]` to `OcrLanguage[]` (derived from
+  the schema enum), which surfaced — and required updating — ~12 inline `AppConfig`
+  test fixtures.
+
+**Verification**
+
+- `npm run typecheck` clean; full `vitest run` green (1299 tests), including new
+  pure-function arg-builder assertions (`toEqual` order), `readOcrLanguagesFromConfig`
+  boundary cases (absent → english, invalid → english+warning, missing/corrupt/oversized
+  → `[]`), a TS↔JS allowlist/default consistency test, and config-CLI enum rejection.
+- The live end-to-end OCR-recall check (start recorder, confirm `--language` in
+  `recorder.log`, observe Chinese OCR text in `~/.screenpipe/db.sqlite`) is a
+  hardware/permission/time-dependent manual step left to the operator; the recorder
+  wiring that produces the flags is covered by automated tests.
+
+## 2026-06-21: Source Refresh and Hermes Verification Entry Point
+
+**Result**
+
+- Added `npm run refresh:hermes` for the post-source-change workflow.
+- The command builds current source, force-restarts the managed MCP service,
+  restores the shared Screenpipe stack, and runs the real Hermes verification
+  gate in a fixed fail-fast order.
+- Routed agents from `AGENTS.md` to the operations guide and added task-oriented
+  discovery entries in the README and Hermes guides.
+
+**Verification**
+
+- Added unit coverage for orchestration order and failure short-circuiting.
+- Verified the full test suite, typechecks, server build, and governed docs build.
+
+## 2026-06-21: State-Aware Local Stack Startup
+
+**Result**
+
+- Added `npm start` as the only normal user startup path. It selects first-time
+  onboarding, missing-build recovery, or fast resume from filesystem state.
+- Kept `npm run onboard` and `npm run resume` as targeted advanced commands.
+- Its resume path checks the managed MCP service and Screenpipe concurrently,
+  reuses healthy components, starts only missing components, and performs no
+  build.
+- Successful onboarding writes an explicit completion marker. A config created
+  by `npm run setup` remains an incomplete installation, while a legacy launchd
+  service is accepted for backward compatibility.
+- Screenpipe startup remains delegated to the detached recorder lifecycle, so
+  PID tracking, logs, graceful shutdown, and final maintenance stay unchanged.
+
+**Verification**
+
+- Added unit coverage for all four healthy/missing component combinations and
+  startup failure propagation.
+- Verified the full test suite, typecheck, server build, and governed docs build.
 
 ## 2026-06-16: Routines v2 — Prompt-Driven LLM Execution (v2.7.0)
 
@@ -113,7 +333,7 @@ required code changes; three were verified as already resolved by prior commits.
 
 ### Verified as already resolved (no code change)
 
-- **GRO-43** (Bug): Fix canonical app home path regressions after canary-alpha
+- **GRO-43** (Bug): Fix canonical app home path regressions after computer-history
   rename. Zero references to old `screenpipe-memory-mcp` path remain in
   `src/`, `tests/`, or `scripts/`. All 1188 tests pass. Fixed by the rename
   commit (`f69cab9`).
@@ -320,7 +540,7 @@ pass confirmed no remaining blocking findings.
   `tests/acceptance/http-init.test.ts`. The test uses an isolated temp `HOME`
   directory, starts a real HTTP server process via `startHttpServer` with that
   `HOME` in the env, asserts that a runtime marker exists in
-  `<HOME>/.canary-alpha-mcp/runtime-processes/` immediately after startup, then
+  `<HOME>/.computer-history-mcp/runtime-processes/` immediately after startup, then
   sends SIGTERM and polls until the marker directory is empty.
 - The pattern mirrors the existing `stdio` marker lifecycle test in
   `tests/acceptance/stdio-init.test.ts` (same polling loop, same isolation
@@ -530,7 +750,7 @@ from Git history and keep each entry scoped to:
 
 **Decisions**
 
-- Keep maintenance logs under `~/.canary-alpha-mcp/logs/` with private directory and file permissions.
+- Keep maintenance logs under `~/.computer-history-mcp/logs/` with private directory and file permissions.
 - Retain maintenance log entries for 7 days to match the safe-record default data-retention window, with 1 MB rotation as a disk-safety cap.
 - Keep periodic maintenance non-blocking for the recorder, but wait for final maintenance logging before the wrapper exits.
 
@@ -631,7 +851,7 @@ from Git history and keep each entry scoped to:
 
 **Result**
 
-- Unified the active project name as `canary-alpha-mcp` across scripts and
+- Unified the active project name as `computer-history-mcp` across scripts and
   tests.
 - Added the file-backed routine store and supporting tests.
 - Hardened test harness project-root discovery and repaired acceptance-suite
@@ -680,7 +900,7 @@ framesInWindow: 20
 =========================
 ```
 
-人工确认：Hermes 回答准确描述了录制窗口内的真实屏幕内容（终端中的 canary-alpha-mcp 工作、Firefox/Chrome 浏览页面）。
+人工确认：Hermes 回答准确描述了录制窗口内的真实屏幕内容（终端中的 computer-history-mcp 工作、Firefox/Chrome 浏览页面）。
 
 冒烟过程中发现并修复的集成问题：MCP probe 缺 Bearer/Accept 头、service:start 子进程缺 token env、Screenpipe API auth 未透传、零帧判定过早（落库延迟）、Hermes --quiet 吞掉工具 marker。
 

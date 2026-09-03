@@ -31,12 +31,12 @@ describe('linear script helpers', () => {
     await writeFile(envPath, [
       '# comment',
       'LINEAR_API_KEY=test-key',
-      'LINEAR_PROJECT_URL=https://linear.app/growthrocketstudio/project/canary-alpha-ce2d10661599/overview'
+      'LINEAR_PROJECT_URL=https://linear.app/growthrocketstudio/project/computer-history-ce2d10661599/overview'
     ].join('\n'), 'utf8');
 
     await expect(readLinearEnv(envPath)).resolves.toEqual({
       apiKey: 'test-key',
-      projectUrl: 'https://linear.app/growthrocketstudio/project/canary-alpha-ce2d10661599/overview'
+      projectUrl: 'https://linear.app/growthrocketstudio/project/computer-history-ce2d10661599/overview'
     });
   });
 
@@ -52,9 +52,9 @@ describe('linear script helpers', () => {
   });
 
   it('extracts workspace and project slug from the configured project url', () => {
-    expect(parseLinearProjectUrl('https://linear.app/growthrocketstudio/project/canary-alpha-ce2d10661599/overview')).toEqual({
+    expect(parseLinearProjectUrl('https://linear.app/growthrocketstudio/project/computer-history-ce2d10661599/overview')).toEqual({
       workspaceSlug: 'growthrocketstudio',
-      projectSlug: 'canary-alpha-ce2d10661599'
+      projectSlug: 'computer-history-ce2d10661599'
     });
   });
 

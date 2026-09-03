@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { testTempRoot } from './test-tmp.js';
 
-export async function createTempVectorStorePath(prefix = 'canary-alpha-mcp-'): Promise<{
+export async function createTempVectorStorePath(prefix = 'computer-history-mcp-'): Promise<{
   path: string;
   cleanup(): Promise<void>;
 }> {

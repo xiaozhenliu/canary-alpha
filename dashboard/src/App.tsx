@@ -9,7 +9,7 @@ export function App() {
       <div className="flex h-screen bg-background text-foreground">
         <nav className="w-56 border-r border-border flex flex-col p-4 gap-1">
           <h1 className="text-sm font-semibold tracking-tight mb-4 font-mono">
-            canary-alpha-mcp
+            computer-history-mcp
           </h1>
           {modules.map((mod) => (
             <NavLink

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
+const APP_DIRECTORY_NAME = '.computer-history-mcp';
 
 export async function writeTestConfig(homeDir: string, config: {
   embeddingBaseUrl: string;

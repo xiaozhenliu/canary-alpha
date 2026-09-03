@@ -14,7 +14,8 @@ import {
 } from '../../../src/services/work-activity/derived-database.js';
 import { SqliteExtractedContentStore } from '../../../src/services/work-activity/extraction/extracted-content-store.js';
 import { SqliteSessionStore } from '../../../src/services/work-activity/sessions/session-store.js';
-import { DefaultFindService, collectActiveCascadeFailureIntervals } from '../../../src/services/work-activity/find/find-service.js';
+import { DefaultFindService } from '../../../src/services/work-activity/find/find-service.js';
+import { collectActiveCascadeFailureIntervals } from '../../../src/services/work-activity/suppression.js';
 import { DefaultRecallService } from '../../../src/services/work-activity/recall/recall-service.js';
 import type { PrivacyState, PrivacyStateReader } from '../../../src/services/privacy/types.js';
 import type { ExtractionResult } from '../../../src/services/work-activity/extraction/types.js';

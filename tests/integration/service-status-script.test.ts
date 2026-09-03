@@ -27,7 +27,7 @@ describe('service:status script', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -37,7 +37,7 @@ describe('service:status script', () => {
     await mkdir(fakeBinDir, { recursive: true });
 
     await writeFile(join(appDir, 'config.yaml'), 'server: [broken\n', 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.computer-history-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -51,7 +51,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.computer-history-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -80,7 +80,7 @@ describe('service:status script', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-managed-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -111,7 +111,7 @@ describe('service:status script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.computer-history-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -127,7 +127,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.computer-history-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -156,7 +156,7 @@ describe('service:status script', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-bad-frozen-port-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const launchAgentsDir = join(homeDir, 'Library', 'LaunchAgents');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
@@ -187,7 +187,7 @@ describe('service:status script', () => {
       '  maxCatchUpBatches: 3',
       '  maxCatchUpRecords: 500'
     ].join('\n'), 'utf8');
-    await writeFile(join(launchAgentsDir, 'com.canary-alpha-mcp.plist'), [
+    await writeFile(join(launchAgentsDir, 'com.computer-history-mcp.plist'), [
       '<plist>',
       '  <dict>',
       '    <key>EnvironmentVariables</key>',
@@ -199,7 +199,7 @@ describe('service:status script', () => {
       '</plist>'
     ].join('\n'), 'utf8');
 
-    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.canary-alpha-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
+    await writeFile(launchctlPath, "#!/bin/sh\nif [ \"$1\" = \"print\" ]; then\n  echo 'gui/501/com.computer-history-mcp = {'\n  echo '    state = waiting'\n  echo '}'\n  exit 0\nfi\nexit 1\n", 'utf8');
     await chmod(launchctlPath, 0o755);
 
     let error: { stdout?: string; stderr?: string; code?: number } | undefined;
@@ -228,7 +228,7 @@ describe('service:status script', () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'service-status-launchctl-error-'));
     cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
 
-    const appDir = join(homeDir, '.canary-alpha-mcp');
+    const appDir = join(homeDir, '.computer-history-mcp');
     const fakeBinDir = join(homeDir, 'fake-bin');
     const launchctlPath = join(fakeBinDir, 'launchctl');
 

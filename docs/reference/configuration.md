@@ -1,25 +1,26 @@
 ---
-doc_version: 12
+doc_version: 14
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-06-21
 ---
 
 # Configuration
 
-`canary-alpha-mcp` reads its runtime config from `~/.canary-alpha-mcp/config.yaml`.
+`computer-history-mcp` reads its runtime config from `~/.computer-history-mcp/config.yaml`.
 
-Use `npm run onboard` for the MCP-layer first-run path after your local Screenpipe API is already healthy. It creates or replaces the app config using the standard Crimson defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `canary-alpha-mcp` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow.
+Use `npm start` as the normal entry point. When the app config or onboarding-complete marker is absent, it starts or reuses Screenpipe and delegates to `npm run onboard`; onboarding creates the config using the standard Crimson defaults, backs up any existing app config first, builds the project, starts the managed service, validates the live local MCP endpoint, and writes the validated `computer-history-mcp` server into Hermes config. `npm run setup` is still available when you want the app config/log directory without running the full onboarding flow; its config alone does not make `npm start` misclassify the installation as complete.
 
 ## Config file location
 
-- Config file: `~/.canary-alpha-mcp/config.yaml`
-- App home: `~/.canary-alpha-mcp/`
-- Logs: `~/.canary-alpha-mcp/logs/`
-- Screenpipe safe-record maintenance log: `~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl` with 7-day pruning and 1 MB rotation to `screenpipe-maintenance.jsonl.1`
-- Automatic app-config backups created by `npm run onboard`: `~/.canary-alpha-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
+- Config file: `~/.computer-history-mcp/config.yaml`
+- App home: `~/.computer-history-mcp/`
+- Onboarding state marker: `~/.computer-history-mcp/.onboarding-complete`
+- Logs: `~/.computer-history-mcp/logs/`
+- Screenpipe safe-record maintenance log: `~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl` with 7-day pruning and 1 MB rotation to `screenpipe-maintenance.jsonl.1`
+- Automatic app-config backups created by `npm run onboard`: `~/.computer-history-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
 - Hermes config updated by `npm run onboard`: `~/.hermes/config.yaml`
 
-If you have already finished onboarding and want to change settings later, use the [`config` CLI](#managing-configuration-with-the-config-cli) (or edit `~/.canary-alpha-mcp/config.yaml` directly), then restart the managed service with `npm run service:stop && npm run service:start`.
+If you have already finished onboarding and want to change settings later, use the [`config` CLI](#managing-configuration-with-the-config-cli) (or edit `~/.computer-history-mcp/config.yaml` directly), then restart the managed service with `npm run service:stop && npm run service:start`.
 
 ## Default first-run behavior
 
@@ -36,6 +37,8 @@ logging:
 
 screenpipe:
   url: http://localhost:3030
+  binaryPath: screenpipe
+  dataDirectory: ~/.screenpipe
 
 providers:
   embeddings:
@@ -67,7 +70,7 @@ After the local MCP service validates, `npm run onboard` merges this server into
 
 ```yaml
 mcp_servers:
-  canary-alpha-mcp:
+  computer-history-mcp:
     url: http://127.0.0.1:18765/mcp
     enabled: true
     tools:
@@ -147,12 +150,25 @@ After a `set`, `unset`, `add`, or `remove`, restart the managed service for chan
 | `provider` | `screenpipe` | `screenpipe` | Which capture provider backs screen-memory ingestion, inspect, trim, and recorder control. Currently `screenpipe` is the only supported value; adding a new provider means a new directory under `src/services/capture/providers/` plus a new enum member. |
 | `livenessThresholdSeconds` | positive integer | `120` | Frames newer than this count as live capture (`ok`); older frames classify the capture state as `idle`. |
 | `permissionsGracePeriodSeconds` | non-negative integer | `60` | Grace period after the recorder process starts before a frameless state is reported as `permissions-missing`. |
+| `ocrLanguages` | array of language names | `['english']` | OCR recognition languages, passed to the recorder as repeated `screenpipe record --language <name>` flags. Supported values are a subset of screenpipe's `Language` names (upstream supports ~76): `english`, `chinese`, `japanese`, `korean`, `french`, `german`, `spanish`, `russian`, `portuguese`, `italian`, `arabic`. **Order is priority** — on macOS, Apple Vision uses the *first* language as its primary OCR mode (based on our internal OCR investigation). Set `[chinese, english]` to enable Chinese-primary capture. Values are name-based (e.g. `chinese`), not Apple locale codes (`zh-Hans`). The dashboard displays this field read-only in this release. |
 
 ```yaml
 capture:
   # Which capture provider backs screen-memory ingestion.
   # Currently supported: screenpipe (default).
   provider: screenpipe
+  # OCR recognition languages (order = priority; first language is the
+  # Apple Vision primary mode on macOS). Default is English-only.
+  ocrLanguages:
+    - chinese
+    - english
+```
+
+Set OCR languages from the CLI with `config add` (it **appends**, it does not replace — run it once per language, and the **first** language you add becomes Apple Vision's primary mode):
+
+```bash
+node dist/src/index.js config add capture.ocrLanguages chinese
+node dist/src/index.js config add capture.ocrLanguages english
 ```
 
 ### `screenpipe`
@@ -162,6 +178,8 @@ Provider-specific configuration block for the `screenpipe` capture provider (the
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
 | `url` | string | unset in schema; onboarding writes `http://localhost:3030` | Must point at a reachable local Screenpipe service for the normal Crimson flow. |
+| `binaryPath` | non-empty string | `screenpipe` | Recorder executable name or path. `~/` is expanded. Use an absolute versioned path to select a development build without replacing the stable global command. |
+| `dataDirectory` | non-empty string | `~/.screenpipe` | Directory passed to `screenpipe record --data-dir` and used by indexing, inspection, diagnostics, privacy deletion, trim, and maintenance. `~/` is expanded. Never point two concurrently running recorders at the same directory. |
 
 ### `providers.embeddings`
 
@@ -205,13 +223,13 @@ Controls the local routines engine. Routines are background tasks that run on a 
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
 | `enabled` | boolean | `false` | When `false`, no routines are scheduled or executed. Set to `true` to activate the scheduler. |
-| `definitionsPath` | string | `~/.canary-alpha-mcp/routines/definitions/` | Directory where routine definition JSON files are persisted. Supports `~/` expansion. If omitted, the default path under the app home is used. |
-| `historyPath` | string | `~/.canary-alpha-mcp/routines/history/` | Directory where routine execution history JSON files are persisted, newest-first per routine. Supports `~/` expansion. If omitted, the default path under the app home is used. |
+| `definitionsPath` | string | `~/.computer-history-mcp/routines/definitions/` | Directory where routine definition JSON files are persisted. Supports `~/` expansion. If omitted, the default path under the app home is used. |
+| `historyPath` | string | `~/.computer-history-mcp/routines/history/` | Directory where routine execution history JSON files are persisted, newest-first per routine. Supports `~/` expansion. If omitted, the default path under the app home is used. |
 
 Default storage layout:
 
 ```
-~/.canary-alpha-mcp/
+~/.computer-history-mcp/
   routines/
     definitions/   ← one JSON file per routine (slug-named)
     history/       ← one JSON file per routine (execution records, newest first)

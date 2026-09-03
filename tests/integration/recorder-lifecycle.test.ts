@@ -40,16 +40,16 @@ afterEach(async () => {
 async function makeHome(): Promise<string> {
   const homeDir = await mkdtemp(join(testTempRoot(), 'recorder-'));
   cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
-  await mkdir(join(homeDir, '.canary-alpha-mcp'), { recursive: true });
+  await mkdir(join(homeDir, '.computer-history-mcp'), { recursive: true });
   return homeDir;
 }
 
 function pidFilePath(homeDir: string): string {
-  return join(homeDir, '.canary-alpha-mcp', 'recorder.pid');
+  return join(homeDir, '.computer-history-mcp', 'recorder.pid');
 }
 
 function logDir(homeDir: string): string {
-  return join(homeDir, '.canary-alpha-mcp', 'logs');
+  return join(homeDir, '.computer-history-mcp', 'logs');
 }
 
 function env(homeDir: string): NodeJS.ProcessEnv {

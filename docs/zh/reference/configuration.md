@@ -1,25 +1,26 @@
 ---
-doc_version: 6
+doc_version: 8
 doc_status: active
-last_updated: 2026-06-16
+last_updated: 2026-06-21
 ---
 
 # 配置文件
 
-`canary-alpha-mcp` 从 `~/.canary-alpha-mcp/config.yaml` 读取运行时配置。
+`computer-history-mcp` 从 `~/.computer-history-mcp/config.yaml` 读取运行时配置。
 
-本地 Screenpipe API 已健康后，使用 `npm run onboard` 完成 MCP 层首次运行。它会使用标准 Crimson 默认值创建或替换应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `canary-alpha-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用。
+普通启动统一使用 `npm start`。应用配置或 onboarding 完成标记不存在时，它会启动或复用 Screenpipe，并转入 `npm run onboard`；onboarding 使用标准 Crimson 默认值创建应用配置，先备份任何现有配置，然后构建项目、启动托管服务、验证本地 MCP 端点，并将已验证的 `computer-history-mcp` 服务写入 Hermes 配置。`npm run setup` 在你只需要应用配置/日志目录而不运行完整 onboarding 流程时仍然可用；仅有它生成的配置不会让 `npm start` 误判安装已经完成。
 
 ## 配置文件位置
 
-- 配置文件：`~/.canary-alpha-mcp/config.yaml`
-- 应用主目录：`~/.canary-alpha-mcp/`
-- 日志：`~/.canary-alpha-mcp/logs/`
-- Screenpipe safe-record 维护日志：`~/.canary-alpha-mcp/logs/screenpipe-maintenance.jsonl`（7 天裁剪，超过 1 MB 轮转到 `screenpipe-maintenance.jsonl.1`）
-- `npm run onboard` 创建的自动配置备份：`~/.canary-alpha-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
+- 配置文件：`~/.computer-history-mcp/config.yaml`
+- 应用主目录：`~/.computer-history-mcp/`
+- onboarding 状态标记：`~/.computer-history-mcp/.onboarding-complete`
+- 日志：`~/.computer-history-mcp/logs/`
+- Screenpipe safe-record 维护日志：`~/.computer-history-mcp/logs/screenpipe-maintenance.jsonl`（7 天裁剪，超过 1 MB 轮转到 `screenpipe-maintenance.jsonl.1`）
+- `npm run onboard` 创建的自动配置备份：`~/.computer-history-mcp/config.backup-YYYYMMDD-HHMMSS.yaml`
 - `npm run onboard` 更新的 Hermes 配置：`~/.hermes/config.yaml`
 
-如果已完成 onboarding 并想稍后修改设置，使用 [`config` CLI](#用-config-cli-管理配置)（或直接编辑 `~/.canary-alpha-mcp/config.yaml`），然后用 `npm run service:stop && npm run service:start` 重启托管服务。
+如果已完成 onboarding 并想稍后修改设置，使用 [`config` CLI](#用-config-cli-管理配置)（或直接编辑 `~/.computer-history-mcp/config.yaml`），然后用 `npm run service:stop && npm run service:start` 重启托管服务。
 
 ## 首次运行默认行为
 
@@ -36,6 +37,8 @@ logging:
 
 screenpipe:
   url: http://localhost:3030
+  binaryPath: screenpipe
+  dataDirectory: ~/.screenpipe
 
 providers:
   embeddings:
@@ -67,7 +70,7 @@ retrieval:
 
 ```yaml
 mcp_servers:
-  canary-alpha-mcp:
+  computer-history-mcp:
     url: http://127.0.0.1:18765/mcp
     enabled: true
     tools:
@@ -147,12 +150,24 @@ node dist/src/index.js config <命令> ...
 | `provider` | `screenpipe` | `screenpipe` | 屏幕记忆采集、inspect、trim 与录制进程控制由哪个 capture provider 支撑。当前仅支持 `screenpipe`；新增 provider 需要在 `src/services/capture/providers/` 下新建目录并增加 enum 成员。 |
 | `livenessThresholdSeconds` | 正整数 | `120` | 最新帧在该阈值内视为采集存活（`ok`），超过则采集状态判定为 `idle`。 |
 | `permissionsGracePeriodSeconds` | 非负整数 | `60` | 录制进程启动后的宽限期，超过该时间仍无帧才报告 `permissions-missing`。 |
+| `ocrLanguages` | 语言名数组 | `['english']` | OCR 识别语言，作为重复的 `screenpipe record --language <name>` 参数传给录制进程。取值为 screenpipe `Language` 名的常用子集（上游共约 76 种）：`english`、`chinese`、`japanese`、`korean`、`french`、`german`、`spanish`、`russian`、`portuguese`、`italian`、`arabic`。**顺序即优先级**——在 macOS 上 Apple Vision 以**第一个**语言作为 OCR 主模式（基于内部 OCR 调研）。设为 `[chinese, english]` 即启用中文优先采集。取值是语言名（如 `chinese`），不是 Apple locale 码（`zh-Hans`）。本轮 dashboard 对该字段只读显示。 |
 
 ```yaml
 capture:
   # Which capture provider backs screen-memory ingestion.
   # Currently supported: screenpipe (default).
   provider: screenpipe
+  # OCR 识别语言（顺序即优先级；首语言在 macOS 上是 Apple Vision 主模式）。默认仅英文。
+  ocrLanguages:
+    - chinese
+    - english
+```
+
+通过 CLI 设置 OCR 语言用 `config add`（它是**追加**而非替换——每种语言执行一次；**第一个**加入的语言成为 Apple Vision 主模式）：
+
+```bash
+node dist/src/index.js config add capture.ocrLanguages chinese
+node dist/src/index.js config add capture.ocrLanguages english
 ```
 
 ### `screenpipe`
@@ -162,6 +177,8 @@ capture:
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
 | `url` | string | schema 中未设置；onboarding 写入 `http://localhost:3030` | 正常 Crimson 流程中必须指向可达的本地 Screenpipe 服务。 |
+| `binaryPath` | 非空字符串 | `screenpipe` | recorder 可执行文件名或路径，支持展开 `~/`。用带版本的绝对路径选择开发构建，无需覆盖全局稳定命令。 |
+| `dataDirectory` | 非空字符串 | `~/.screenpipe` | 同时传给 `screenpipe record --data-dir`，并供索引、inspect、诊断、隐私删除、trim 和维护读取。支持展开 `~/`；禁止两个同时运行的 recorder 共用该目录。 |
 
 ### `providers.embeddings`
 
@@ -205,13 +222,13 @@ capture:
 | 字段 | 类型 | 默认值 | 备注 |
 |------|------|--------|------|
 | `enabled` | boolean | `false` | 为 `false` 时不调度或执行任何 routine。设为 `true` 以激活调度器。 |
-| `definitionsPath` | string | `~/.canary-alpha-mcp/routines/definitions/` | routine 定义 JSON 文件的持久化目录，支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
-| `historyPath` | string | `~/.canary-alpha-mcp/routines/history/` | routine 执行历史 JSON 文件的持久化目录（每 routine 一个文件，最新优先）。支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
+| `definitionsPath` | string | `~/.computer-history-mcp/routines/definitions/` | routine 定义 JSON 文件的持久化目录，支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
+| `historyPath` | string | `~/.computer-history-mcp/routines/history/` | routine 执行历史 JSON 文件的持久化目录（每 routine 一个文件，最新优先）。支持 `~/` 展开。省略时使用应用主目录下的默认路径。 |
 
 默认存储结构：
 
 ```
-~/.canary-alpha-mcp/
+~/.computer-history-mcp/
   routines/
     definitions/   ← 每个 routine 一个 JSON 文件（以 slug 命名）
     history/       ← 每个 routine 一个 JSON 文件（执行记录，最新优先）

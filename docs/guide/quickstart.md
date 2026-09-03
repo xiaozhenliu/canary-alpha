@@ -1,7 +1,7 @@
 ---
-doc_version: 13
+doc_version: 16
 doc_status: active
-last_updated: 2026-06-12
+last_updated: 2026-06-21
 ---
 
 # Quickstart
@@ -14,65 +14,45 @@ From a clean macOS machine to your first successful MCP tool call.
 - Node.js 22+
 - About 10 minutes
 
-## Step 1 — Install and launch Screenpipe
+## Step 1 — Install Screenpipe and grant permissions
 
-Install the Screenpipe desktop app from [screenpi.pe/onboarding](https://screenpi.pe/onboarding). After launch, grant macOS the requested permissions: **Screen Recording**, **Accessibility**, and **Microphone**. If macOS blocks the app on first launch, open it from Finder and click **Open** to approve it.
+Install the Screenpipe desktop app from [screenpi.pe/onboarding](https://screenpi.pe/onboarding). Grant macOS the requested permissions: **Screen Recording**, **Accessibility**, and **Microphone**. If macOS blocks the app on first launch, open it from Finder and click **Open** to approve it.
 
-Verify the local Screenpipe API is running before continuing:
-
-```bash
-curl http://localhost:3030/health
-```
-
-Expected result: a JSON health response. Do not proceed until this returns successfully.
-
-**Terminal alternative:** If you prefer not to use the desktop app, you can start Screenpipe from this repo with safer local defaults via `npm run screenpipe:safe-record`. See [Privacy & Data](/reference/privacy) for what those defaults are.
+You do not need to decide whether Screenpipe is already running. The startup command in Step 3 checks it and starts the repository's safer background recorder when needed. See [Privacy & Data](/reference/privacy) for those defaults.
 
 ## Step 2 — Install this project
 
 Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/xiaozhenliu/canary-alpha.git
-cd canary-alpha
+git clone https://github.com/xiaozhenliu/computer-history-mcp.git
+cd computer-history-mcp
 npm install
 ```
 
 Expected result: `npm install` completes without errors.
 
-## Step 3 — Run onboarding
+## Step 3 — Start from any local state
 
 ```bash
-npm run onboard
+npm start
 ```
 
-The onboarding script does the following:
+`npm start` determines the required path automatically:
 
-1. Verifies `http://localhost:3030` is reachable
-2. Probes for a local Ollama embedding model; asks for a hosted API key only if unavailable
-3. Writes `~/.canary-alpha-mcp/config.yaml`
-4. Builds the project and starts the managed local HTTP service
-5. Runs first-run MCP validation (`internal-status`, `recall`, `find`)
+1. If configuration or the onboarding-complete marker is missing, starts or reuses Screenpipe and continues interactive onboarding.
+2. If onboarding is complete but build output is missing, builds once.
+3. For an existing installation, checks MCP and Screenpipe in parallel and starts only missing components.
 
-Expected result: the script completes with all checks passing.
+Expected result: the command reports that local startup completed. First-time onboarding may ask for embedding-provider configuration.
 
-## Step 4 — Verify
-
-Check that the managed service is running:
-
-```bash
-npm run service:status
-```
-
-The MCP endpoint is available at:
+The default MCP endpoint is:
 
 ```text
 http://127.0.0.1:18765/mcp
 ```
 
-Expected result: service status shows `running` and the endpoint responds.
-
-## Step 5 — Connect your agent
+## Step 4 — Connect your agent
 
 Connect any MCP-compatible client to `http://127.0.0.1:18765/mcp`:
 
@@ -80,6 +60,20 @@ Connect any MCP-compatible client to `http://127.0.0.1:18765/mcp`:
 - [Cursor](/guide/clients/cursor)
 - [Hermes](/guide/clients/hermes)
 - [Generic MCP Client](/guide/clients/generic-mcp)
+
+::: warning Reuse the managed service
+Connect additional clients to this same HTTP endpoint. Do not start another Canary stdio or development process against `~/.computer-history-mcp` while the managed service is running. For the safe development workflow, see [Use the service while developing](/guide/operations#use-the-service-while-developing).
+:::
+
+## Daily use
+
+Always use the same command. Do not inspect local state or choose a lower-level lifecycle command first:
+
+```bash
+npm start
+```
+
+See [Operations](/guide/operations#universal-start) for the state-selection details.
 
 ## If something fails
 

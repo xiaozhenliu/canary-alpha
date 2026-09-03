@@ -46,7 +46,7 @@ export interface CaptureProvider {
 export const SCREENPIPE_PROVIDER_NAME = 'screenpipe' as const;
 
 function createScreenpipeProvider(config: AppConfig): CaptureProvider {
-  const dbPath = join(resolveScreenpipeDirectory(), 'db.sqlite');
+  const dbPath = join(resolveScreenpipeDirectory(config.screenpipe.dataDirectory), 'db.sqlite');
   return {
     capabilities: {
       providerName: SCREENPIPE_PROVIDER_NAME,
@@ -59,7 +59,7 @@ function createScreenpipeProvider(config: AppConfig): CaptureProvider {
     },
     client: createScreenpipeClient(config.screenpipe.url, config.screenpipe.apiKey),
     frameDetail: new SqliteScreenpipeFramesReader(dbPath),
-    lifecycle: new DefaultScreenpipeControlService(),
+    lifecycle: new DefaultScreenpipeControlService({ url: config.screenpipe.url }),
     maintenance: createScreenpipeMaintenanceAdapter({ databasePath: dbPath }),
     upstreamDatabasePath: dbPath
   };

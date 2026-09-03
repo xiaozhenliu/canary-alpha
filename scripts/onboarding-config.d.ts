@@ -39,6 +39,8 @@ export interface OnboardingConfig {
   screenpipe: {
     url: string;
     apiKey?: string;
+    binaryPath: string;
+    dataDirectory: string;
   };
   providers: {
     embeddings: EmbeddingsConfig;
@@ -64,6 +66,7 @@ export const LOG_DIRECTORY_NAME: string;
 export const HERMES_DIRECTORY_NAME: string;
 export const HERMES_CONFIG_FILE_NAME: string;
 export const DEFAULT_HERMES_SERVER_NAME: string;
+export const LEGACY_HERMES_SERVER_NAME: string;
 export const DEFAULT_HERMES_TOOL_INCLUDE: string[];
 export const MINIMUM_NODE_MAJOR: number;
 export const DEFAULT_SERVER_PORT: number;
@@ -94,6 +97,17 @@ export function mergeHermesConfig(existingConfig: unknown, endpoint: string, opt
   mcp_servers: Record<string, unknown>;
 };
 export function writeHermesConfigFile(configPath: string, endpoint: string, options?: HermesConfigOptions): Promise<WriteHermesConfigResult>;
+export function migrateLegacyHermesServerRegistration(options?: {
+  homeDirectory?: string;
+  legacyServerName?: string;
+  serverName?: string;
+}): Promise<{
+  status: 'skipped' | 'renamed' | 'removed-legacy-duplicate';
+  reason?: string;
+  configPath: string;
+  legacyServerName?: string;
+  serverName?: string;
+}>;
 export function createOllamaEmbeddingsConfig(options?: {
   baseUrl?: string;
   model?: string;
@@ -116,6 +130,8 @@ export function buildConfigObject(options?: {
   authToken?: string;
   screenpipeUrl?: string;
   screenpipeApiKey?: string;
+  screenpipeBinaryPath?: string;
+  screenpipeDataDirectory?: string;
   vectorStorePath?: string;
   embeddings?: EmbeddingsConfig;
 }): OnboardingConfig;
@@ -124,6 +140,8 @@ export function buildConfigYaml(options?: {
   authToken?: string;
   screenpipeUrl?: string;
   screenpipeApiKey?: string;
+  screenpipeBinaryPath?: string;
+  screenpipeDataDirectory?: string;
   vectorStorePath?: string;
   embeddings?: EmbeddingsConfig;
 }): string;

@@ -6,7 +6,7 @@ last_updated: 2026-06-12
 
 # 通用 MCP 客户端
 
-本文适用于将任意兼容 MCP 的客户端连接到 `canary-alpha-mcp` HTTP 端点的场景。
+本文适用于将任意兼容 MCP 的客户端连接到 `computer-history-mcp` HTTP 端点的场景。
 
 ## 官方端点
 
@@ -74,7 +74,7 @@ endpoint: http://127.0.0.1:18765/mcp (healthy)
 - `mode: http`
 - `host: 127.0.0.1`
 - `port: <configured port>`
-- `configFile: ~/.canary-alpha-mcp/config.yaml`
+- `configFile: ~/.computer-history-mcp/config.yaml`
 - `retrieval.recoveryStatus: ready | needs-rebuild | degraded`
 
 ### 检索冒烟测试
@@ -113,7 +113,7 @@ npm run smoke:http
 
 ```bash
 hermes mcp list
-hermes mcp test canary-alpha-mcp
+hermes mcp test computer-history-mcp
 ```
 
 ## 常见集成错误

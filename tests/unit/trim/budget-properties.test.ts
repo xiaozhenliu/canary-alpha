@@ -66,7 +66,7 @@ function makeConfig(intervalSeconds: number): AppConfig {
     routines: { enabled: false, definitionsPath: '', historyPath: '' },
     paths: { configFile: '', logDirectory: '', serviceLogFile: '', derivedDatabase: '' },
     trim: { enabled: true, intervalSeconds },
-    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60 },
+    capture: { provider: 'screenpipe', livenessThresholdSeconds: 120, permissionsGracePeriodSeconds: 60, ocrLanguages: ['english'] },
     storage: { diskBudgetBytes: null, retentionDays: 7 },
     privacy: { excludeApps: ['1Password', 'Keychain Access'], secureAxRoles: ['AXSecureTextField'] },
     analysis: {

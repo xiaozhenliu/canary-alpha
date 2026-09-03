@@ -14,7 +14,7 @@ Routine 是按 cron 调度自动运行的后台任务。每个 routine 携带一
 
 ### 1. 启用调度器
 
-Routines 默认关闭。在 `~/.canary-alpha-mcp/config.yaml` 中添加：
+Routines 默认关闭。在 `~/.computer-history-mcp/config.yaml` 中添加：
 
 ```yaml
 routines:

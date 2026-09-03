@@ -123,7 +123,7 @@ describe('http MCP initialization', () => {
     });
     cleanup.push(() => server.stop());
 
-    const runtimeDir = join(homeDir, '.canary-alpha-mcp', 'runtime-processes');
+    const runtimeDir = join(homeDir, '.computer-history-mcp', 'runtime-processes');
 
     // Verify marker was created after startup.
     const startMarkers = await readdir(runtimeDir);

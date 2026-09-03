@@ -10,12 +10,15 @@ import { fileURLToPath } from 'node:url';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import YAML from 'yaml';
 
+import { APP_DIRECTORY_NAME, ensureAppHomeReady, inspectAppHomeMigrationState } from './app-home-migration.js';
+import { LAUNCHD_LABEL, uninstallLegacyManagedService } from './legacy-service.js';
 import { applyServerEnvironmentOverrides, readServerConfig, renderManagedServiceEnvironmentXml } from './service-runtime-config.js';
+import { migrateLegacyHermesServerRegistration } from './onboarding-config.js';
+import { hasCompletedOnboarding, markOnboardingComplete } from './onboarding-state.js';
 import { getPackageVersion } from './version.js';
 
-const APP_DIRECTORY_NAME = '.canary-alpha-mcp';
 const CONFIG_FILE_NAME = 'config.yaml';
-const LABEL = 'com.canary-alpha-mcp';
+const LABEL = LAUNCHD_LABEL;
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = dirname(scriptDirectory);
@@ -50,17 +53,21 @@ function xmlEscape(value) {
     .replaceAll("'", '&apos;');
 }
 
-async function loadServerConfig() {
+async function loadServerConfigFrom(path) {
   try {
-    const raw = YAML.parse(await readFile(configPath, 'utf8')) ?? {};
-    return applyServerEnvironmentOverrides(readServerConfig(raw, configPath));
+    const raw = YAML.parse(await readFile(path, 'utf8')) ?? {};
+    return applyServerEnvironmentOverrides(readServerConfig(raw, path));
   } catch (error) {
     const nodeError = error;
     if (nodeError && typeof nodeError === 'object' && 'code' in nodeError && nodeError.code === 'ENOENT') {
-      fail(`Missing config file at ${configPath}. Run npm run setup first.`);
+      fail(`Missing config file at ${path}. Run npm run setup first.`);
     }
     throw error;
   }
+}
+
+async function loadServerConfig() {
+  return loadServerConfigFrom(configPath);
 }
 
 function readLaunchctlPid(output) {
@@ -153,7 +160,7 @@ function assertPortAvailable(port) {
 
 function createClient() {
   return new Client({
-    name: 'canary-alpha-mcp-service-script',
+    name: 'computer-history-mcp-service-script',
     version: getPackageVersion()
   });
 }
@@ -239,7 +246,7 @@ async function waitForManagedService(domain, host, port, expectedConfigFile, aut
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
 
-  throw new Error(`canary-alpha-mcp did not become ready at http://${host}:${port}/mcp within ${timeoutMs}ms.`);
+  throw new Error(`computer-history-mcp did not become ready at http://${host}:${port}/mcp within ${timeoutMs}ms.`);
 }
 
 async function installResolvedPlist() {
@@ -261,14 +268,33 @@ async function installResolvedPlist() {
 async function main() {
   ensureDarwin();
 
+  const conflictCheck = inspectAppHomeMigrationState();
+  if (conflictCheck.status === 'both-present') {
+    fail(
+      `Both ${conflictCheck.legacyDirectory} and ${conflictCheck.targetDirectory} exist. Resolve the conflict manually before continuing.`
+    );
+  }
+
   if (!existsSync(distEntrypoint)) {
     fail(`Missing built service entrypoint at ${distEntrypoint}. Run npm run build first.`);
   }
 
-  const server = await loadServerConfig();
+  // Validate config and host before stopping the legacy writer or moving data.
+  const preflightConfigPath = conflictCheck.status === 'legacy-only'
+    ? join(conflictCheck.legacyDirectory, CONFIG_FILE_NAME)
+    : configPath;
+  const server = await loadServerConfigFrom(preflightConfigPath);
   if (server.host !== '127.0.0.1') {
     fail(`Refusing to start service with non-local host ${server.host}. Expected 127.0.0.1.`);
   }
+
+  const alreadyOnboarded = hasCompletedOnboarding();
+  const legacyService = uninstallLegacyManagedService();
+  const migration = await ensureAppHomeReady({ failOnConflict: true });
+  if (alreadyOnboarded) {
+    await markOnboardingComplete();
+  }
+  await migrateLegacyHermesServerRegistration();
 
   await installResolvedPlist();
 
@@ -302,11 +328,14 @@ async function main() {
   }
 
   const endpoint = `http://${server.host}:${server.port}/mcp`;
-  console.log('canary-alpha-mcp service started.');
+  console.log('computer-history-mcp service started.');
   console.log(`- label: ${LABEL}`);
   console.log(`- plist: ${installedPlistPath}`);
   console.log(`- endpoint: ${endpoint}`);
   console.log(`- service log: ${serviceLogPath}`);
+  if (legacyService.status === 'removed') {
+    console.log(`- legacy service removed: ${legacyService.label}`);
+  }
 }
 
 await main().catch((error) => {

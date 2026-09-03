@@ -51,16 +51,15 @@ describe('setup script', () => {
 
     expect(configContents).toContain('port: 18765');
     expect(configContents).toContain('kind: ollama');
-    expect(result.stdout).toContain('Start Screenpipe if it is not already running: npm run screenpipe:safe-record');
-    expect(result.stdout).toContain('Run npm run onboard for the default-first interactive setup, build, and service start flow.');
+    expect(result.stdout).toContain('Run npm start; it selects onboarding, build recovery, or fast resume automatically.');
     expect(result.stdout).toContain(configPath);
   });
 
   it('uses the canonical app home and exposes routines default path helpers under it', () => {
-    expect(APP_DIRECTORY_NAME).toBe('.canary-alpha-mcp');
-    expect(resolveAppDirectory()).toBe(join(process.env.HOME ?? '', '.canary-alpha-mcp'));
-    expect(resolveRoutinesDirectory()).toBe(join(process.env.HOME ?? '', '.canary-alpha-mcp', 'routines'));
-    expect(resolveRoutineDefinitionsDirectory()).toBe(join(process.env.HOME ?? '', '.canary-alpha-mcp', 'routines', 'definitions'));
-    expect(resolveRoutineHistoryDirectory()).toBe(join(process.env.HOME ?? '', '.canary-alpha-mcp', 'routines', 'history'));
+    expect(APP_DIRECTORY_NAME).toBe('.computer-history-mcp');
+    expect(resolveAppDirectory()).toBe(join(process.env.HOME ?? '', '.computer-history-mcp'));
+    expect(resolveRoutinesDirectory()).toBe(join(process.env.HOME ?? '', '.computer-history-mcp', 'routines'));
+    expect(resolveRoutineDefinitionsDirectory()).toBe(join(process.env.HOME ?? '', '.computer-history-mcp', 'routines', 'definitions'));
+    expect(resolveRoutineHistoryDirectory()).toBe(join(process.env.HOME ?? '', '.computer-history-mcp', 'routines', 'history'));
   });
 });

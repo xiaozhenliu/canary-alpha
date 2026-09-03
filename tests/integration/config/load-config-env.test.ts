@@ -111,6 +111,26 @@ afterEach(() => {
 });
 
 describe('loadConfig env overrides', () => {
+  it('resolves Screenpipe binary and data paths from config', async () => {
+    const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-screenpipe-paths-'));
+    const yaml = buildBaseConfigYaml().replace(
+      'screenpipe:\n  url: http://127.0.0.1:3030',
+      [
+        'screenpipe:',
+        '  url: http://127.0.0.1:3031',
+        '  binaryPath: ~/.local/share/screenpipe/0.4.15/bin/screenpipe',
+        '  dataDirectory: ~/.screenpipe-dev/0.4.15'
+      ].join('\n')
+    );
+    await writeConfigForHome(homeDir, yaml);
+    process.env.HOME = homeDir;
+
+    const config = await loadConfig();
+
+    expect(config.screenpipe.binaryPath).toBe(join(homeDir, '.local/share/screenpipe/0.4.15/bin/screenpipe'));
+    expect(config.screenpipe.dataDirectory).toBe(join(homeDir, '.screenpipe-dev/0.4.15'));
+    expect(config.screenpipe.url).toBe('http://127.0.0.1:3031');
+  });
   it('resolves default routines definitions and history paths from the canonical app home', async () => {
     const homeDir = await mkdtemp(join(testTempRoot(), 'load-config-routines-defaults-'));
     await writeConfigForHome(homeDir, buildBaseConfigYaml());

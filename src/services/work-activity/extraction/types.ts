@@ -40,6 +40,8 @@ export type ExtractionRuleKind = 'generic' | 'terminal';
 export interface ExtractionInput {
   frameId: number;
   frameTimestamp: string;
+  /** Original capture cursor used to order same-timestamp checkpoint rows. */
+  captureCursor?: string;
   appName?: string;
   /**
    * The original (un-normalised) window title, taken from the AX tree's
@@ -75,6 +77,8 @@ export interface ExtractionInput {
 export interface ExtractionResult {
   frameId: number;
   frameTimestamp: string;
+  /** Original capture cursor preserved for durable checkpoint recovery. */
+  captureCursor?: string;
   appName?: string;
   contextLabel: string;
   contextKey: string;

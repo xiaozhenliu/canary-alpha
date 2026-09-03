@@ -98,7 +98,7 @@ function getRecoveryStatus(
 
 function createClient(): Client {
   return new Client({
-    name: 'canary-alpha-mcp-rebuild-index',
+    name: 'computer-history-mcp-rebuild-index',
     version: getPackageVersion()
   });
 }
@@ -219,7 +219,7 @@ async function detectActiveManagedService(config: AppContext['config']): Promise
     return true;
   }
 
-  const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.canary-alpha-mcp.plist');
+  const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', 'com.computer-history-mcp.plist');
 
   try {
     const plist = await readFile(installedPlistPath, 'utf8');
@@ -428,7 +428,7 @@ async function resolveLegacyProcessMetadata(command: string): Promise<{ mode: Se
     return null;
   }
 
-  const appDirectory = join(homeDirectory, '.canary-alpha-mcp');
+  const appDirectory = join(homeDirectory, '.computer-history-mcp');
   const configPath = join(appDirectory, 'config.yaml');
   let mode: ServerMode = 'http';
   let retrievalPath = appDirectory;

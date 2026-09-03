@@ -2,15 +2,32 @@
 
 import { existsSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const LABEL = 'com.canary-alpha-mcp';
-const installedPlistPath = join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
+import {
+  LAUNCHD_LABEL,
+  LEGACY_LAUNCHD_LABEL,
+  resolveInstalledPlistPath,
+  uninstallLegacyManagedService
+} from './legacy-service.js';
+
+const installedPlistPath = resolveInstalledPlistPath(homedir(), LAUNCHD_LABEL);
+const LABEL = LAUNCHD_LABEL;
 
 function fail(message) {
   console.error(message);
   process.exit(1);
+}
+
+function finishStopped(plistPath = installedPlistPath) {
+  const legacyService = uninstallLegacyManagedService();
+
+  console.log('computer-history-mcp service is already stopped.');
+  console.log(`- plist removed: ${plistPath}`);
+  if (legacyService.status === 'removed') {
+    console.log(`- legacy service removed: ${LEGACY_LAUNCHD_LABEL}`);
+  }
+  process.exit(0);
 }
 
 if (process.platform !== 'darwin') {
@@ -37,9 +54,7 @@ if (loadedResult.status !== 0) {
     unlinkSync(installedPlistPath);
   }
 
-  console.log('canary-alpha-mcp service is already stopped.');
-  console.log(`- plist removed: ${installedPlistPath}`);
-  process.exit(0);
+  finishStopped();
 }
 
 const result = spawnSync('launchctl', ['bootout', domain, installedPlistPath], {
@@ -55,18 +70,21 @@ if (result.status !== 0) {
       unlinkSync(installedPlistPath);
     }
 
-    console.log('canary-alpha-mcp service is already stopped.');
-    console.log(`- plist removed: ${installedPlistPath}`);
-    process.exit(0);
+    finishStopped();
   }
 
-  fail(combined || 'Failed to stop canary-alpha-mcp service.');
+  fail(combined || 'Failed to stop computer-history-mcp service.');
 }
 
 if (existsSync(installedPlistPath)) {
   unlinkSync(installedPlistPath);
 }
 
-console.log('canary-alpha-mcp service stopped.');
+const legacyService = uninstallLegacyManagedService();
+
+console.log('computer-history-mcp service stopped.');
 console.log(`- label: ${LABEL}`);
 console.log(`- plist removed: ${installedPlistPath}`);
+if (legacyService.status === 'removed') {
+  console.log(`- legacy service removed: ${LEGACY_LAUNCHD_LABEL}`);
+}
